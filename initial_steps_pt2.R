@@ -18,9 +18,9 @@ set.seed(10)
 
 # Create runlist of parameters of interest
 runlist <- tibble(
-  run_number = 1:500,
-  "BETA" = rnorm(500, mean = 0.36, sd = 0.036),
-  "Q10_RH" = rnorm(500, mean = 2.0, sd = 0.2)
+  run_number = 1:1000,
+  "BETA" = rnorm(1000, mean = 0.36, sd = 0.036),
+  "Q10_RH" = rnorm(1000, mean = 2.0, sd = 0.2)
 )
 
 # Name and units of parameters
@@ -44,21 +44,23 @@ run_hector <- function(pdata, c) {
 # Run function for each row of the runlist
 output <- list()
 output_500 <- list()
+output_1000 <- list()
 
 system.time({
   for(row in seq_len(nrow(runlist))) {
-    output_500[[runlist$run_number[row]]] <- run_hector(runlist[row,][-1], core)
+    output_1000[[runlist$run_number[row]]] <- run_hector(runlist[row,][-1], core)
   }  
 })
 
 # Get output dataframe
 output <- bind_rows(output, .id = "run_number")
 output_500 <- bind_rows(output_500, .id = "run_number")
+output_1000 <- bind_rows(output_1000, .id = "run_number")
 
 # Can left join with runlist to get param values
 # Make sure data is same class
-output_500$run_number <- as.integer(output_500$run_number)
-output_500 <- left_join(output_500, runlist)
+output_1000$run_number <- as.integer(output_1000$run_number)
+output_1000 <- left_join(output_1000, runlist)
 
 ### Data visualization
 #geom_bin for one year 2 vars, line per run
@@ -68,52 +70,61 @@ output_500 <- left_join(output_500, runlist)
 # Mean or median?
 atmos <- filter(output, pool_name == "atmos_c")
 
-one <- ggplot(atmos, aes(year, source_fraction, color = run_number, group = run_number)) +
+run_colors <- rep("grey50", length(unique(output$run_number)))
+
+ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = run_number)) +
   geom_line() +
   facet_wrap(~source_name, scales = "free") +
   labs(x = "Year",
        y = "Source fraction",
-       title = "atmos_c pool") +
-  stat_summary(fun=median, geom = "line", group = "run_number", 
-               color = "red", show.legend = TRUE)
+       title = "atmos_c pool",
+       legend = "Run number") +
+  scale_color_grey(start = 0.7, end = 0.7) +
+  # How to get this to appear on legend?
+  stat_summary(fun = median, 
+               geom = "line", 
+               group = "run_number", 
+               color = "black",
+               size = 0.7) +
+  theme_light()
 
 
 # Part 2
 # TO DO: How to plot mean and 95th percentile? 
 # Single pool, time vs source percentage, mean and confidence interval
 soil <- atmos %>% 
-  filter(source_name == "soil_c") %>%
-  group_by(source_name, year) %>%
-  mutate(per = quantile(source_fraction, 0.95))
+  filter(source_name == "soil_c")
 
-# How to plot mean and 95% percentile
-two <- ggplot(soil) +
-  geom_line(aes(year, source_fraction, color = run_number, group = run_number)) +
-  geom_line(aes(year, per)) +
+# How to plot mean and 95% percentile - confidence interval
+ggplot(soil, aes(year, source_fraction, color = as.factor(run_number), group = run_number)) +
+  geom_line() +
+  scale_color_grey(start = 0.7, end = 0.7) +
   labs(x = "Year",
        y = "Source fraction",
-       title = "atmos_c pool, soil_c source")
+       title = "atmos_c pool, soil_c source") +
+  stat_summary(fun = mean, 
+               geom = "line", 
+               group = "run_number", 
+               color = "black",
+               size = 0.7,
+               show.legend = TRUE)
 
 # Part 3
 # Single time point, pool, and source - how is the parameter space linked to output?
 
-single <- output_500 %>%
+single <- output_1000 %>%
   filter(pool_name == "atmos_c") %>%
   filter(source_name == "soil_c") %>%
   filter(year == 2100)
 
 three <- ggplot(single, aes(BETA, Q10_RH, color = source_fraction)) +
   geom_point() +
+  scale_color_viridis_c() +
   labs(x = "beta",
        y = "Q10",
-       title = "Parameter relationship (n = 500)")
+       title = "Parameter relationship (n = 1000)")
 
-
-# Not working - need identifier for different beta/q10 values to split up data
-ggplot(output, aes(year, source_fraction, fill = source_name)) +
-  geom_area() +
-  facet_wrap(~pool_name, scales = "free")
-
+ggsave(plot = three, "param_relationship.jpg", height = 6, width = 9, units = "in")
 
 # Shutdown core
 shutdown(core)
@@ -125,3 +136,5 @@ shutdown(core)
 systemtime1 <- c("user" = 35.70, "system" = 0.56, "elapsed" = 36.28)
 # set core outside loop
 systemtime2 <- c("user" = 16.79, "system" = 0.05, "elapsed" = 16.84)
+# run function/loop for 1000 runs - 27.6 minutes
+systemtime3 <- c("user" = 1652.38, "system" = 3.28, "elapsed" = 1658.04)
