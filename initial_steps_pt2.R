@@ -18,9 +18,9 @@ set.seed(10)
 
 # Create runlist of parameters of interest
 runlist <- tibble(
-  run_number = 1:10,
-  "BETA" = rnorm(10, mean = 0.36, sd = 0.036),
-  "Q10_RH" = rnorm(10, mean = 2.0, sd = 0.2)
+  run_number = 1:500,
+  "BETA" = rnorm(500, mean = 0.36, sd = 0.036),
+  "Q10_RH" = rnorm(500, mean = 2.0, sd = 0.2)
 )
 
 # Name and units of parameters
@@ -43,38 +43,43 @@ run_hector <- function(pdata, c) {
 
 # Run function for each row of the runlist
 output <- list()
+output_500 <- list()
 
 system.time({
   for(row in seq_len(nrow(runlist))) {
-    output[[runlist$run_number[row]]] <- run_hector(runlist[row,][-1], core)
+    output_500[[runlist$run_number[row]]] <- run_hector(runlist[row,][-1], core)
   }  
 })
 
 # Get output dataframe
 output <- bind_rows(output, .id = "run_number")
+output_500 <- bind_rows(output_500, .id = "run_number")
 
 # Can left join with runlist to get param values
 # Make sure data is same class
-output$run_number <- as.integer(output$run_number)
-output <- left_join(output, runlist)
+output_500$run_number <- as.integer(output_500$run_number)
+output_500 <- left_join(output_500, runlist)
 
-#Data visualization
+### Data visualization
 #geom_bin for one year 2 vars, line per run
 
 # Part 1: Single pool, variability in runs
+# TO DO: Figure out colors - faint run lines, dark mean
+# Mean or median?
 atmos <- filter(output, pool_name == "atmos_c")
 
-ggplot(atmos, aes(year, source_fraction, color = run_number, group = run_number)) +
+one <- ggplot(atmos, aes(year, source_fraction, color = run_number, group = run_number)) +
   geom_line() +
   facet_wrap(~source_name, scales = "free") +
   labs(x = "Year",
        y = "Source fraction",
        title = "atmos_c pool") +
-  stat_summary(fun=mean, geom = "line", group = "run_number", 
+  stat_summary(fun=median, geom = "line", group = "run_number", 
                color = "red", show.legend = TRUE)
 
 
 # Part 2
+# TO DO: How to plot mean and 95th percentile? 
 # Single pool, time vs source percentage, mean and confidence interval
 soil <- atmos %>% 
   filter(source_name == "soil_c") %>%
@@ -82,12 +87,26 @@ soil <- atmos %>%
   mutate(per = quantile(source_fraction, 0.95))
 
 # How to plot mean and 95% percentile
-ggplot(soil) +
+two <- ggplot(soil) +
   geom_line(aes(year, source_fraction, color = run_number, group = run_number)) +
   geom_line(aes(year, per)) +
   labs(x = "Year",
        y = "Source fraction",
        title = "atmos_c pool, soil_c source")
+
+# Part 3
+# Single time point, pool, and source - how is the parameter space linked to output?
+
+single <- output_500 %>%
+  filter(pool_name == "atmos_c") %>%
+  filter(source_name == "soil_c") %>%
+  filter(year == 2100)
+
+three <- ggplot(single, aes(BETA, Q10_RH, color = source_fraction)) +
+  geom_point() +
+  labs(x = "beta",
+       y = "Q10",
+       title = "Parameter relationship (n = 500)")
 
 
 # Not working - need identifier for different beta/q10 values to split up data
