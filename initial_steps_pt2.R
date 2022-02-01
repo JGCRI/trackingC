@@ -9,6 +9,13 @@ library(hector)
 library(dplyr)
 library(ggplot2)
 
+# Max lines display option
+# If there are over 100 observations per time point, we want to use 
+# slice_sample() to randomly select rows to plot.
+# We want to create a check that accomplishes this.
+max_lines_display <- options(max_lines_display = if(length(unique(output_1000$run_number)) > 101) slice_sample(output_1000, n = 100) -> output_slice)
+max_display <- if(length(unique(output_1000$run_number)) > 101) slice_sample(output_1000, n = 100)
+
 # Read in ini file, initiate new core
 rcp45 <- system.file("input/hector_rcp45.ini", package = "hector") 
 core <- newcore(rcp45)
@@ -18,9 +25,9 @@ set.seed(10)
 
 # Create runlist of parameters of interest
 runlist <- tibble(
-  run_number = 1:1000,
-  "BETA" = rnorm(1000, mean = 0.36, sd = 0.036),
-  "Q10_RH" = rnorm(1000, mean = 2.0, sd = 0.2)
+  run_number = 1:100,
+  "BETA" = rnorm(100, mean = 0.36, sd = 0.036),
+  "Q10_RH" = rnorm(100, mean = 2.0, sd = 0.2)
 )
 
 # Name and units of parameters
@@ -35,6 +42,7 @@ run_hector <- function(pdata, c) {
     setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
   }
   setvar(c, NA, TRACKING_DATE(), 1750, NA)
+  reset(c)
   run(c)
   tdata <- get_tracking_data(c)
   tdata %>% filter(year %in% c(2100:2200))
@@ -48,7 +56,7 @@ output_1000 <- list()
 
 system.time({
   for(row in seq_len(nrow(runlist))) {
-    output_1000[[runlist$run_number[row]]] <- run_hector(runlist[row,][-1], core)
+    output[[runlist$run_number[row]]] <- run_hector(runlist[row,][-1], core)
   }  
 })
 
@@ -59,33 +67,45 @@ output_1000 <- bind_rows(output_1000, .id = "run_number")
 
 # Can left join with runlist to get param values
 # Make sure data is same class
-output_1000$run_number <- as.integer(output_1000$run_number)
-output_1000 <- left_join(output_1000, runlist)
+output$run_number <- as.integer(output$run_number)
+output <- left_join(output, runlist)
 
 ### Data visualization
-#geom_bin for one year 2 vars, line per run
 
 # Part 1: Single pool, variability in runs
-# TO DO: Figure out colors - faint run lines, dark mean
-# Mean or median?
-atmos <- filter(output, pool_name == "atmos_c")
-
-run_colors <- rep("grey50", length(unique(output$run_number)))
-
-ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = run_number)) +
-  geom_line() +
+atmos <- output %>%
+  filter(pool_name == "atmos_c")
+ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), 
+                  group = run_number)) +
+  geom_line(size = 0.5, show.legend = FALSE) +
   facet_wrap(~source_name, scales = "free") +
   labs(x = "Year",
        y = "Source fraction",
-       title = "atmos_c pool",
-       legend = "Run number") +
+       title = "atmos_c pool") +
   scale_color_grey(start = 0.7, end = 0.7) +
   # How to get this to appear on legend?
-  stat_summary(fun = median, 
+  stat_summary(color = "black",
+               fun = median, 
                geom = "line", 
-               group = "run_number", 
-               color = "black",
+               group = "run_number",
                size = 0.7) +
+  theme_light()
+
+# Compute coefficient of variability
+atmos2100 <- atmos %>%
+  filter(year == "2100") %>%
+  group_by(source_name) %>%
+  mutate(sdev = sd(source_fraction)) %>%
+  mutate(mean = mean(source_fraction)) %>%
+  mutate(cv = sdev / mean)
+
+run_colors <- rep("grey60", length(unique(output$run_number)))
+
+ggplot(atmos2100, aes(source_fraction, cv, group = source_name, color = source_name)) +
+  geom_point() +
+  labs(x = "Source fraction",
+       y = "CV",
+       title = "atmos_c pool") +
   theme_light()
 
 
@@ -93,11 +113,17 @@ ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = 
 # TO DO: How to plot mean and 95th percentile? 
 # Single pool, time vs source percentage, mean and confidence interval
 soil <- atmos %>% 
-  filter(source_name == "soil_c")
+  filter(source_name == "soil_c") %>%
+  group_by(year) %>%
+  summarize(sf_sd = sd(source_fraction), 
+            sf_min = min(source_fraction),
+            sf_max = max(source_fraction),
+            sf_median = median(source_fraction))
+
 
 # How to plot mean and 95% percentile - confidence interval
 ggplot(soil, aes(year, source_fraction, color = as.factor(run_number), group = run_number)) +
-  geom_line() +
+  geom_line(size = 0.5, show.legend = FALSE) +
   scale_color_grey(start = 0.7, end = 0.7) +
   labs(x = "Year",
        y = "Source fraction",
@@ -106,8 +132,15 @@ ggplot(soil, aes(year, source_fraction, color = as.factor(run_number), group = r
                geom = "line", 
                group = "run_number", 
                color = "black",
-               size = 0.7,
-               show.legend = TRUE)
+               size = 0.7)
+
+ggplot(soil, aes(year)) +
+  geom_line(aes(y = sf_median)) +
+  geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
+  geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
+  labs(x = "Year",
+       y = "Source fraction",
+       title = "atmos_c pool, soil_c source")
 
 # Part 3
 # Single time point, pool, and source - how is the parameter space linked to output?
@@ -117,8 +150,16 @@ single <- output_1000 %>%
   filter(source_name == "soil_c") %>%
   filter(year == 2100)
 
-three <- ggplot(single, aes(BETA, Q10_RH, color = source_fraction)) +
+ggplot(single, aes(BETA, Q10_RH, color = source_fraction)) +
   geom_point() +
+  scale_color_viridis_c() +
+  labs(x = "beta",
+       y = "Q10",
+       title = "Parameter relationship (n = 1000)")
+
+# Trying contours
+ggplot(single, aes(x = BETA, y = Q10_RH, color = source_fraction)) +
+  geom_density_2d() +
   scale_color_viridis_c() +
   labs(x = "beta",
        y = "Q10",
