@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Setup
 Load in necessary packages, read in an ini file and initiate core, and set seed for reproducibility.
 
-```{r intro}
+```{r intro, echo=FALSE}
 library(hector)
 library(dplyr)
 library(ggplot2)
@@ -30,11 +30,19 @@ set.seed(10)
 ## Create dataset
 ```{r params}
 # Create runlist of parameters of interest
+
+# Function to access lognorm parameters with a desired mean and standard deviation
+lognorm <- function(m, sd){
+  location <- log(m^2 / sqrt(sd^2 + m^2))
+  shape <- sqrt(log(1+ (sd^2 / m^2)))
+  v <- c(location, shape)
+}
+
 runlist <- tibble(
-  run_number = 1:1000,
-  "BETA" = rnorm(1000, mean = 0.36, sd = 0.036),
-  "Q10_RH" = rlnorm(1000, meanlog = log(2.0), sdlog = 0.2),
-  "ECS" = rlnorm(1000, meanlog = log(3.0), sdlog = 0.3)
+  run_number = 1:100,
+  "BETA" = rnorm(100, mean = 0.36, sd = 0.036),
+  "Q10_RH" = rlnorm(100, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
+  "ECS" = rlnorm(100, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
 )
 
 # Name and units of parameters
@@ -63,7 +71,7 @@ output_1000 <- list()
 
 system.time({
   for(row in seq_len(nrow(runlist))) {
-    output_1000[[runlist$run_number[row]]] <- run_hector(runlist[row,][-1], core)
+    output[[runlist$run_number[row]]] <- try(run_hector(runlist[row,][-1], core))
   }  
 })
 
@@ -190,4 +198,34 @@ ggplot(single, aes(ECS, Q10_RH, color = source_fraction)) +
 # Trying contours
 single %>% ggplot(aes(BETA, Q10_RH, source_fraction)) +
   geom_contour() 
+```
+
+```{r destination}
+# Where does carbon end up?
+# We have pool_name, source_name, source_fraction
+# Step 1: compute source_quantity = pool_value * source_fraction
+# Step 2: for each year and source_name, compute destination_fraction
+# group_by(year, source_name) %>% mutate(destination_fraction = source_quantity / sum(source_quantity))
+
+test <- output %>%
+  filter(year == 2100) %>%
+  filter(pool_name == "atmos_c") %>%
+  mutate(source_quantity = pool_value * source_fraction) %>%
+  group_by(year, source_name) %>%
+  mutate(destination_fraction = source_quantity / sum(source_quantity))
+
+# Pie chart of quantity of carbon in atmosphere by source
+# Needs work
+ggplot(test, aes(x = "", y = source_quantity, fill = source_name)) +
+  geom_bar(stat = "identity", width = 1) +
+  scale_fill_viridis_d() +
+  coord_polar("y", start=0) +
+  labs(title = "Amount of carbon in the atmosphere by source") +
+  theme_void()
+
+ggplot(test, aes(destination_fraction)) +
+  geom_bar()
+
+
+
 ```
