@@ -16,6 +16,7 @@ Load in necessary packages, read in an ini file and initiate core, and set seed 
 library(hector)
 library(dplyr)
 library(ggplot2)
+library(gridExtra)
 
 # Read in ini file, initiate new core
 # Will need to change to SSP
@@ -66,9 +67,12 @@ run_hector <- function(pdata, c) {
 }
 
 # Run function for each row of the runlist
+# Create destination list
 output <- list()
 output_1000 <- list()
 
+# Will need to remove timer
+# Figure out try() or tryCatch()
 system.time({
   for(row in seq_len(nrow(runlist))) {
     output[[runlist$run_number[row]]] <- try(run_hector(runlist[row,][-1], core))
@@ -95,7 +99,6 @@ output_1000 <- left_join(output_1000, runlist)
 # If there are over 100 observations per time point, we want to use 
 # slice_sample() to randomly select rows to plot.
 # We want to create a check that accomplishes this.
-
 
 # Note to self - make sure output dataframe is correctly referenced here
 # This is what will go in the ggplot call
@@ -169,35 +172,33 @@ ggplot(soil, aes(year)) +
 # Single time point, pool, and source - how is the parameter space linked to output?
 
 single <- output_1000 %>%
-  filter(pool_name == "atmos_c") %>%
-  filter(source_name == "soil_c") %>%
-  filter(year == 2100)
+  filter(pool_name == "atmos_c",
+         source_name == "soil_c",
+         year == 2100)
 
-ggplot(single, aes(BETA, Q10_RH, color = source_fraction)) +
-  geom_point() +
+one <- ggplot(single, aes(BETA, Q10_RH, z = source_fraction, color = source_fraction)) +
+  geom_point() + 
   scale_color_viridis_c() +
   labs(x = "beta",
        y = "Q10",
        title = "Parameter relationship (n = 1000)")
 
-ggplot(single, aes(BETA, ECS, color = source_fraction)) +
+two <- ggplot(single, aes(BETA, ECS, color = source_fraction)) +
   geom_point() +
   scale_color_viridis_c() +
   labs(x = "beta",
        y = "ECS",
        title = "Parameter relationship (n = 1000)")
 
-ggplot(single, aes(ECS, Q10_RH, color = source_fraction)) +
+three <- ggplot(single, aes(ECS, Q10_RH, color = source_fraction)) +
   geom_point() +
   scale_color_viridis_c() +
   labs(x = "ECS",
        y = "Q10",
        title = "Parameter relationship (n = 1000)")
 
+grid.arrange(one, two, three)
 
-# Trying contours
-single %>% ggplot(aes(BETA, Q10_RH, source_fraction)) +
-  geom_contour() 
 ```
 
 ```{r destination}
@@ -208,11 +209,12 @@ single %>% ggplot(aes(BETA, Q10_RH, source_fraction)) +
 # group_by(year, source_name) %>% mutate(destination_fraction = source_quantity / sum(source_quantity))
 
 test <- output %>%
-  filter(year == 2100) %>%
   filter(pool_name == "atmos_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
-  group_by(year, source_name) %>%
-  mutate(destination_fraction = source_quantity / sum(source_quantity))
+  group_by(year, run_number) %>%
+  ### Why is this happening
+  mutate(destination_percent = source_quantity / sum(source_quantity)) %>%
+  mutate(destination_fraction = destination_percent / 100)
 
 # Pie chart of quantity of carbon in atmosphere by source
 # Needs work
@@ -223,8 +225,22 @@ ggplot(test, aes(x = "", y = source_quantity, fill = source_name)) +
   labs(title = "Amount of carbon in the atmosphere by source") +
   theme_void()
 
-ggplot(test, aes(destination_fraction)) +
-  geom_bar()
+# Destination fraction plots
+
+# Just looking at five runs
+test15 <- filter(test, run_number %in% c(1:5))
+
+ggplot(test15, aes(year, source_quantity, 
+                 fill = source_name)) +
+  geom_area() +
+  scale_fill_viridis_d() +
+  facet_wrap(~run_number)
+
+ggplot(test15, aes(year, destination_fraction, 
+                 fill = source_name)) +
+  geom_area() +
+  scale_fill_viridis_d() +
+  facet_wrap(~run_number)
 
 
 
