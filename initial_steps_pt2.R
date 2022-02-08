@@ -190,3 +190,5 @@ systemtime1 <- c("user" = 35.70, "system" = 0.56, "elapsed" = 36.28)
 systemtime2 <- c("user" = 16.79, "system" = 0.05, "elapsed" = 16.84)
 # run function/loop for 1000 runs - 27.6 minutes
 systemtime3 <- c("user" = 1652.38, "system" = 3.28, "elapsed" = 1658.04)
+# run function/loop for 1000 runs, 3 params - 35.41 minutes
+systemtime4 <- c("user" = 2118.00, "system" = 5.71, "elapsed" = 2124.45)

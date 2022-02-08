@@ -39,11 +39,14 @@ lognorm <- function(m, sd){
   v <- c(location, shape)
 }
 
+nruns <- 1000
+
+# Runlist contains run number, parameter, and a random distribution
 runlist <- tibble(
-  run_number = 1:100,
-  "BETA" = rnorm(100, mean = 0.36, sd = 0.036),
-  "Q10_RH" = rlnorm(100, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
-  "ECS" = rlnorm(100, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
+  run_number = 1:nruns,
+  "BETA" = rnorm(nruns, mean = 0.36, sd = 0.036),
+  "Q10_RH" = rlnorm(nruns, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
+  "ECS" = rlnorm(nruns, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
 )
 
 # Name and units of parameters
@@ -52,15 +55,21 @@ units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)", "ECS" = "degC"
 ```
 
 ## Define function and run loop
-```{r functions}
+```{r functions, echo=FALSE}
+
 run_hector <- function(pdata, c) {
+  # Function to set multiple parameter values for Hector, run a core, and retrieve tracking data
+  # pdata will be the runlist specified above and c is a newcore environment
+  # For each parameter within each run, set its value and units
   for(p in colnames(pdata)) {
     message("Setting ", p)
     setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
   }
+  # Set a tracking data, reset and run core
   setvar(c, NA, TRACKING_DATE(), 1750, NA)
   reset(c)
   run(c)
+  # Access and save tracking data
   tdata <- get_tracking_data(c)
   tdata %>% filter(year %in% c(2100:2200))
   
@@ -69,14 +78,18 @@ run_hector <- function(pdata, c) {
 # Run function for each row of the runlist
 # Create destination list
 output <- list()
-output_1000 <- list()
 
-# Will need to remove timer
-# Figure out try() or tryCatch()
+### Will need to remove timer
+# For each row of the runlist, apply the run_hector() function
+# If there is an error, record which row triggers the error, and skip to the next row
 system.time({
   for(row in seq_len(nrow(runlist))) {
-    output[[runlist$run_number[row]]] <- try(run_hector(runlist[row,][-1], core))
-  }  
+    out <- try(run_hector(runlist[row,][-1], core))
+    if(class(out) == "try-error") { 
+      # if there is an error, record row numbers that error
+    } else {
+      output[[runlist$run_number[row]]] <- out
+  }}  
 })
 
 ```
@@ -85,24 +98,16 @@ system.time({
 ``` {r data}
 # Get output dataframe
 output <- bind_rows(output, .id = "run_number")
-output_1000 <- bind_rows(output_1000, .id = "run_number")
 
 # Can left join with runlist to get param values
 # Make sure data is same class
 output$run_number <- as.integer(output$run_number)
 output <- left_join(output, runlist)
 
-output_1000$run_number <- as.integer(output_1000$run_number)
-output_1000 <- left_join(output_1000, runlist)
-
-# Max lines display
-# If there are over 100 observations per time point, we want to use 
-# slice_sample() to randomly select rows to plot.
-# We want to create a check that accomplishes this.
-
-# Note to self - make sure output dataframe is correctly referenced here
-# This is what will go in the ggplot call
-max_display <- if(length(unique(output_1000$run_number)) > 101) slice_sample(output_1000, n = 100)
+# If there are over 100 observations per time point, we want to use slice_sample() to randomly select rows to plot.
+# Pull random run numbers from the runlist and filter output by random runs
+max_display <- slice_sample(runlist, n = 100)
+output100 <- filter(output, run_number %in% max_display$run_number)
 
 ```
 
@@ -129,20 +134,19 @@ ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = 
                size = 0.7) +
   theme_light()
 
-# Compute coefficient of variability
+# Compute coefficient of variability for each source in the atmosphere pool
 atmos2100 <- atmos %>%
-  filter(year == "2100") %>%
-  group_by(source_name) %>%
-  mutate(sdev = sd(source_fraction)) %>%
-  mutate(mean = mean(source_fraction)) %>%
-  mutate(cv = sdev / mean)
+  group_by(year, source_name) %>%
+  mutate(sdev = sd(source_fraction),
+         mean = mean(source_fraction),
+         cv = sdev / mean)
 
-### How to plot?
-ggplot(atmos2100, aes(source_fraction, cv, group = source_name, color = source_name)) +
-  geom_point() +
+#Plot the coefficient of variability for each source in atmosphere pool over time
+ggplot(atmos2100, aes(year, cv, group = source_name, color = source_name)) +
+  geom_line() +
   labs(x = "Source fraction",
        y = "CV",
-       title = "atmos_c pool") +
+       title = "Coefficients of variability by source in the atmosphere pool") +
   theme_light()
 
 ```
@@ -164,40 +168,42 @@ ggplot(soil, aes(year)) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
   labs(x = "Year",
        y = "Source fraction",
-       title = "atmos_c pool, soil_c source")
+       title = "Source of carbon in the atmosphere from the soil over time")
 ```
 
 ```{r graphs_pt3}
 # Part 3
-# Single time point, pool, and source - how is the parameter space linked to output?
+# Single time point, pool, and source - exploring how the parameter space is linked to output
 
-single <- output_1000 %>%
+## To do: explore pairs()
+
+single <- output %>%
   filter(pool_name == "atmos_c",
          source_name == "soil_c",
          year == 2100)
 
-one <- ggplot(single, aes(BETA, Q10_RH, z = source_fraction, color = source_fraction)) +
+b_q <- ggplot(single, aes(BETA, Q10_RH, z = source_fraction, color = source_fraction)) +
   geom_point() + 
   scale_color_viridis_c() +
   labs(x = "beta",
        y = "Q10",
        title = "Parameter relationship (n = 1000)")
 
-two <- ggplot(single, aes(BETA, ECS, color = source_fraction)) +
+b_e <- ggplot(single, aes(BETA, ECS, color = source_fraction)) +
   geom_point() +
   scale_color_viridis_c() +
   labs(x = "beta",
        y = "ECS",
        title = "Parameter relationship (n = 1000)")
 
-three <- ggplot(single, aes(ECS, Q10_RH, color = source_fraction)) +
+e_q <- ggplot(single, aes(ECS, Q10_RH, color = source_fraction)) +
   geom_point() +
   scale_color_viridis_c() +
   labs(x = "ECS",
        y = "Q10",
        title = "Parameter relationship (n = 1000)")
 
-grid.arrange(one, two, three)
+grid.arrange(b_q, b_e, e_q)
 
 ```
 
@@ -209,39 +215,22 @@ grid.arrange(one, two, three)
 # group_by(year, source_name) %>% mutate(destination_fraction = source_quantity / sum(source_quantity))
 
 test <- output %>%
-  filter(pool_name == "atmos_c") %>%
+  filter(source_name == "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
   group_by(year, run_number) %>%
-  ### Why is this happening
-  mutate(destination_percent = source_quantity / sum(source_quantity)) %>%
-  mutate(destination_fraction = destination_percent / 100)
+  mutate(destination_percent = source_quantity / sum(source_quantity),
+         destination_fraction = destination_percent / 100)
 
-# Pie chart of quantity of carbon in atmosphere by source
-# Needs work
-ggplot(test, aes(x = "", y = source_quantity, fill = source_name)) +
-  geom_bar(stat = "identity", width = 1) +
-  scale_fill_viridis_d() +
-  coord_polar("y", start=0) +
-  labs(title = "Amount of carbon in the atmosphere by source") +
-  theme_void()
-
-# Destination fraction plots
-
-# Just looking at five runs
+# Just looking at particular runs
 test15 <- filter(test, run_number %in% c(1:5))
 
-ggplot(test15, aes(year, source_quantity, 
-                 fill = source_name)) +
+ggplot(test15, aes(year, destination_percent, 
+                 fill = pool_name)) +
   geom_area() +
   scale_fill_viridis_d() +
-  facet_wrap(~run_number)
-
-ggplot(test15, aes(year, destination_fraction, 
-                 fill = source_name)) +
-  geom_area() +
-  scale_fill_viridis_d() +
-  facet_wrap(~run_number)
-
-
+  facet_wrap(~run_number) +
+  labs(x = "Year",
+       y = "Destination fraction",
+       title = "Where carbon ends up from the source earth_c")
 
 ```
