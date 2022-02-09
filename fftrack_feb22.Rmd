@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Setup
 
-Load in necessary packages, read in an ini file and initiate core, and set seed for reproducibility.
+Load necessary packages, read in an ini file and initiate core, and set seed for reproducibility.
 
 ```{r intro, message=FALSE}
 library(hector)
@@ -27,10 +27,10 @@ library(gridExtra)
 library(relaimpo)
 
 # Read in ini file, initiate new core
-rcp45 <- system.file("input/hector_ssp245.ini", package = "hector") 
-core <- newcore(rcp45)
+ssp245 <- system.file("input/hector_ssp245.ini", package = "hector") 
+core <- newcore(ssp245)
 
-# Random number generator to allow for reproducibility 
+# Set random number generator to allow for reproducibility 
 set.seed(10)
 
 ```
@@ -88,10 +88,9 @@ run_hector <- function(pdata, c) {
 # Create destination list
 output <- list()
 
-### Will need to remove timer
 # For each row of the runlist, apply the run_hector() function
 # If there is an error, record which row triggers the error, and skip to the next row
-system.time({
+start <- Sys.time()
   for(row in seq_len(nrow(runlist))) {
     out <- try(run_hector(runlist[row,][-1], core))
     if(class(out) == "try-error") { 
@@ -99,9 +98,10 @@ system.time({
     } else {
       output[[runlist$run_number[row]]] <- out
     }}  
-})
-
+tm <- difftime(Sys.time(), start, units = "secs") %>% round(1)
 ```
+
+Running took `r tm` seconds or `r tm/N_RUNS` s/job.
 
 ## Process data
 
@@ -215,7 +215,7 @@ grid.arrange(b_q, b_e, e_q)
 
 ```
 
-```{r destination_anova}
+```{r destination}
 # Where does carbon end up?
 # We have pool_name, source_name, source_fraction
 # Step 1: compute source_quantity = pool_value * source_fraction
@@ -262,8 +262,9 @@ calc_relimp <- function(x) {
   # Fit model. The formula notation means "destination fraction as a
   # function of all other terms" (which is why we dropped year)
   m <- lm(destination_fraction ~ ., data = x)
+  # Calculate relative importance metrics and extract 'lmg' results
   relimp <- calc.relimp(m, type = "lmg", rela = TRUE)@lmg
-  # Extract relative importance metrics and return
+  # Return a data frame: year, parameter, relative importance
   tibble(year = yr, param = names(relimp), value = relimp)
 }
 
