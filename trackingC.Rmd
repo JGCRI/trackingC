@@ -1,0 +1,287 @@
+---
+title: "fftrack_code.Rmd"
+author: "Leeya Pressburger"
+date: "2/3/2022"
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Setup
+
+Load necessary packages, read in an ini file and initiate core, and set seed for reproducibility.
+
+```{r intro, message=FALSE}
+library(hector)
+library(dplyr)
+library(ggplot2)
+theme_set(theme_light())
+library(gridExtra)
+library(relaimpo)
+
+# Read in ini file, initiate new core
+ssp245 <- system.file("input/hector_ssp245.ini", package = "hector") 
+core <- newcore(ssp245)
+
+# Set random number generator to allow for reproducibility 
+set.seed(10)
+
+```
+
+## Create dataset
+
+```{r params}
+# Create runlist of parameters of interest
+
+# Function to access lognorm parameters with a desired mean and standard deviation
+lognorm <- function(m, sd){
+  location <- log(m^2 / sqrt(sd^2 + m^2))
+  shape <- sqrt(log(1+ (sd^2 / m^2)))
+  v <- c(location, shape)
+}
+
+N_RUNS <- 100
+
+# Runlist contains run number, parameter, and a random distribution
+runlist <- tibble(
+  run_number = 1:N_RUNS,
+  "BETA" = rnorm(N_RUNS, mean = 0.36, sd = 0.036),
+  "Q10_RH" = rlnorm(N_RUNS, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
+  "ECS" = rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
+)
+
+# Name and units of parameters
+name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), "ECS" = ECS())
+units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)", "ECS" = "degC")
+```
+
+## Run the model
+
+```{r functions, cache=TRUE, message=FALSE}
+
+run_hector <- function(pdata, c) {
+  # Function to set multiple parameter values for Hector, run a core, and retrieve tracking data
+  # pdata will be the runlist specified above and c is a newcore environment
+  # For each parameter within each run, set its value and units
+  for(p in colnames(pdata)) {
+    message("Setting ", p)
+    setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
+  }
+  # Set a tracking data, reset and run core
+  setvar(c, NA, TRACKING_DATE(), 1950, NA)
+  reset(c)
+  run(c)
+  # Access and save tracking data
+  tdata <- get_tracking_data(c)
+  tdata %>% filter(year %in% c(2000:2200))
+  
+}
+
+# Run function for each row of the runlist
+# Create destination list
+output <- list()
+
+# For each row of the runlist, apply the run_hector() function
+# If there is an error, record which row triggers the error, and skip to the next row
+
+# Record start time 
+start <- Sys.time()
+
+for(row in seq_len(nrow(runlist))) {
+  out <- try(run_hector(runlist[row,][-1], core))
+  if(class(out) == "try-error") { 
+    # if there is an error, record row numbers that error
+  } else {
+    output[[runlist$run_number[row]]] <- out
+  }}  
+
+# Compute difference in time between start and after loop is run
+tm <- difftime(Sys.time(), start, units = "secs") %>% round(1)
+```
+
+Running took `r tm` seconds or `r tm/N_RUNS` s/job.
+
+## Process data
+
+``` {r data}
+# Get output dataframe
+output <- bind_rows(output, .id = "run_number") %>% as_tibble()
+
+# Can left join with runlist to get param values
+# Make sure data is same class
+output$run_number <- as.integer(output$run_number)
+output <- left_join(output, runlist, by = "run_number")
+
+# If there are over 100 observations per time point, we want to use slice_sample() to randomly select rows to plot.
+# Pull random run numbers from the runlist and filter output by random runs
+max_display <- slice_sample(runlist, n = 100)
+output_slice <- filter(output, run_number %in% max_display$run_number)
+
+```
+
+## Data visualization!
+
+``` {r graphs_pt1}
+# This code just looks at the atmosphere pool
+atmos <- output_slice %>%
+  filter(pool_name == "atmos_c")
+
+# This plot looks at source fraction by source pool in the atmosphere as well as the median run.
+
+ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = run_number)) +
+  geom_line(size = 0.5, show.legend = FALSE) +
+  facet_wrap(~source_name, scales = "free") +
+  labs(x = "Year",
+       y = "Source fraction",
+       title = "Atmosphere pool - source fraction by pool") +
+  scale_color_grey(start = 0.7, end = 0.7) +
+  stat_summary(color = "black",
+               fun = median, 
+               geom = "line", 
+               group = "run_number",
+               size = 0.7)
+
+# Compute coefficient of variability for each source in the atmosphere pool
+atmos_cv <- atmos %>%
+  group_by(year, source_name) %>%
+  mutate(sdev = sd(source_fraction),
+         mean = mean(source_fraction),
+         cv = sdev / mean)
+
+# Plot the coefficient of variability for each source in atmosphere pool over time
+ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
+  geom_line() +
+  scale_color_viridis_d() +
+  labs(x = "Source fraction",
+       y = "CV",
+       title = "Coefficients of variability by source in the atmosphere pool")
+
+```
+
+``` {r graphs_pt2}
+# This chunk looks at the atmosphere pool with just one source (soil) and plots source fraction over time with a mean and confidence interval
+
+soil <- atmos %>% 
+  filter(source_name == "soil_c") %>%
+  group_by(year) %>%
+  summarize(sf_sd = sd(source_fraction), 
+            sf_min = min(source_fraction),
+            sf_max = max(source_fraction),
+            sf_median = median(source_fraction))
+
+ggplot(soil, aes(year)) +
+  geom_line(aes(y = sf_median)) +
+  geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
+  geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
+  labs(x = "Year",
+       y = "Source fraction",
+       title = "Source of carbon in the atmosphere from the soil over time")
+```
+
+```{r graphs_pt3}
+# Part 3
+# Single time point, pool, and source - exploring how the parameter space is linked to output
+
+## To do: explore pairs()
+
+single <- output %>%
+  filter(pool_name == "atmos_c",
+         source_name == "soil_c",
+         year == 2100)
+
+b_q <- ggplot(single, aes(BETA, Q10_RH, z = source_fraction, color = source_fraction)) +
+  geom_point() + 
+  scale_color_viridis_c() +
+  labs(x = "beta",
+       y = "Q10",
+       title = "Parameter relationship (n = 1000)")
+
+b_e <- ggplot(single, aes(BETA, ECS, color = source_fraction)) +
+  geom_point() +
+  scale_color_viridis_c() +
+  labs(x = "beta",
+       y = "ECS",
+       title = "Parameter relationship (n = 1000)")
+
+e_q <- ggplot(single, aes(ECS, Q10_RH, color = source_fraction)) +
+  geom_point() +
+  scale_color_viridis_c() +
+  labs(x = "ECS",
+       y = "Q10",
+       title = "Parameter relationship (n = 1000)")
+
+grid.arrange(b_q, b_e, e_q)
+
+```
+
+```{r destination}
+# Where does carbon end up?
+# We have pool_name, source_name, source_fraction
+# Step 1: compute source_quantity = pool_value * source_fraction
+# Step 2: for each year and source_name, compute destination_fraction
+# group_by(year, source_name) %>% mutate(destination_fraction = source_quantity / sum(source_quantity))
+
+destination <- output_slice %>%
+  filter(source_name == "earth_c") %>%
+  mutate(source_quantity = pool_value * source_fraction) %>%
+  group_by(year, run_number) %>%
+  mutate(destination_percent = source_quantity / sum(source_quantity),
+         destination_fraction = destination_percent / 100) %>% 
+  ungroup()
+
+# Just looking at particular runs
+dest_runs <- filter(destination, run_number %in% c(1:5))
+
+ggplot(dest_runs, aes(year, destination_percent, 
+                   fill = pool_name)) +
+  geom_area() +
+  scale_fill_viridis_d() +
+  facet_wrap(~run_number) +
+  labs(x = "Year",
+       y = "Destination fraction",
+       title = "Where carbon ends up from the source earth_c")
+
+```
+
+## What controls how much earth_c ends up in the atmosphere?
+
+```{r relative-importance}
+# Filter to just atmosphere pool, and remove unneeded columns
+dest_e2a <- filter(destination, pool_name == "atmos_c")
+dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", names(name_vector))]
+
+# Function to calculate relative importance of parameters in
+# explaining how much destination_fraction varies for a given
+# year of data. This uses relaimpo::calc.relimp()
+# See https://www.r-bloggers.com/2012/08/the-relative-importance-of-predictors-let-the-games-begin/
+# for a useful primer, along with the calc.reimp help page
+calc_relimp <- function(x) {
+  yr <- x$year[1] # record year...
+  x$year <- NULL # and drop year column
+  # Fit model. The formula notation means "destination fraction as a
+  # function of all other terms" (which is why we dropped year)
+  m <- lm(destination_fraction ~ ., data = x)
+  # Calculate relative importance metrics and extract 'lmg' results
+  # 'lmg' is the R^2 contribution averaged over orderings among regressors - should sum to one
+  relimp <- calc.relimp(m, type = "lmg", rela = TRUE)@lmg
+  # Return a data frame: year, parameter, relative importance
+  tibble(year = yr, param = names(relimp), value = relimp)
+}
+
+# Run calc_relimp above on each year's data
+dest_split <- split(dest_e2a_minimal, dest_e2a_minimal$year)
+relimp_out <- lapply(dest_split, FUN = calc_relimp) %>% 
+  bind_rows()
+
+# ...and plot!
+ggplot(relimp_out, aes(year, value, fill = param)) + 
+  geom_area() +
+  coord_cartesian(expand = FALSE)
+```
