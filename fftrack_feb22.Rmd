@@ -47,7 +47,7 @@ lognorm <- function(m, sd){
   v <- c(location, shape)
 }
 
-N_RUNS <- 20
+N_RUNS <- 100
 
 # Runlist contains run number, parameter, and a random distribution
 runlist <- tibble(
@@ -80,7 +80,7 @@ run_hector <- function(pdata, c) {
   run(c)
   # Access and save tracking data
   tdata <- get_tracking_data(c)
-  tdata %>% filter(year %in% c(2100:2200))
+  tdata %>% filter(year %in% c(2000:2200))
   
 }
 
@@ -90,14 +90,19 @@ output <- list()
 
 # For each row of the runlist, apply the run_hector() function
 # If there is an error, record which row triggers the error, and skip to the next row
+
+# Record start time 
 start <- Sys.time()
-  for(row in seq_len(nrow(runlist))) {
-    out <- try(run_hector(runlist[row,][-1], core))
-    if(class(out) == "try-error") { 
-      # if there is an error, record row numbers that error
-    } else {
-      output[[runlist$run_number[row]]] <- out
-    }}  
+
+for(row in seq_len(nrow(runlist))) {
+  out <- try(run_hector(runlist[row,][-1], core))
+  if(class(out) == "try-error") { 
+    # if there is an error, record row numbers that error
+  } else {
+    output[[runlist$run_number[row]]] <- out
+  }}  
+
+# Compute difference in time between start and after loop is run
 tm <- difftime(Sys.time(), start, units = "secs") %>% round(1)
 ```
 
@@ -117,7 +122,7 @@ output <- left_join(output, runlist, by = "run_number")
 # If there are over 100 observations per time point, we want to use slice_sample() to randomly select rows to plot.
 # Pull random run numbers from the runlist and filter output by random runs
 max_display <- slice_sample(runlist, n = 100)
-output100 <- filter(output, run_number %in% max_display$run_number)
+output_slice <- filter(output, run_number %in% max_display$run_number)
 
 ```
 
@@ -125,7 +130,7 @@ output100 <- filter(output, run_number %in% max_display$run_number)
 
 ``` {r graphs_pt1}
 # This code just looks at the atmosphere pool
-atmos <- output %>%
+atmos <- output_slice %>%
   filter(pool_name == "atmos_c")
 
 # This plot looks at source fraction by source pool in the atmosphere as well as the median run.
@@ -144,15 +149,16 @@ ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = 
                size = 0.7)
 
 # Compute coefficient of variability for each source in the atmosphere pool
-atmos2100 <- atmos %>%
+atmos_cv <- atmos %>%
   group_by(year, source_name) %>%
   mutate(sdev = sd(source_fraction),
          mean = mean(source_fraction),
          cv = sdev / mean)
 
-#Plot the coefficient of variability for each source in atmosphere pool over time
-ggplot(atmos2100, aes(year, cv, group = source_name, color = source_name)) +
+# Plot the coefficient of variability for each source in atmosphere pool over time
+ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
   geom_line() +
+  scale_color_viridis_d() +
   labs(x = "Source fraction",
        y = "CV",
        title = "Coefficients of variability by source in the atmosphere pool")
@@ -222,7 +228,7 @@ grid.arrange(b_q, b_e, e_q)
 # Step 2: for each year and source_name, compute destination_fraction
 # group_by(year, source_name) %>% mutate(destination_fraction = source_quantity / sum(source_quantity))
 
-test <- output %>%
+destination <- output_slice %>%
   filter(source_name == "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
   group_by(year, run_number) %>%
@@ -231,9 +237,9 @@ test <- output %>%
   ungroup()
 
 # Just looking at particular runs
-test15 <- filter(test, run_number %in% c(1:5))
+dest_runs <- filter(destination, run_number %in% c(1:5))
 
-ggplot(test15, aes(year, destination_percent, 
+ggplot(dest_runs, aes(year, destination_percent, 
                    fill = pool_name)) +
   geom_area() +
   scale_fill_viridis_d() +
@@ -248,10 +254,10 @@ ggplot(test15, aes(year, destination_percent,
 
 ```{r relative-importance}
 # Filter to just atmosphere pool, and remove unneeded columns
-test_e2a <- filter(test, pool_name == "atmos_c")
-test_e2a_minimal <- test_e2a[c("year", "destination_fraction", names(name_vector))]
+dest_e2a <- filter(destination, pool_name == "atmos_c")
+dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", names(name_vector))]
 
-# Function to calculate relatie importance of parameters in
+# Function to calculate relative importance of parameters in
 # explaining how much destination_fraction varies for a given
 # year of data. This uses relaimpo::calc.relimp()
 # See https://www.r-bloggers.com/2012/08/the-relative-importance-of-predictors-let-the-games-begin/
@@ -263,16 +269,16 @@ calc_relimp <- function(x) {
   # function of all other terms" (which is why we dropped year)
   m <- lm(destination_fraction ~ ., data = x)
   # Calculate relative importance metrics and extract 'lmg' results
+  # 'lmg' is the R^2 contribution averaged over orderings among regressors - should sum to one
   relimp <- calc.relimp(m, type = "lmg", rela = TRUE)@lmg
   # Return a data frame: year, parameter, relative importance
   tibble(year = yr, param = names(relimp), value = relimp)
 }
 
 # Run calc_relimp above on each year's data
-test_split <- split(test_e2a_minimal, test_e2a_minimal$year)
-lapply(test_split, FUN = calc_relimp) %>% 
-  bind_rows() ->
-  relimp_out
+dest_split <- split(dest_e2a_minimal, dest_e2a_minimal$year)
+relimp_out <- lapply(dest_split, FUN = calc_relimp) %>% 
+  bind_rows()
 
 # ...and plot!
 ggplot(relimp_out, aes(year, value, fill = param)) + 
