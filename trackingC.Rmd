@@ -41,6 +41,7 @@ set.seed(10)
 # Create runlist of parameters of interest
 
 # Function to access lognorm parameters with a desired mean and standard deviation
+# Reference: https://msalganik.wordpress.com/2017/01/21/making-sense-of-the-rlnorm-function-in-r/
 lognorm <- function(m, sd){
   location <- log(m^2 / sqrt(sd^2 + m^2))
   shape <- sqrt(log(1+ (sd^2 / m^2)))
@@ -159,6 +160,8 @@ atmos_cv <- atmos %>%
 ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
   geom_line() +
   scale_color_viridis_d() +
+  # Could add facets to look at variability, but more useful to compare CV
+  #facet_wrap(~source_name, scales = "free") +
   labs(x = "Source fraction",
        y = "CV",
        title = "Coefficients of variability by source in the atmosphere pool")
@@ -195,6 +198,9 @@ single <- output %>%
   filter(pool_name == "atmos_c",
          source_name == "soil_c",
          year == 2100)
+
+pairs(single[9:11],
+      main = "Parameter correlation")
 
 b_q <- ggplot(single, aes(BETA, Q10_RH, z = source_fraction, color = source_fraction)) +
   geom_point() + 
@@ -283,5 +289,9 @@ relimp_out <- lapply(dest_split, FUN = calc_relimp) %>%
 # ...and plot!
 ggplot(relimp_out, aes(year, value, fill = param)) + 
   geom_area() +
-  coord_cartesian(expand = FALSE)
+  coord_cartesian(expand = FALSE) +
+  scale_fill_viridis_d(direction = -1) +
+  labs(x = "Year",
+       y = "Fraction of relative importance",
+       title = "Relative importance of parameters over time")
 ```
