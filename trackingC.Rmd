@@ -192,8 +192,6 @@ ggplot(soil, aes(year)) +
 # Part 3
 # Single time point, pool, and source - exploring how the parameter space is linked to output
 
-## To do: explore pairs()
-
 single <- output %>%
   filter(pool_name == "atmos_c",
          source_name == "soil_c",
@@ -275,7 +273,8 @@ calc_relimp <- function(x) {
   # function of all other terms" (which is why we dropped year)
   m <- lm(destination_fraction ~ ., data = x)
   # Calculate relative importance metrics and extract 'lmg' results
-  # 'lmg' is the R^2 contribution averaged over orderings among regressors - should sum to one
+  # 'lmg' is the R^2 contribution averaged over orderings among regressors;
+  # should sum to one because we're using relative importances (rela=TRUE)
   relimp <- calc.relimp(m, type = "lmg", rela = TRUE)@lmg
   # Return a data frame: year, parameter, relative importance
   tibble(year = yr, param = names(relimp), value = relimp)
