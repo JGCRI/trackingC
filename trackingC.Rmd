@@ -48,7 +48,7 @@ lognorm <- function(m, sd){
   v <- c(location, shape)
 }
 
-N_RUNS <- 100
+N_RUNS <- 1000
 
 # Runlist contains run number, parameter, and a random distribution
 runlist <- tibble(
@@ -82,7 +82,6 @@ run_hector <- function(pdata, c) {
   # Access and save tracking data
   tdata <- get_tracking_data(c)
   tdata %>% filter(year %in% c(2000:2200))
-  
 }
 
 # Run function for each row of the runlist
@@ -129,13 +128,31 @@ output_slice <- filter(output, run_number %in% max_display$run_number)
 
 ## Data visualization!
 
-``` {r graphs_pt1}
+The following sections contain tentative figures in the order they would appear
+in a manuscript. 
+
+## Parameters and PDFS
+
+``` {r params_PDFs}
+# Density plot to visualize distribution
+## TO DO make graphs look nice
+
+plot(density(runlist[["BETA"]]))
+
+plot(density(runlist[["Q10_RH"]]))
+
+plot(density(runlist[["ECS"]]))
+
+```
+
+## Hector output graphs
+
+``` {r atmosphere_by_source}
 # This code just looks at the atmosphere pool
 atmos <- output_slice %>%
   filter(pool_name == "atmos_c")
 
 # This plot looks at source fraction by source pool in the atmosphere as well as the median run.
-
 ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = run_number)) +
   geom_line(size = 0.5, show.legend = FALSE) +
   facet_wrap(~source_name, scales = "free") +
@@ -168,62 +185,28 @@ ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
 
 ```
 
-``` {r graphs_pt2}
-# This chunk looks at the atmosphere pool with just one source (soil) and plots source fraction over time with a mean and confidence interval
+``` {r earthc_in_atmos}
+# This chunk looks at the atmosphere pool with just one source (earth_c) 
+# and plots source fraction over time with a mean and confidence interval
 
-soil <- atmos %>% 
-  filter(source_name == "soil_c") %>%
+ff <- atmos %>% 
+  filter(source_name == "earth_c") %>%
   group_by(year) %>%
   summarize(sf_sd = sd(source_fraction), 
             sf_min = min(source_fraction),
             sf_max = max(source_fraction),
             sf_median = median(source_fraction))
 
-ggplot(soil, aes(year)) +
+ggplot(ff, aes(year)) +
   geom_line(aes(y = sf_median)) +
   geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
   labs(x = "Year",
        y = "Source fraction",
-       title = "Source of carbon in the atmosphere from the soil over time")
+       title = "Source of carbon in the atmosphere from fossil fuel over time")
 ```
 
-```{r graphs_pt3}
-# Part 3
-# Single time point, pool, and source - exploring how the parameter space is linked to output
-
-single <- output %>%
-  filter(pool_name == "atmos_c",
-         source_name == "soil_c",
-         year == 2100)
-
-pairs(single[9:11],
-      main = "Parameter correlation")
-
-b_q <- ggplot(single, aes(BETA, Q10_RH, z = source_fraction, color = source_fraction)) +
-  geom_point() + 
-  scale_color_viridis_c() +
-  labs(x = "beta",
-       y = "Q10",
-       title = "Parameter relationship (n = 1000)")
-
-b_e <- ggplot(single, aes(BETA, ECS, color = source_fraction)) +
-  geom_point() +
-  scale_color_viridis_c() +
-  labs(x = "beta",
-       y = "ECS",
-       title = "Parameter relationship (n = 1000)")
-
-e_q <- ggplot(single, aes(ECS, Q10_RH, color = source_fraction)) +
-  geom_point() +
-  scale_color_viridis_c() +
-  labs(x = "ECS",
-       y = "Q10",
-       title = "Parameter relationship (n = 1000)")
-
-grid.arrange(b_q, b_e, e_q)
-
-```
+## Where does carbon end up?
 
 ```{r destination}
 # Where does carbon end up?
@@ -251,6 +234,47 @@ ggplot(dest_runs, aes(year, destination_percent,
   labs(x = "Year",
        y = "Destination fraction",
        title = "Where carbon ends up from the source earth_c")
+
+```
+
+## All parameter combinations
+
+```{r parameter_space}
+# Single time point, pool, and source - exploring how the parameter space 
+# is linked to output
+
+single <- output %>%
+  filter(pool_name == "atmos_c",
+         source_name == "earth_c",
+         year == 2100)
+
+## TO DO color by source_fraction, find alternate to pairs()
+
+pairs(single[9:11],
+      main = "Parameter correlation")
+
+b_q <- ggplot(single, aes(BETA, Q10_RH, z = source_fraction, color = source_fraction)) +
+  geom_point() + 
+  scale_color_viridis_c() +
+  labs(x = "beta",
+       y = "Q10",
+       title = "Parameter relationship (n = 1000)")
+
+b_e <- ggplot(single, aes(BETA, ECS, color = source_fraction)) +
+  geom_point() +
+  scale_color_viridis_c() +
+  labs(x = "beta",
+       y = "ECS",
+       title = "Parameter relationship (n = 1000)")
+
+e_q <- ggplot(single, aes(ECS, Q10_RH, color = source_fraction)) +
+  geom_point() +
+  scale_color_viridis_c() +
+  labs(x = "ECS",
+       y = "Q10",
+       title = "Parameter relationship (n = 1000)")
+
+grid.arrange(b_q, b_e, e_q)
 
 ```
 
