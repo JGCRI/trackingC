@@ -54,7 +54,7 @@ N_RUNS <- 1000
 # Runlist contains run number, parameter, and a random distribution
 runlist <- tibble(
   run_number = 1:N_RUNS,
-  "BETA" = rnorm(N_RUNS, mean = 0.36, sd = 0.036),
+  "BETA" = rnorm(N_RUNS, mean = 0.54, sd = 0.03),
   "Q10_RH" = rlnorm(N_RUNS, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
   "ECS" = rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
 )
