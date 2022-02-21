@@ -56,12 +56,15 @@ runlist <- tibble(
   run_number = 1:N_RUNS,
   "BETA" = rnorm(N_RUNS, mean = 0.54, sd = 0.03),
   "Q10_RH" = rlnorm(N_RUNS, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
-  "ECS" = rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
+  "ECS" = rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2]),
+  "NPP_FLUX0" = rnorm(N_RUNS, mean = 56.2, sd = 14.3)
 )
 
 # Name and units of parameters
-name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), "ECS" = ECS())
-units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)", "ECS" = "degC")
+name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), 
+                 "ECS" = ECS(), "NPP_FLUX0" = NPP_FLUX0())
+units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)", 
+                  "ECS" = "degC", "NPP_FLUX0" = "Pg C/yr")
 ```
 
 ## Run the model
@@ -144,6 +147,7 @@ plot(density(runlist[["Q10_RH"]]))
 
 plot(density(runlist[["ECS"]]))
 
+plot(density(runlist[["NPP_FLUX0"]]))
 ```
 
 ## Hector output graphs
@@ -247,39 +251,15 @@ ggplot(dest_runs, aes(year, destination_percent,
 single <- output %>%
   filter(pool_name == "atmos_c",
          source_name == "earth_c",
-         year == 2100) %>%
-  mutate(source_fraction = as.factor(source_fraction))
+         year == 2100)
 
 ## TO DO color by source_fraction, find alternate to pairs()
-# This currently does not work!
+# This currently does not work! Color by number/factor is throwing errors
 
 ggpairs(single,
         columns = 9:11,
-        aes(color = source_fraction),
+        aes(color = as.factor(source_fraction)),
         title = "Parameter correlation")
-
-b_q <- ggplot(single, aes(BETA, Q10_RH, z = source_fraction, color = source_fraction)) +
-  geom_point() + 
-  scale_color_viridis_c() +
-  labs(x = "beta",
-       y = "Q10",
-       title = "Parameter relationship (n = 1000)")
-
-b_e <- ggplot(single, aes(BETA, ECS, color = source_fraction)) +
-  geom_point() +
-  scale_color_viridis_c() +
-  labs(x = "beta",
-       y = "ECS",
-       title = "Parameter relationship (n = 1000)")
-
-e_q <- ggplot(single, aes(ECS, Q10_RH, color = source_fraction)) +
-  geom_point() +
-  scale_color_viridis_c() +
-  labs(x = "ECS",
-       y = "Q10",
-       title = "Parameter relationship (n = 1000)")
-
-grid.arrange(b_q, b_e, e_q)
 
 ```
 
