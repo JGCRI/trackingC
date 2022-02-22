@@ -62,7 +62,7 @@ runlist <- tibble(
   # Hector default
   "AERO_SCALE" = rnorm(N_RUNS, mean = 1.0, sd = 0.1),
   # Hector default
-  "DIFFUSIVITY" = rnorm(N_RUNS, mean = -2.3, sd = 0.23),
+  "DIFFUSIVITY" = rnorm(N_RUNS, mean = 2.3, sd = 0.23),
 )
 
 # Name and units of parameters
