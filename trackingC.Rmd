@@ -90,7 +90,7 @@ run_hector <- function(pdata, c) {
 
 # Run function for each row of the runlist
 # Create destination list
-output <- list()
+out <- list()
 
 # For each row of the runlist, apply the run_hector() function
 # If there is an error, record which row triggers the error, and skip to the next row
@@ -99,11 +99,11 @@ output <- list()
 start <- Sys.time()
 
 for(row in seq_len(nrow(runlist))) {
-  out <- try(run_hector(runlist[row,][-1], core))
-  if(class(out) == "try-error") { 
+  outp <- try(run_hector(runlist[row,][-1], core))
+  if(class(outp) == "try-error") { 
     # if there is an error, record row numbers that error
   } else {
-    output[[runlist$run_number[row]]] <- out
+    out[[runlist$run_number[row]]] <- outp
   }}  
 
 # Compute difference in time between start and after loop is run
@@ -116,7 +116,7 @@ Running took `r tm` seconds or `r tm/N_RUNS` s/job.
 
 ``` {r data}
 # Get output dataframe
-output <- bind_rows(output, .id = "run_number") %>% as_tibble()
+output <- bind_rows(out, .id = "run_number") %>% as_tibble()
 
 # Can left join with runlist to get param values
 # Make sure data is same class
@@ -221,7 +221,7 @@ ggplot(ff, aes(year)) +
 # group_by(year, source_name) %>% mutate(destination_fraction = source_quantity / sum(source_quantity))
 
 destination <- output_slice %>%
-  filter(source_name == "earth_c") %>%
+  filter(source_name == "earth_c", pool_name != "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
   group_by(year, run_number) %>%
   mutate(destination_percent = source_quantity / sum(source_quantity),
@@ -229,7 +229,7 @@ destination <- output_slice %>%
   ungroup()
 
 # Just looking at particular runs
-dest_runs <- filter(destination, run_number %in% c(1:5))
+dest_runs <- filter(destination, run_number %in% c(1:30))
 
 ggplot(dest_runs, aes(year, destination_percent, 
                    fill = pool_name)) +
@@ -257,9 +257,12 @@ single <- output %>%
 # This currently does not work! Color by number/factor is throwing errors
 
 ggpairs(single,
-        columns = 9:11,
-        aes(color = as.factor(source_fraction)),
-        title = "Parameter correlation")
+        aes(color = cut(source_fraction, 6), group = 1),
+        columns = 9:12,
+        upper = list(na= "na"))
+
+        # a
+        # title = "Parameter correlation")
 
 ```
 
