@@ -277,7 +277,8 @@ single <- output %>%
   mutate(sf = cut(source_fraction, 3))
 
 ## TO DO 
-# Figure out how to remove correlation boxes
+# Calculate the 9:14 dynamically, so when you add/remove params
+# the graph adjusts automatically
 
 ggpairs(single,
         columns = 9:14,
