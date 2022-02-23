@@ -51,6 +51,12 @@ lognorm <- function(m, sd){
 
 N_RUNS <- 1000
 
+# We use GitHub Actions to make sure this RMarkdown knits successfully
+# But if running there, only do a small number of Hector simulations
+if(Sys.getenv("CI") == "true") {
+  N_RUNS <- 100
+}
+
 # Runlist contains run number, parameter, and a random distribution
 runlist <- tibble(
   run_number = 1:N_RUNS,
@@ -267,16 +273,18 @@ ggplot(dest_runs, aes(year, destination_percent,
 single <- output %>%
   filter(pool_name == "atmos_c",
          source_name == "earth_c",
-         year == 2100)
+         year == 2100) %>% 
+  mutate(sf = cut(source_fraction, 3))
 
 ## TO DO 
-# Figure out how to remove correlation boxes
+# Calculate the 9:14 dynamically, so when you add/remove params
+# the graph adjusts automatically
 
 ggpairs(single,
-        aes(color = cut(source_fraction, 6), group = 1),
         columns = 9:14,
+        aes(color = sf),
+        upper = list(continuous = "blank"),
         title = "Parameter correlation")
-
 ```
 
 ## What controls how much earth_c ends up in the atmosphere?
