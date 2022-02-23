@@ -62,12 +62,24 @@ runlist <- tibble(
   run_number = 1:N_RUNS,
   "BETA" = rnorm(N_RUNS, mean = 0.54, sd = 0.03),
   "Q10_RH" = rlnorm(N_RUNS, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
-  "ECS" = rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
+  # What distribution
+  "ECS" = rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2]),
+  "NPP_FLUX0" = rnorm(N_RUNS, mean = 56.2, sd = 5.62),
+  # Hector default
+  "AERO_SCALE" = rnorm(N_RUNS, mean = 1.0, sd = 0.1),
+  # Hector default
+  "DIFFUSIVITY" = rnorm(N_RUNS, mean = 2.3, sd = 0.23),
 )
 
 # Name and units of parameters
-name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), "ECS" = ECS())
-units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)", "ECS" = "degC")
+name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), 
+                 "ECS" = ECS(), "NPP_FLUX0" = NPP_FLUX0(),
+                 "AERO_SCALE" = AERO_SCALE(), "DIFFUSIVITY" = DIFFUSIVITY()
+                 )
+units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)", 
+                  "ECS" = "degC", "NPP_FLUX0" = "Pg C/yr",
+                  "AERO_SCALE" = "(unitless)", "DIFFUSIVITY" = "cm2/s"
+                  )
 ```
 
 ## Run the model
@@ -93,7 +105,10 @@ run_hector <- function(pdata, c) {
 
 # Run function for each row of the runlist
 # Create destination list
-output <- list()
+out <- list()
+
+# List for the rows that error
+errors <- list()
 
 # For each row of the runlist, apply the run_hector() function
 # If there is an error, record which row triggers the error, and skip to the next row
@@ -102,11 +117,11 @@ output <- list()
 start <- Sys.time()
 
 for(row in seq_len(nrow(runlist))) {
-  out <- try(run_hector(runlist[row,][-1], core))
-  if(class(out) == "try-error") { 
+  outp <- try(run_hector(runlist[row,][-1], core))
+  if(class(outp) == "try-error") { 
     # if there is an error, record row numbers that error
   } else {
-    output[[runlist$run_number[row]]] <- out
+    out[[runlist$run_number[row]]] <- outp
   }}  
 
 # Compute difference in time between start and after loop is run
@@ -119,7 +134,7 @@ Running took `r tm` seconds or `r tm/N_RUNS` s/job.
 
 ``` {r data}
 # Get output dataframe
-output <- bind_rows(output, .id = "run_number") %>% as_tibble()
+output <- bind_rows(out, .id = "run_number") %>% as_tibble()
 
 # Can left join with runlist to get param values
 # Make sure data is same class
@@ -150,6 +165,11 @@ plot(density(runlist[["Q10_RH"]]))
 
 plot(density(runlist[["ECS"]]))
 
+plot(density(runlist[["NPP_FLUX0"]]))
+
+plot(density(runlist[["AERO_SCALE"]]))
+
+plot(density(runlist[["DIFFUSIVITY"]]))
 ```
 
 ## Hector output graphs
@@ -223,7 +243,7 @@ ggplot(ff, aes(year)) +
 # group_by(year, source_name) %>% mutate(destination_fraction = source_quantity / sum(source_quantity))
 
 destination <- output_slice %>%
-  filter(source_name == "earth_c") %>%
+  filter(source_name == "earth_c", pool_name != "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
   group_by(year, run_number) %>%
   mutate(destination_percent = source_quantity / sum(source_quantity),
@@ -231,7 +251,7 @@ destination <- output_slice %>%
   ungroup()
 
 # Just looking at particular runs
-dest_runs <- filter(destination, run_number %in% c(1:5))
+dest_runs <- filter(destination, run_number %in% c(1:30))
 
 ggplot(dest_runs, aes(year, destination_percent, 
                    fill = pool_name)) +
@@ -256,38 +276,14 @@ single <- output %>%
          year == 2100) %>% 
   mutate(sf = cut(source_fraction, 3))
 
-## TO DO color by source_fraction, find alternate to pairs()
-# This currently does not work!
+## TO DO 
+# Figure out how to remove correlation boxes
 
 ggpairs(single,
-        columns = 9:11,
+        columns = 9:14,
         aes(color = sf),
-        puper = list(continuous = "blank"),
+        upper = list(continuous = "blank"),
         title = "Parameter correlation")
-
-b_q <- ggplot(single, aes(BETA, Q10_RH, z = source_fraction, color = source_fraction)) +
-  geom_point() + 
-  scale_color_viridis_c() +
-  labs(x = "beta",
-       y = "Q10",
-       title = "Parameter relationship (n = 1000)")
-
-b_e <- ggplot(single, aes(BETA, ECS, color = source_fraction)) +
-  geom_point() +
-  scale_color_viridis_c() +
-  labs(x = "beta",
-       y = "ECS",
-       title = "Parameter relationship (n = 1000)")
-
-e_q <- ggplot(single, aes(ECS, Q10_RH, color = source_fraction)) +
-  geom_point() +
-  scale_color_viridis_c() +
-  labs(x = "ECS",
-       y = "Q10",
-       title = "Parameter relationship (n = 1000)")
-
-grid.arrange(b_q, b_e, e_q)
-
 ```
 
 ## What controls how much earth_c ends up in the atmosphere?
