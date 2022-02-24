@@ -120,6 +120,7 @@ for(row in seq_len(nrow(runlist))) {
   outp <- try(run_hector(runlist[row,][-1], core))
   if(class(outp) == "try-error") { 
     # if there is an error, record row numbers that error
+    errors[[row]] <- runlist$run_number[[row]]
   } else {
     out[[runlist$run_number[row]]] <- outp
   }}  
