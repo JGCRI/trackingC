@@ -54,7 +54,7 @@ lognorm <- function(m, sd){
   v <- c(location, shape)
 }
 
-N_RUNS <- 300
+N_RUNS <- 1000
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
