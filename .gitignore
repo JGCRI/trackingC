@@ -41,3 +41,6 @@ vignettes/*.pdf
 # Rmarkdown output
 *.html
 */figure-html/*
+
+# OS files
+.DS_Store

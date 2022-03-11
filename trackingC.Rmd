@@ -1,5 +1,5 @@
 ---
-title: "fftrack_code.Rmd"
+title: "trackingC.Rmd"
 author: "Leeya Pressburger"
 date: "2/3/2022"
 output:
@@ -92,7 +92,7 @@ run_hector <- function(pdata, c) {
   # pdata will be the runlist specified above and c is a newcore environment
   # For each parameter within each run, set its value and units
   for(p in colnames(pdata)) {
-    message("Setting ", p)
+    message("\tSetting ", p)
     setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
   }
   # Set a tracking data, reset and run core
@@ -118,6 +118,7 @@ errors <- list()
 start <- Sys.time()
 
 for(row in seq_len(nrow(runlist))) {
+  message(row, "/", nrow(runlist))
   outp <- try(run_hector(runlist[row,][-1], core))
   if(class(outp) == "try-error") { 
     # if there is an error, record row numbers that error
