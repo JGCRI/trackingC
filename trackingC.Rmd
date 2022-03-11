@@ -266,6 +266,7 @@ ggplot(dest_runs, aes(year, destination_percent,
   geom_area() +
   scale_fill_viridis_d() +
   facet_wrap(~run_number) +
+  theme(strip.background = element_blank(), strip.text.x = element_blank()) +
   labs(x = "Year",
        y = "Destination fraction")
 
@@ -283,15 +284,11 @@ single <- output %>%
          year == 2100) %>% 
   mutate(sf = cut(source_fraction, 3))
 
-## TO DO 
-# Calculate the 9:14 dynamically, so when you add/remove params
-# the graph adjusts automatically
-# How to make this graph look better - viridis, one density plot
 n <- length(name_vector)
-
 ggpairs(single,
         columns = 9:(9 + (n-1)),
-        aes(color = sf),
+        aes(color = sf), 
+        diag = list(mapping = aes(alpha = 0.5)),
         upper = list(continuous = "blank"))
 ```
 
