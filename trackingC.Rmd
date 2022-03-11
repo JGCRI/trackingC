@@ -23,6 +23,7 @@ Load necessary packages, read in an ini file and initiate core, and set seed for
 ```{r intro, warning=FALSE, message=FALSE}
 library(hector)
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(gridExtra)
 library(relaimpo)
@@ -53,7 +54,7 @@ lognorm <- function(m, sd){
   v <- c(location, shape)
 }
 
-N_RUNS <- 25
+N_RUNS <- 300
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
@@ -163,20 +164,21 @@ in a manuscript.
 # Parameters and PDFS
 
 ``` {r params-PDFs, fig.cap = " Probability densities of each parameter"}
-# Density plot to visualize distribution
-## TO DO make graphs look nice
+# Density plot to visualize parameter distributions
+params <- runlist %>% 
+  dplyr::select(-run_number)
 
-plot(density(runlist[["BETA"]]))
+params <- params %>%
+  pivot_longer(cols = colnames(params),
+               names_to = "param_name", 
+               values_to = "param_value")
 
-plot(density(runlist[["Q10_RH"]]))
+ggplot(params, aes(param_value)) +
+  geom_density() + 
+  facet_wrap(~param_name, scales = "free") +
+  labs(x = NULL, 
+       y = NULL)
 
-plot(density(runlist[["ECS"]]))
-
-plot(density(runlist[["NPP_FLUX0"]]))
-
-plot(density(runlist[["AERO_SCALE"]]))
-
-plot(density(runlist[["DIFFUSIVITY"]]))
 ```
 
 # Hector output graphs
