@@ -3,7 +3,9 @@ title: "trackingC.Rmd"
 author: "Leeya Pressburger"
 date: "2/3/2022"
 output:
-  html_document:
+  bookdown::html_document2:
+    fig_caption: yes
+    number_sections: yes
     toc: true
     toc_depth: 2
     toc_float: true
@@ -14,18 +16,20 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Setup
+# Setup
 
 Load necessary packages, read in an ini file and initiate core, and set seed for reproducibility.
 
-```{r intro, message=FALSE}
+```{r intro, warning=FALSE, message=FALSE}
 library(hector)
 library(dplyr)
 library(ggplot2)
-theme_set(theme_light())
 library(gridExtra)
 library(relaimpo)
 library(GGally)
+library(bookdown)
+
+theme_set(theme_light())
 
 # Read in ini file, initiate new core
 ssp245 <- system.file("input/hector_ssp245.ini", package = "hector") 
@@ -36,7 +40,7 @@ set.seed(10)
 
 ```
 
-## Create dataset
+# Create dataset
 
 ```{r params}
 # Create runlist of parameters of interest
@@ -49,7 +53,7 @@ lognorm <- function(m, sd){
   v <- c(location, shape)
 }
 
-N_RUNS <- 1000
+N_RUNS <- 25
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
@@ -83,7 +87,7 @@ units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)",
                   )
 ```
 
-## Run the model
+# Run the model
 
 ```{r functions, cache=TRUE, message=FALSE}
 
@@ -133,7 +137,7 @@ tm <- difftime(Sys.time(), start, units = "secs") %>% round(1)
 
 Running took `r tm` seconds or `r tm/N_RUNS` s/job.
 
-## Process data
+# Process data
 
 ``` {r data}
 # Get output dataframe
@@ -151,14 +155,14 @@ output_slice <- filter(output, run_number %in% max_display$run_number)
 
 ```
 
-## Data visualization!
+# Data visualization
 
 The following sections contain tentative figures in the order they would appear
 in a manuscript. 
 
-## Parameters and PDFS
+# Parameters and PDFS
 
-``` {r params_PDFs}
+``` {r params-PDFs}
 # Density plot to visualize distribution
 ## TO DO make graphs look nice
 
@@ -175,9 +179,9 @@ plot(density(runlist[["AERO_SCALE"]]))
 plot(density(runlist[["DIFFUSIVITY"]]))
 ```
 
-## Hector output graphs
+# Hector output graphs
 
-``` {r atmosphere_by_source}
+``` {r atmosphere-by-source"}
 # This code just looks at the atmosphere pool
 atmos <- output_slice %>%
   filter(pool_name == "atmos_c")
@@ -196,6 +200,9 @@ ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = 
                group = "run_number",
                size = 0.7)
 
+```
+
+``` {r coeff-var}
 # Compute coefficient of variability for each source in the atmosphere pool
 atmos_cv <- atmos %>%
   group_by(year, source_name) %>%
@@ -215,7 +222,7 @@ ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
 
 ```
 
-``` {r earthc_in_atmos}
+``` {r earthc-in-atmos}
 # This chunk looks at the atmosphere pool with just one source (earth_c) 
 # and plots source fraction over time with a mean and confidence interval
 
@@ -236,7 +243,7 @@ ggplot(ff, aes(year)) +
        title = "Source of carbon in the atmosphere from fossil fuel over time")
 ```
 
-## Where does carbon end up?
+# Where does carbon end up?
 
 ```{r destination}
 # Where does carbon end up?
@@ -267,9 +274,9 @@ ggplot(dest_runs, aes(year, destination_percent,
 
 ```
 
-## All parameter combinations
+# All parameter combinations
 
-```{r parameter_space}
+```{r parameter-space}
 # Single time point, pool, and source - exploring how the parameter space 
 # is linked to output
 
@@ -292,7 +299,7 @@ ggpairs(single,
         title = "Parameter correlation")
 ```
 
-## What controls how much earth_c ends up in the atmosphere?
+# What controls how much earth_c ends up in the atmosphere?
 
 ```{r relative-importance}
 # Filter to just atmosphere pool, and remove unneeded columns
