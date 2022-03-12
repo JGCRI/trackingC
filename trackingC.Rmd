@@ -22,11 +22,11 @@ Load necessary packages, read in an ini file and initiate core, and set seed for
 
 ```{r intro, warning=FALSE, message=FALSE}
 library(hector)
+library(relaimpo)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(gridExtra)
-library(relaimpo)
 library(GGally)
 library(bookdown)
 
@@ -165,20 +165,14 @@ in a manuscript.
 
 ``` {r params-PDFs, fig.cap = " Probability densities of each parameter"}
 # Density plot to visualize parameter distributions
-params <- runlist %>% 
-  dplyr::select(-run_number)
-
-params <- params %>%
-  pivot_longer(cols = colnames(params),
-               names_to = "param_name", 
-               values_to = "param_value")
-
-ggplot(params, aes(param_value)) +
+runlist %>% 
+  select(-run_number) %>%
+  pivot_longer(everything()) %>% 
+  ggplot(aes(value)) +
   geom_density() + 
-  facet_wrap(~param_name, scales = "free") +
+  facet_wrap(~name, scales = "free") +
   labs(x = NULL, 
        y = NULL)
-
 ```
 
 # Hector output graphs
@@ -268,10 +262,11 @@ ggplot(dest_runs, aes(year, destination_percent,
   geom_area() +
   scale_fill_viridis_d() +
   facet_wrap(~run_number) +
-  theme(strip.background = element_blank(), strip.text.x = element_blank()) +
+  theme(strip.background = element_blank(), 
+        strip.text.x = element_blank(),
+        axis.text.x = element_text(angle = 90)) +
   labs(x = "Year",
        y = "Destination fraction")
-
 ```
 
 # All parameter combinations
@@ -291,7 +286,8 @@ ggpairs(single,
         columns = 9:(9 + (n-1)),
         aes(color = sf), 
         diag = list(mapping = aes(alpha = 0.5)),
-        upper = list(continuous = "blank"))
+        upper = list(continuous = "blank")) + 
+  scale_color_viridis_d() + scale_fill_viridis_d()
 ```
 
 # What controls how much earth_c ends up in the atmosphere?
