@@ -3,7 +3,9 @@ title: "trackingC.Rmd"
 author: "Leeya Pressburger"
 date: "2/3/2022"
 output:
-  html_document:
+  bookdown::html_document2:
+    fig_caption: yes
+    number_sections: yes
     toc: true
     toc_depth: 2
     toc_float: true
@@ -14,18 +16,21 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Setup
+# Setup
 
 Load necessary packages, read in an ini file and initiate core, and set seed for reproducibility.
 
-```{r intro, message=FALSE}
+```{r intro, warning=FALSE, message=FALSE}
 library(hector)
-library(dplyr)
-library(ggplot2)
-theme_set(theme_light())
-library(gridExtra)
 library(relaimpo)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
 library(GGally)
+library(bookdown)
+
+theme_set(theme_light())
 
 # Read in ini file, initiate new core
 ssp245 <- system.file("input/hector_ssp245.ini", package = "hector") 
@@ -36,7 +41,7 @@ set.seed(10)
 
 ```
 
-## Create dataset
+# Create dataset
 
 ```{r params}
 # Create runlist of parameters of interest
@@ -83,7 +88,7 @@ units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)",
                   )
 ```
 
-## Run the model
+# Run the model
 
 ```{r functions, cache=TRUE, message=FALSE}
 
@@ -133,7 +138,7 @@ tm <- difftime(Sys.time(), start, units = "secs") %>% round(1)
 
 Running took `r tm` seconds or `r tm/N_RUNS` s/job.
 
-## Process data
+# Process data
 
 ``` {r data}
 # Get output dataframe
@@ -151,33 +156,28 @@ output_slice <- filter(output, run_number %in% max_display$run_number)
 
 ```
 
-## Data visualization!
+# Data visualization
 
 The following sections contain tentative figures in the order they would appear
 in a manuscript. 
 
-## Parameters and PDFS
+# Parameters and PDFS
 
-``` {r params_PDFs}
-# Density plot to visualize distribution
-## TO DO make graphs look nice
-
-plot(density(runlist[["BETA"]]))
-
-plot(density(runlist[["Q10_RH"]]))
-
-plot(density(runlist[["ECS"]]))
-
-plot(density(runlist[["NPP_FLUX0"]]))
-
-plot(density(runlist[["AERO_SCALE"]]))
-
-plot(density(runlist[["DIFFUSIVITY"]]))
+``` {r params-PDFs, fig.cap = " Probability densities of each parameter"}
+# Density plot to visualize parameter distributions
+runlist %>% 
+  select(-run_number) %>%
+  pivot_longer(everything()) %>% 
+  ggplot(aes(value)) +
+  geom_density() + 
+  facet_wrap(~name, scales = "free") +
+  labs(x = NULL, 
+       y = NULL)
 ```
 
-## Hector output graphs
+# Hector output graphs
 
-``` {r atmosphere_by_source}
+``` {r atmosphere-by-source, fig.cap = " Fraction of CO2 in the atmosphere by source pool"}
 # This code just looks at the atmosphere pool
 atmos <- output_slice %>%
   filter(pool_name == "atmos_c")
@@ -187,8 +187,7 @@ ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = 
   geom_line(size = 0.5, show.legend = FALSE) +
   facet_wrap(~source_name, scales = "free") +
   labs(x = "Year",
-       y = "Source fraction",
-       title = "Atmosphere pool - source fraction by pool") +
+       y = "Source fraction") +
   scale_color_grey(start = 0.7, end = 0.7) +
   stat_summary(color = "black",
                fun = median, 
@@ -196,6 +195,9 @@ ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = 
                group = "run_number",
                size = 0.7)
 
+```
+
+``` {r coeff-var, fig.cap = " Coefficients of variability for each source in the atmosphere over time"}
 # Compute coefficient of variability for each source in the atmosphere pool
 atmos_cv <- atmos %>%
   group_by(year, source_name) %>%
@@ -215,7 +217,7 @@ ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
 
 ```
 
-``` {r earthc_in_atmos}
+``` {r earthc-in-atmos, fig.cap = " Source of carbon in the atmosphere from fossil fuel over time"}
 # This chunk looks at the atmosphere pool with just one source (earth_c) 
 # and plots source fraction over time with a mean and confidence interval
 
@@ -232,13 +234,12 @@ ggplot(ff, aes(year)) +
   geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
   labs(x = "Year",
-       y = "Source fraction",
-       title = "Source of carbon in the atmosphere from fossil fuel over time")
+       y = "Source fraction")
 ```
 
-## Where does carbon end up?
+# Where does carbon end up?
 
-```{r destination}
+```{r destination, fig.cap = " Final destination pool of human emissions"}
 # Where does carbon end up?
 # We have pool_name, source_name, source_fraction
 # Step 1: compute source_quantity = pool_value * source_fraction
@@ -261,15 +262,16 @@ ggplot(dest_runs, aes(year, destination_percent,
   geom_area() +
   scale_fill_viridis_d() +
   facet_wrap(~run_number) +
+  theme(strip.background = element_blank(), 
+        strip.text.x = element_blank(),
+        axis.text.x = element_text(angle = 90)) +
   labs(x = "Year",
-       y = "Destination fraction",
-       title = "Where carbon ends up from the source earth_c")
-
+       y = "Destination fraction")
 ```
 
-## All parameter combinations
+# All parameter combinations
 
-```{r parameter_space}
+```{r parameter-space, fig.cap = " Parameter correlation"}
 # Single time point, pool, and source - exploring how the parameter space 
 # is linked to output
 
@@ -279,22 +281,19 @@ single <- output %>%
          year == 2100) %>% 
   mutate(sf = cut(source_fraction, 3))
 
-## TO DO 
-# Calculate the 9:14 dynamically, so when you add/remove params
-# the graph adjusts automatically
-# How to make this graph look better - viridis, one density plot
 n <- length(name_vector)
-
 ggpairs(single,
         columns = 9:(9 + (n-1)),
-        aes(color = sf),
-        upper = list(continuous = "blank"),
-        title = "Parameter correlation")
+        aes(color = sf), 
+        diag = list(mapping = aes(alpha = 0.5)),
+        upper = list(continuous = "blank")) + 
+  scale_color_viridis_d() + 
+  scale_fill_viridis_d()
 ```
 
-## What controls how much earth_c ends up in the atmosphere?
+# What controls how much earth_c ends up in the atmosphere?
 
-```{r relative-importance}
+```{r relative-importance, fig.cap = " Relative importance of parameters over time"}
 # Filter to just atmosphere pool, and remove unneeded columns
 dest_e2a <- filter(destination, pool_name == "atmos_c")
 dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", names(name_vector))]
@@ -329,6 +328,5 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
   coord_cartesian(expand = FALSE) +
   scale_fill_viridis_d(direction = -1) +
   labs(x = "Year",
-       y = "Fraction of relative importance",
-       title = "Relative importance of parameters over time")
+       y = "Fraction of relative importance")
 ```
