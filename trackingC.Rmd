@@ -287,7 +287,8 @@ ggpairs(single,
         aes(color = sf), 
         diag = list(mapping = aes(alpha = 0.5)),
         upper = list(continuous = "blank")) + 
-  scale_color_viridis_d() + scale_fill_viridis_d()
+  scale_color_viridis_d() + 
+  scale_fill_viridis_d()
 ```
 
 # What controls how much earth_c ends up in the atmosphere?
