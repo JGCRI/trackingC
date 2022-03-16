@@ -28,11 +28,11 @@ cd /people/pres520/code
 
 # Set environment variable for number of nodes
 # Syntax?
-export node=1
+export nodes=1
 
 # Move all ./output files to ./old
 # Will need to create these directories
-mv *.csv ~/old
+mv ~/output/*.csv ~/old
 
 # R script to run
 SCRIPT="/people/pres520/code/gen_runlist.R"
@@ -41,3 +41,4 @@ SCRIPT="/people/pres520/code/gen_runlist.R"
 Rscript $SCRIPT $SLURM_ARRAY_TASK_ID
 
 # Make copy of runlist with slurm job ID
+# TO DO

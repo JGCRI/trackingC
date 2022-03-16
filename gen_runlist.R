@@ -17,10 +17,10 @@ if(Sys.getenv("CI") == "true") {
 }
 
 # Access number of nodes (if local, will be blank)
-if(Sys.getenv("xxx") == ""){
+if(Sys.getenv("nodes") == ""){
   node <- 1
 } else {
-  node <- Sys.getenv("xxx")
+  node <- Sys.getenv("nodes")
 }
 
 # Runlist contains run number, job number, parameter, and a random distribution
@@ -37,3 +37,6 @@ runlist <- tibble(
   # Hector default - note joint with ECS
   "DIFFUSIVITY" = rnorm(N_RUNS, mean = 2.3, sd = 0.23),
 )
+
+slurm_id <- Sys.getenv("SLURM_ARRAY_TASK_ID")
+write.csv(runlist, paste0("./out/runlist_", slurm_id))
