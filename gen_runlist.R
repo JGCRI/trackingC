@@ -1,3 +1,5 @@
+library(tidyr)
+
 # Create runlist of parameters of interest
 
 # Function to access lognorm parameters with a desired mean and standard deviation

@@ -32,7 +32,7 @@ export nodes=1
 
 # Move all ./output files to ./old
 # Will need to create these directories
-mv ~/output/*.csv ~/old
+mv -r ~/output ~/old
 
 # R script to run
 SCRIPT="/people/pres520/code/gen_runlist.R"
