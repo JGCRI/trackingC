@@ -6,8 +6,8 @@
 #SBATCH -N 1
 #SBATCH -t 00:05:00
 #SBATCH -J ex_hector
-#SBATCH --output=/people/pres520/code/example_%A_%a.out
-#SBATCH --error=/people/pres520/code/example_%A_%a.err
+#SBATCH --output=/people/pres520/code/out_err/out_file_%A.out
+#SBATCH --error=/people/pres520/code/out_err/error_file_%A.err
 
 # README -----------------------------------------------------------------------
 # Run the example script for parallizing hector per scenario and via batch
@@ -15,7 +15,7 @@
 #
 # USAGE:
 #
-# sbatch --array=1-4 /people/pres520/code/run_example.sl
+# sbatch /people/pres520/code/run_slurm.sh
 #
 # ------------------------------------------------------------------------------
 
@@ -27,18 +27,14 @@ module load R/4.0.2
 cd /people/pres520/code
 
 # Set environment variable for number of nodes
-# Syntax?
 export nodes=1
 
 # Move all ./output files to ./old
 # Will need to create these directories
-mv ~/output/* ~/old
+mv output/* old
 
 # R script to run
 SCRIPT="/people/pres520/code/gen_runlist.R"
 
 # run script with the slurm array index as the only argument to the script
 Rscript $SCRIPT $SLURM_ARRAY_TASK_ID
-
-# Make copy of runlist with slurm job ID
-# TO DO
