@@ -29,7 +29,6 @@ cd /people/pres520/code
 export nodes=1
 
 # Move all ./output files to ./old
-# Will need to create these directories
 mv output/* old
 
 # R script to run
