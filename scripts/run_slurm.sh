@@ -10,8 +10,7 @@
 #SBATCH --error=/people/pres520/code/out_err/error_file_%A.err
 
 # README -----------------------------------------------------------------------
-# Run the example script for parallizing hector per scenario and via batch
-# This uses a SLURM array task per scenario to lauch jobs on four nodes.
+# Run the script to generate a parameter runlist, currently just on one node
 #
 # USAGE:
 #
