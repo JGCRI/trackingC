@@ -36,6 +36,9 @@ theme_set(theme_light())
 ssp245 <- system.file("input/hector_ssp245.ini", package = "hector") 
 core <- newcore(ssp245)
 
+# Set range of years for output data
+years <- 2000:2200
+
 # Set random number generator to allow for reproducibility 
 set.seed(10)
 
@@ -91,7 +94,6 @@ units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)",
 # Run the model
 
 ```{r functions, cache=TRUE, message=FALSE}
-
 run_hector <- function(pdata, c) {
   # Function to set multiple parameter values for Hector, run a core, and retrieve tracking data
   # pdata will be the runlist specified above and c is a newcore environment
@@ -104,9 +106,11 @@ run_hector <- function(pdata, c) {
   setvar(c, NA, TRACKING_DATE(), 1950, NA)
   reset(c)
   run(c)
-  # Access and save tracking data
-  tdata <- get_tracking_data(c)
-  tdata %>% filter(year %in% c(2000:2200))
+  # Access and save tracking data, model outputs
+  out <- list()
+  out$tdata <- get_tracking_data(c) %>% filter(year %in% years)
+  out$results <- fetchvars(c, years)
+  return(out)
 }
 
 # Run function for each row of the runlist
@@ -141,18 +145,34 @@ Running took `r tm` seconds or `r tm/N_RUNS` s/job.
 # Process data
 
 ``` {r data}
-# Get output dataframe
-output <- bind_rows(out, .id = "run_number") %>% as_tibble()
+# Get output data frames
+# First, access tracking data
+tdata <- list()
+for(n in seq_len(length(out))){
+  tdata[[n]] <- bind_rows(out[[n]]$tdata)
+}
+output <- bind_rows(tdata, .id = "run_number") %>% as_tibble
+
+# Then, access model output data
+results <- list()
+for(n in seq_len(length(out))){
+  results[[n]] <- bind_rows(out[[n]]$results)
+}
+results <- bind_rows(results, .id = "run_number") %>% as_tibble()
 
 # Can left join with runlist to get param values
 # Make sure data is same class
 output$run_number <- as.integer(output$run_number)
 output <- left_join(output, runlist, by = "run_number")
 
+results$run_number <- as.integer(results$run_number)
+results <- left_join(results, runlist, by = "run_number")
+
 # If there are over 100 observations per time point, we want to use slice_sample() to randomly select rows to plot.
 # Pull random run numbers from the runlist and filter output by random runs
 max_display <- slice_sample(runlist, n = 100)
 output_slice <- filter(output, run_number %in% max_display$run_number)
+results_slice <- filter(results, run_number %in% max_display$run_number)
 
 ```
 
@@ -329,4 +349,36 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
   scale_fill_viridis_d(direction = -1) +
   labs(x = "Year",
        y = "Fraction of relative importance")
+```
+# Comparing Hector temperature data to CMIP6
+``` {r cmip}
+# Read in comparison data
+cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
+  # filter by experiment, stop x axis at 2300
+  filter(variable == "Tgav",
+         experiment == "ssp245") %>%
+  group_by(year) %>%
+  summarize(min = min(value),
+         max = max(value),
+         med = median(value)) %>%
+  mutate(source = "CMIP6")
+
+# Extract Hector data
+hector <- results_slice %>%
+  filter(variable == "Tgav",
+         year >= 2015 & year <= 2100) %>%
+  group_by(year, run_number) %>%
+  summarize(min = min(value),
+            max = max(value),
+            med = median(value)) %>%
+  mutate(source = "Hector")
+
+# Combine data
+temp <- bind_rows(cmip, hector)
+
+# Plot temperature spread
+ggplot(temp, aes(year, fill = source)) +
+  geom_ribbon(aes(ymin = min, ymax = max, alpha = 0.5)) +
+  geom_line(aes(y = med))
+
 ```
