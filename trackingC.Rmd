@@ -95,6 +95,7 @@ units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)",
 
 ```{r functions, cache=TRUE, message=FALSE}
 run_hector <- function(pdata, c) {
+  
   # Function to set multiple parameter values for Hector, run a core, and retrieve tracking data
   # pdata will be the runlist specified above and c is a newcore environment
   # For each parameter within each run, set its value and units
@@ -149,14 +150,14 @@ Running took `r tm` seconds or `r tm/N_RUNS` s/job.
 # First, access tracking data
 tdata <- list()
 for(n in seq_len(length(out))){
-  tdata[[n]] <- bind_rows(out[[n]]$tdata)
+  tdata[[n]] <- out[[n]]$tdata
 }
 output <- bind_rows(tdata, .id = "run_number") %>% as_tibble
 
 # Then, access model output data
 results <- list()
 for(n in seq_len(length(out))){
-  results[[n]] <- bind_rows(out[[n]]$results)
+  results[[n]] <- out[[n]]$results
 }
 results <- bind_rows(results, .id = "run_number") %>% as_tibble()
 
@@ -351,25 +352,24 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
        y = "Fraction of relative importance")
 ```
 # Comparing Hector temperature data to CMIP6
-``` {r cmip}
+``` {r cmip, fig.cap = " Global temperature anomaly data from CMIP6 and Hector runs}
 # Read in comparison data
 cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
-  # filter by experiment, stop x axis at 2300
   filter(variable == "Tgav",
          experiment == "ssp245") %>%
   group_by(year) %>%
-  summarize(min = min(value),
-         max = max(value),
+  summarize(minimum = min(value),
+         maximum = max(value),
          med = median(value)) %>%
   mutate(source = "CMIP6")
 
 # Extract Hector data
-hector <- results_slice %>%
+hector <- results %>%
   filter(variable == "Tgav",
          year >= 2015 & year <= 2100) %>%
-  group_by(year, run_number) %>%
-  summarize(min = min(value),
-            max = max(value),
+  group_by(year) %>%
+  summarize(minimum = min(value),
+            maximum = max(value),
             med = median(value)) %>%
   mutate(source = "Hector")
 
@@ -377,8 +377,12 @@ hector <- results_slice %>%
 temp <- bind_rows(cmip, hector)
 
 # Plot temperature spread
-ggplot(temp, aes(year, fill = source)) +
-  geom_ribbon(aes(ymin = min, ymax = max, alpha = 0.5)) +
-  geom_line(aes(y = med))
+ggplot(temp, aes(year, fill = source, color = source)) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.5) +
+  geom_line(aes(y = med)) +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d() +
+  labs(x = "Year",
+       y = "deg C")
 
 ```
