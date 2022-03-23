@@ -358,9 +358,10 @@ cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
   filter(variable == "Tgav",
          experiment == "ssp245") %>%
   group_by(year) %>%
-  summarize(minimum = min(value),
-         maximum = max(value),
-         med = median(value)) %>%
+  summarize(sdev = sd(value),
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value)) %>%
   mutate(source = "CMIP6")
 
 # Extract Hector data
@@ -368,7 +369,8 @@ hector <- results %>%
   filter(variable == "Tgav",
          year >= 2015 & year <= 2100) %>%
   group_by(year) %>%
-  summarize(minimum = min(value),
+  summarize(sdev = sd(value),
+            minimum = min(value),
             maximum = max(value),
             med = median(value)) %>%
   mutate(source = "Hector")
@@ -378,10 +380,11 @@ temp <- bind_rows(cmip, hector)
 
 # Plot temperature spread
 ggplot(temp, aes(year, fill = source, color = source)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.5) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5) +
   geom_line(aes(y = med)) +
-  scale_color_viridis_d() +
-  scale_fill_viridis_d() +
+  scale_color_viridis_d(begin = 0.5) +
+  scale_fill_viridis_d(begin = 0.5) +
   labs(x = "Year",
        y = "deg C")
 
