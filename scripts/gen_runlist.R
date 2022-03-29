@@ -18,17 +18,9 @@ if(Sys.getenv("CI") == "true") {
   N_RUNS <- 100
 }
 
-# Access number of nodes (if local, will be blank)
-if(Sys.getenv("nodes") == ""){
-  node <- 1
-} else {
-  node <- as.numeric(Sys.getenv("nodes"))
-}
-
 # Runlist contains run number, job number, parameter, and a random distribution
 runlist <- tibble(
   run_number = 1:N_RUNS,
-  job_number = rep(1:node, length.out = N_RUNS),
   "BETA" = rnorm(N_RUNS, mean = 0.54, sd = 0.03),
   "Q10_RH" = rlnorm(N_RUNS, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
   # Hector default - note joint with diffusivity
@@ -40,6 +32,5 @@ runlist <- tibble(
   "DIFFUSIVITY" = rnorm(N_RUNS, mean = 2.3, sd = 0.23),
 )
 
-# Save output with job id
-slurm_id <- Sys.getenv("SLURM_JOBID")
-write.csv(x = as.data.frame(runlist), file = paste0("./output/runlist_", slurm_id, ".csv"))
+# Save output
+write.csv(x = as.data.frame(runlist), file = "./output/runlist.csv")

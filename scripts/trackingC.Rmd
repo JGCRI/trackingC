@@ -351,10 +351,12 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
   labs(x = "Year",
        y = "Fraction of relative importance")
 ```
+
 # Comparing Hector temperature data to CMIP6
+
 ``` {r cmip, fig.cap = " Global temperature anomaly data from CMIP6 and Hector runs"}
 # Read in comparison data
-cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
+cmip <- read.csv(paste0(here::here(), "/CMIP6_annual_tas_global.csv")) %>%
   filter(variable == "Tgav",
          experiment == "ssp245") %>%
   group_by(year) %>%
