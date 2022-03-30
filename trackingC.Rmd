@@ -398,24 +398,31 @@ ggplot(temp, aes(year, fill = source, color = source)) +
 # flows to the atmos_c pool from time t to t+1 and divide by the difference
 # in earth_c from t to t+1
 
+pad  <- function(x, n) {
+    len.diff <- n - length(x)
+    c(rep(0, len.diff), x) 
+} 
+
 ea <- output_slice %>%
   # Isolate earth_c emissions in atmos_c
   filter(pool_name == "atmos_c", 
          source_name == "earth_c") %>%
   # How much earth_c is in atmos_c?
   mutate(source_quantity = pool_value * source_fraction) %>%
-  select(-c(names(name_vector))) %>%
+  group_by(run_number) %>%
   # Compute year-to-year difference
-  mutate(e_in_a = c(0, diff(source_quantity))) 
+  mutate(e_in_a = pad(diff(source_quantity), length(source_quantity))) 
 
 de <- output_slice %>%
   # Isolate earth_c pool
   filter(pool_name == "earth_c",
          source_name == "earth_c") %>%
   select(-c(names(name_vector))) %>%
+  mutate(e_in_a = ea$e_in_a) %>%
+  group_by(run_number) %>%
   # Compute difference in pool over time and airborne fraction
-  mutate(delta_e = c(0, diff(pool_value)),
-         AF = round((ea$e_in_a / -delta_e), 4))
+  mutate(delta_e = pad(diff(pool_value), length(pool_value)),
+         AF = round((e_in_a / -delta_e), 4))
 
 de %>% 
   # Remove first row with NaN AF value
