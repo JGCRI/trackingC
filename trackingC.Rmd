@@ -271,14 +271,14 @@ destination <- output_slice %>%
   filter(source_name == "earth_c", pool_name != "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
   group_by(year, run_number) %>%
-  mutate(destination_percent = source_quantity / sum(source_quantity),
-         destination_fraction = destination_percent / 100) %>% 
+  mutate(destination_fraction = source_quantity / sum(source_quantity),
+         destination_percent = destination_fraction * 100) %>% 
   ungroup()
 
 # Just looking at particular runs
 dest_runs <- filter(destination, run_number %in% c(1:30))
 
-ggplot(dest_runs, aes(year, destination_percent, 
+ggplot(dest_runs, aes(year, destination_fraction, 
                    fill = pool_name)) +
   geom_area() +
   scale_fill_viridis_d() +
@@ -351,7 +351,9 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
   labs(x = "Year",
        y = "Fraction of relative importance")
 ```
-# Comparing Hector temperature data to CMIP6
+
+# Comparing Hector temperature data to CMIP6 
+
 ``` {r cmip, fig.cap = " Global temperature anomaly data from CMIP6 and Hector runs"}
 # Read in comparison data
 cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
@@ -387,5 +389,41 @@ ggplot(temp, aes(year, fill = source, color = source)) +
   scale_fill_viridis_d(begin = 0.5) +
   labs(x = "Year",
        y = "deg C")
+
+```
+
+# Airborne fraction
+``` {r AF, fig.cap = " Airborne fraction over time"}
+# To calculate the airborne fraction, we need to find how much earth_c
+# flows to the atmos_c pool from time t to t+1 and divide by the difference
+# in earth_c from t to t+1
+
+ea <- output_slice %>%
+  # Isolate earth_c emissions in atmos_c
+  filter(pool_name == "atmos_c", 
+         source_name == "earth_c") %>%
+  # How much earth_c is in atmos_c?
+  mutate(source_quantity = pool_value * source_fraction) %>%
+  select(-c(names(name_vector))) %>%
+  # Compute year-to-year difference
+  mutate(e_in_a = c(0, diff(source_quantity))) 
+
+de <- output_slice %>%
+  # Isolate earth_c pool
+  filter(pool_name == "earth_c",
+         source_name == "earth_c") %>%
+  select(-c(names(name_vector))) %>%
+  # Compute difference in pool over time and airborne fraction
+  mutate(delta_e = c(0, diff(pool_value)),
+         AF = round((ea$e_in_a / -delta_e), 4))
+
+de %>% 
+  # Remove first row with NaN AF value
+  slice(-1) %>%
+  ggplot(aes(year, AF, group = run_number, color = AF)) +
+  geom_line() + 
+  scale_color_viridis_c() +
+  labs(x = "Year",
+       y = "Airborne fraction")
 
 ```
