@@ -392,6 +392,57 @@ ggplot(temp, aes(year, fill = source, color = source)) +
 
 ```
 
+# BBL AF
+```{r}
+# Prep the data
+output_slice %>%
+  # isolate atmosphere and earth total pool values
+  filter(pool_name %in% c("atmos_c", "earth_c")) %>% 
+  group_by(run_number, year, pool_name) %>% 
+  summarise(pool_value = mean(pool_value), .groups = "drop") %>% 
+  arrange(year) %>% 
+  # put atmosphere and earth in separate columns and compute diffs
+  pivot_wider(names_from = "pool_name", values_from = "pool_value") %>% 
+  group_by(run_number) %>% 
+  mutate(atm_diff = c(NA, diff(atmos_c)), 
+         earth_diff = c(NA, diff(earth_c))) ->
+  os_atm_earth
+
+# Compute AF (classical definition of delta CO2atm / emissions) 
+# using various window sizes
+af_results <- list()
+for (groupsize in seq(1, 40, length.out = 10)) {
+  ngroups = length(unique(os_atm_earth$year)) / groupsize
+  
+  os_atm_earth %>% 
+    group_by(run_number) %>% 
+    mutate(group = cut(year, breaks = ngroups)) %>% 
+    # compute differences over the group of years
+    group_by(run_number, group) %>%
+    summarise(year = max(year), 
+              atm_diff = sum(atm_diff), 
+              earth_diff = sum(earth_diff), 
+              n = n(),
+              af = atm_diff / -earth_diff,
+              .groups = "drop") ->
+    af_results[[as.character(groupsize)]]
+}
+af_results <- bind_rows(af_results, .id = "window_size") %>% 
+  mutate(window_size = as.integer(window_size))
+
+af_results %>% 
+ filter(window_size == 1) %>% 
+  ggplot(aes(year, af, group=run_number)) + 
+  geom_line() + ggtitle("Year-to-year (window = 1) AF")
+
+af_results %>% 
+  group_by(year, window_size) %>% 
+  summarise(af = mean(af)) %>% 
+  ggplot(aes(year, af, color = window_size, group = window_size)) + 
+  geom_line() + ggtitle("AF computed using various time windows")
+```
+
+
 # Airborne fraction
 ``` {r AF, fig.cap = " Airborne fraction over time"}
 # To calculate the airborne fraction, we need to find how much earth_c
