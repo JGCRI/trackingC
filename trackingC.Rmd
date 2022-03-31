@@ -427,19 +427,45 @@ for (groupsize in seq(1, 40, length.out = 10)) {
               .groups = "drop") ->
     af_results[[as.character(groupsize)]]
 }
+
 af_results <- bind_rows(af_results, .id = "window_size") %>% 
   mutate(window_size = as.integer(window_size))
 
-af_results %>% 
- filter(window_size == 1) %>% 
-  ggplot(aes(year, af, group=run_number)) + 
-  geom_line() + ggtitle("Year-to-year (window = 1) AF")
+results <- af_results %>%
+  group_by(group, year) %>%
+  mutate(sdev = sd(af, na.rm = TRUE),
+         minimum = min(af),
+         maximum = max(af),
+         med = median(af))
 
 af_results %>% 
   group_by(year, window_size) %>% 
   summarise(af = mean(af)) %>% 
   ggplot(aes(year, af, color = window_size, group = window_size)) + 
   geom_line() + ggtitle("AF computed using various time windows")
+
+# Overlay with the fraction of emissions remaining in the atmosphere
+ea <- output_slice %>%
+  select(-c(names(name_vector))) %>%
+  # Isolate earth_c emissions in atmos_c
+  filter(pool_name == "atmos_c", 
+         source_name == "earth_c") %>%
+  # How much earth_c is in atmos_c? What are cumulative emissions?
+  mutate(source_quantity = pool_value * source_fraction) %>%
+  group_by(run_number) %>%
+  mutate(cumulative = c(NA, cumsum(diff(source_quantity))),
+         diff_source = c(NA, diff(source_quantity)),
+         frac = diff_source / cumulative)
+
+plot_r <- results %>% 
+ filter(window_size == 1)
+
+ggplot(plot_r, aes(year, group = run_number)) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.3) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.2) +
+  geom_line(aes(y = med)) +
+  geom_line(data = ea, aes(y = frac, group = run_number), color = "blue")
+
 ```
 
 
