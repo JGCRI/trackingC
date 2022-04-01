@@ -68,10 +68,13 @@ if(Sys.getenv("CI") == "true") {
 # Runlist contains run number, parameter, and a random distribution
 runlist <- tibble(
   run_number = 1:N_RUNS,
+  # Keenan et al. (2021)
   "BETA" = rnorm(N_RUNS, mean = 0.54, sd = 0.03),
+  # Davidson and Janssens (2006)
   "Q10_RH" = rlnorm(N_RUNS, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
   # Hector default - note joint with diffusivity
   "ECS" = rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2]),
+  # Ito (2011)
   "NPP_FLUX0" = rnorm(N_RUNS, mean = 56.2, sd = 5.62),
   # Hector default
   "AERO_SCALE" = rnorm(N_RUNS, mean = 1.0, sd = 0.1),
@@ -393,20 +396,19 @@ ggplot(temp, aes(year, fill = source, color = source)) +
 ```
 
 # BBL AF
-```{r}
+```{r airborne, warning = FALSE, fig.cap = " Mathematically defined airborne fraction with a line depicting the actual amount of human emissions that remains in the atmosphere"}
 # Prep the data
-output_slice %>%
-  # isolate atmosphere and earth total pool values
+os_atm_earth <- output_slice %>%
+  # Isolate atmosphere and earth total pool values
   filter(pool_name %in% c("atmos_c", "earth_c")) %>% 
   group_by(run_number, year, pool_name) %>% 
   summarise(pool_value = mean(pool_value), .groups = "drop") %>% 
   arrange(year) %>% 
-  # put atmosphere and earth in separate columns and compute diffs
+  # Put atmosphere and earth in separate columns and compute diffs
   pivot_wider(names_from = "pool_name", values_from = "pool_value") %>% 
   group_by(run_number) %>% 
   mutate(atm_diff = c(NA, diff(atmos_c)), 
-         earth_diff = c(NA, diff(earth_c))) ->
-  os_atm_earth
+         earth_diff = c(NA, diff(earth_c)))
 
 # Compute AF (classical definition of delta CO2atm / emissions) 
 # using various window sizes
@@ -460,11 +462,19 @@ ea <- output_slice %>%
 plot_r <- results %>% 
  filter(window_size == 1)
 
-ggplot(plot_r, aes(year, group = run_number)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.3) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.2) +
-  geom_line(aes(y = med)) +
-  geom_line(data = ea, aes(y = frac, group = run_number), color = "blue")
+ggplot(data = plot_r, aes(year, group = run_number,
+                   color = plot_r$window_size, 
+                   fill = plot_r$window_size)) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.01) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.02) +
+  scale_color_viridis_c() +
+  scale_fill_viridis_c() +
+  geom_line(aes(y = med), size = 1) +
+  geom_line(data = ea, aes(y = frac, group = run_number), color = "black") +
+  theme(legend.position = "none") +
+  labs(x = "Year",
+       y = "Airborne fraction")
+
 
 ```
 
