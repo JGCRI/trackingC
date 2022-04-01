@@ -459,6 +459,35 @@ ea <- output_slice %>%
          diff_source = c(NA, diff(source_quantity)),
          frac = diff_source / cumulative)
 
+# Compute cumulative emissions over time
+# Destination
+emissions <- output_slice %>%
+  filter(pool_name == "earth_c",
+         source_name == "earth_c",
+         run_number == min(run_number)) %>%
+  arrange(year) %>%
+  mutate(emissions = c(0, diff(pool_value)),
+         # relative to 2000
+         cumulative_emissions = cumsum(emissions)) %>%
+  select(year, cumulative_emissions)
+  
+# Compute what fraction of cumulative emissions are in the atmosphere for each year
+# Destination
+# Airborne fraction - what fraction remains in atmosphere (when math breaks down - yay tracking)
+emissions_fraction <- output_slice %>%
+  filter(pool_name == "atmos_c", 
+         source_name == "earth_c") %>%
+  # How much earth_c is in atmos_c? 
+  mutate(source_quantity = pool_value * source_fraction) %>%
+  left_join(emissions, by = "year") %>%
+  select(run_number, year, source_quantity, cumulative_emissions) %>%
+  mutate(c_emissions_fraction = -1 *(source_quantity / cumulative_emissions)) %>% 
+  group_by(year) %>%
+  summarize(sdev = sd(c_emissions_fraction),
+            med = median(c_emissions_fraction),
+            minimum = min(c_emissions_fraction),
+            maximum = max(c_emissions_fraction))
+  
 plot_r <- results %>% 
  filter(window_size == 1)
 
