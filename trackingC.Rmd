@@ -18,11 +18,35 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Introduction
 
+## Science background
+
+Basically the introductory sentences from existing google doc:
+
+* Point 1
+* Point 2
+* Point 3
+
+## Goals
+
+* Goal 1
+* Goal 2
+* Goal 3
+
 # Methods
 
 ## Definitions
 
+* ƒATM~ffi~: the fraction of atmospheric carbon derived from fossil fuel industrial emissions
+* ƒFFI~atm~: the fraction of fossil fuel emissions residing in the atmosphere
+* AF: airborne fraction, conventionally computed as $\Delta$ATM / $\Sigma$FFI over some time period
+
+Could also use "A" (atmosphere) and "E" (emissions) above, if clearer?
+
 ## Setup
+
+We <describe methodology in a few bullets>: random parameter draws from
+a priori PDFs from literature; parameterized Hector; ran XXX times; using
+both standard outputs (pools and fluxes) and carbon-tracking data.
 
 ### R setup
 
@@ -49,7 +73,6 @@ years <- 2000:2200
 
 # Set random number generator to allow for reproducibility 
 set.seed(10)
-
 ```
 
 ### Create runlist of parameter draws
@@ -555,7 +578,6 @@ de %>%
   scale_color_viridis_c() +
   labs(x = "Year",
        y = "Airborne fraction")
-
 ```
 
 # The End
