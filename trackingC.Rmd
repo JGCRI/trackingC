@@ -40,8 +40,8 @@ Basically the introductory sentences from existing google doc:
 * ƒFFI~atm~: the fraction of fossil fuel emissions residing in the atmosphere
 * AF: airborne fraction, conventionally computed as $\Delta$ATM / $\Sigma$FFI over some time period
 
-Note that AF is commonly described as "the fraction of anthropogenic emissions 
-which remain in the atmosphere" 
+Note that while AF is commonly described as "the fraction of anthropogenic 
+emissions which remain in the atmosphere" 
 ([source](https://gml.noaa.gov/co2conference/posters_pdf/jones1_poster.pdf)), 
 the ratio above will not exactly be that, because in some circumstances earth 
 system feedbacks will add to atmospheric C as well. In addition, the 
@@ -51,7 +51,7 @@ Could also use "A" (atmosphere) and "E" (emissions) above, if clearer?
 
 ## Setup
 
-We <describe methodology in a few bullets>: random parameter draws from
+We (describe methodology in a few bullets): random parameter draws from
 a priori PDFs from literature; parameterized Hector; ran XXX times; using
 both standard outputs (pools and fluxes) and carbon-tracking data.
 
