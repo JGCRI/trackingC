@@ -185,7 +185,6 @@ results <- left_join(results, runlist, by = "run_number")
 max_display <- slice_sample(runlist, n = 100)
 output_slice <- filter(output, run_number %in% max_display$run_number)
 results_slice <- filter(results, run_number %in% max_display$run_number)
-
 ```
 
 # Results
@@ -246,9 +245,9 @@ ggplot(temp, aes(year, fill = source, color = source)) +
        y = expression(degree*C))
 ```
 
-# Hector output graphs
+## Atmosphere sources
 
-``` {r atmosphere-by-source, fig.cap = " Fraction of CO2 in the atmosphere by source pool"}
+``` {r atmosphere-by-source, fig.cap = " Fraction of CO2 in the atmosphere by source pool from 30 random runs. Dark line shows the median."}
 # This code just looks at the atmosphere pool
 atmos <- output_slice %>%
   filter(pool_name == "atmos_c")
@@ -265,10 +264,9 @@ ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = 
                geom = "line", 
                group = "run_number",
                size = 0.7)
-
 ```
 
-``` {r coeff-var, fig.cap = " Coefficients of variability for each source in the atmosphere over time"}
+``` {r coeff-var, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
 # Compute coefficient of variability for each source in the atmosphere pool
 atmos_cv <- atmos %>%
   group_by(year, source_name) %>%
@@ -283,12 +281,10 @@ ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
   # Could add facets to look at variability, but more useful to compare CV
   #facet_wrap(~source_name, scales = "free") +
   labs(x = "Source fraction",
-       y = "CV",
-       title = "Coefficients of variability by source in the atmosphere pool")
-
+       y = "CV")
 ```
 
-``` {r earthc-in-atmos, fig.cap = " Source of carbon in the atmosphere from fossil fuel over time"}
+``` {r earthc-in-atmos, fig.cap = " Fraction of atmospheric carbon from fossil fuel and industrial (FFI) emissions over time. Line shows median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
 # This chunk looks at the atmosphere pool with just one source (earth_c) 
 # and plots source fraction over time with a mean and confidence interval
 
@@ -305,12 +301,12 @@ ggplot(ff, aes(year)) +
   geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
   labs(x = "Year",
-       y = "Source fraction")
+       y = "Fraction tmospheric C derived from FFI emissions")
 ```
 
-# Where does carbon end up?
+## Destination of FFI emissions
 
-```{r destination, fig.cap = " Final destination pool of human emissions"}
+```{r destination, fig.cap = " Final destination pools of fossil fuel and industrial (FFI) emissions for 30 random runs."}
 # Where does carbon end up?
 # We have pool_name, source_name, source_fraction
 # Step 1: compute source_quantity = pool_value * source_fraction
@@ -337,12 +333,10 @@ ggplot(dest_runs, aes(year, destination_fraction,
         strip.text.x = element_blank(),
         axis.text.x = element_text(angle = 90)) +
   labs(x = "Year",
-       y = "Destination fraction")
+       y = "Destination of FFI emissions (fraction)")
 ```
 
-# All parameter combinations
-
-```{r parameter-space, fig.cap = " Parameter correlation"}
+```{r parameter-space, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating XXX."}
 # Single time point, pool, and source - exploring how the parameter space 
 # is linked to output
 
@@ -362,9 +356,8 @@ ggpairs(single,
   scale_fill_viridis_d()
 ```
 
-# What controls how much earth_c ends up in the atmosphere?
 
-```{r relative-importance, fig.cap = " Relative importance of parameters over time"}
+```{r relative-importance, fig.cap = " Relative importance of parameters over time in controlling atmosphere as a destination of fossil fuel and industrial (FFI) emissions."}
 # Filter to just atmosphere pool, and remove unneeded columns
 dest_e2a <- filter(destination, pool_name == "atmos_c")
 dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", names(name_vector))]
@@ -399,10 +392,11 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
   coord_cartesian(expand = FALSE) +
   scale_fill_viridis_d(direction = -1) +
   labs(x = "Year",
-       y = "Fraction of relative importance")
+       y = expression(Relative~importance~"for"~ƒFFI[atm]))
 ```
 
-# BBL AF
+## Airborne fraction
+
 ```{r airborne, warning = FALSE, fig.cap = " Mathematically defined airborne fraction with a line depicting the actual amount of human emissions that remains in the atmosphere"}
 # Prep the data
 os_atm_earth <- output_slice %>%
@@ -510,12 +504,11 @@ ggplot(data = plot_r, aes(year, group = run_number,
   theme(legend.position = "none") +
   labs(x = "Year",
        y = "Airborne fraction")
-
-
 ```
 
 
-# Airborne fraction
+## Airborne fraction
+
 ``` {r AF, fig.cap = " Airborne fraction over time"}
 # To calculate the airborne fraction, we need to find how much earth_c
 # flows to the atmos_c pool from time t to t+1 and divide by the difference
@@ -556,4 +549,10 @@ de %>%
   labs(x = "Year",
        y = "Airborne fraction")
 
+```
+
+# The End
+
+```{r}
+sessionInfo()
 ```
