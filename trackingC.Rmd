@@ -9,14 +9,18 @@ output:
     toc: true
     toc_depth: 2
     toc_float: true
-    code_folding: show
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# Setup
+# Introduction
+
+# Methods
+
+## Setup
 
 Load necessary packages, read in an ini file and initiate core, and set seed for reproducibility.
 
@@ -44,7 +48,7 @@ set.seed(10)
 
 ```
 
-# Create dataset
+## Create dataset
 
 ```{r params}
 # Create runlist of parameters of interest
@@ -94,7 +98,7 @@ units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)",
                   )
 ```
 
-# Run the model
+## Run the model
 
 ```{r functions, cache=TRUE, message=FALSE}
 run_hector <- function(pdata, c) {
@@ -144,9 +148,9 @@ for(row in seq_len(nrow(runlist))) {
 tm <- difftime(Sys.time(), start, units = "secs") %>% round(1)
 ```
 
-Running took `r tm` seconds or `r tm/N_RUNS` s/job.
+Doing `r N_RUNS` runs took `r tm` seconds or `r tm/N_RUNS` s/job.
 
-# Process data
+## Process data
 
 ``` {r data}
 # Get output data frames
@@ -185,9 +189,9 @@ results_slice <- filter(results, run_number %in% max_display$run_number)
 The following sections contain tentative figures in the order they would appear
 in a manuscript. 
 
-# Parameters and PDFS
+# Realized parameter PDFs
 
-``` {r params-PDFs, fig.cap = " Probability densities of each parameter"}
+``` {r params-PDFs, fig.cap = paste0(" Probability densities of each parameter (N=", N_RUNS, " draws).")}
 # Density plot to visualize parameter distributions
 runlist %>% 
   select(-run_number) %>%
@@ -195,8 +199,46 @@ runlist %>%
   ggplot(aes(value)) +
   geom_density() + 
   facet_wrap(~name, scales = "free") +
-  labs(x = NULL, 
-       y = NULL)
+  labs(x = NULL, y = NULL)
+```
+
+# Hector temperature vs. CMIP6 
+
+``` {r cmip, fig.cap = " Global temperature anomaly outputs from CMIP6 and Hector runs."}
+# Read in comparison data
+cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
+  filter(variable == "Tgav",
+         experiment == "ssp245") %>%
+  group_by(year) %>%
+  summarize(sdev = sd(value),
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value)) %>%
+  mutate(source = "CMIP6")
+
+# Extract Hector data
+hector <- results %>%
+  filter(variable == "Tgav",
+         year >= 2015 & year <= 2100) %>%
+  group_by(year) %>%
+  summarize(sdev = sd(value),
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value)) %>%
+  mutate(source = "Hector")
+
+# Combine data
+temp <- bind_rows(cmip, hector)
+
+# Plot temperature spread
+ggplot(temp, aes(year, fill = source, color = source)) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5) +
+  geom_line(aes(y = med)) +
+  scale_color_viridis_d(begin = 0.5) +
+  scale_fill_viridis_d(begin = 0.5) +
+  labs(x = "Year",
+       y = expression(degree*C))
 ```
 
 # Hector output graphs
@@ -353,46 +395,6 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
   scale_fill_viridis_d(direction = -1) +
   labs(x = "Year",
        y = "Fraction of relative importance")
-```
-
-# Comparing Hector temperature data to CMIP6 
-
-``` {r cmip, fig.cap = " Global temperature anomaly data from CMIP6 and Hector runs"}
-# Read in comparison data
-cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
-  filter(variable == "Tgav",
-         experiment == "ssp245") %>%
-  group_by(year) %>%
-  summarize(sdev = sd(value),
-            minimum = min(value),
-            maximum = max(value),
-            med = median(value)) %>%
-  mutate(source = "CMIP6")
-
-# Extract Hector data
-hector <- results %>%
-  filter(variable == "Tgav",
-         year >= 2015 & year <= 2100) %>%
-  group_by(year) %>%
-  summarize(sdev = sd(value),
-            minimum = min(value),
-            maximum = max(value),
-            med = median(value)) %>%
-  mutate(source = "Hector")
-
-# Combine data
-temp <- bind_rows(cmip, hector)
-
-# Plot temperature spread
-ggplot(temp, aes(year, fill = source, color = source)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5) +
-  geom_line(aes(y = med)) +
-  scale_color_viridis_d(begin = 0.5) +
-  scale_fill_viridis_d(begin = 0.5) +
-  labs(x = "Year",
-       y = "deg C")
-
 ```
 
 # BBL AF
