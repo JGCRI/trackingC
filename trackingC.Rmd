@@ -325,7 +325,7 @@ ggplot(ff, aes(year)) +
   geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
   labs(x = "Year",
-       y = "Fraction tmospheric C derived from FFI emissions")
+       y = "Fraction atmospheric C derived from FFI emissions")
 ```
 
 ## Destination of FFI emissions
