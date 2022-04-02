@@ -40,6 +40,13 @@ Basically the introductory sentences from existing google doc:
 * ƒFFI~atm~: the fraction of fossil fuel emissions residing in the atmosphere
 * AF: airborne fraction, conventionally computed as $\Delta$ATM / $\Sigma$FFI over some time period
 
+Note that AF is commonly described as "the fraction of anthropogenic emissions 
+which remain in the atmosphere" 
+([source](https://gml.noaa.gov/co2conference/posters_pdf/jones1_poster.pdf)), 
+the ratio above will not exactly be that, because in some circumstances earth 
+system feedbacks will add to atmospheric C as well. In addition, the 
+formula above produces negative numbers if $\Delta$ATM < 0.
+
 Could also use "A" (atmosphere) and "E" (emissions) above, if clearer?
 
 ## Setup
@@ -69,7 +76,7 @@ ssp245 <- system.file("input/hector_ssp245.ini", package = "hector")
 core <- newcore(ssp245)
 
 # Set range of years for output data
-years <- 2000:2200
+OUTPUT_YEARS <- 2000:2200
 
 # Set random number generator to allow for reproducibility 
 set.seed(10)
@@ -84,7 +91,7 @@ set.seed(10)
 # Reference: https://msalganik.wordpress.com/2017/01/21/making-sense-of-the-rlnorm-function-in-r/
 lognorm <- function(m, sd){
   location <- log(m^2 / sqrt(sd^2 + m^2))
-  shape <- sqrt(log(1+ (sd^2 / m^2)))
+  shape <- sqrt(log(1 + (sd^2 / m^2)))
   v <- c(location, shape)
 }
 
@@ -143,8 +150,8 @@ run_hector <- function(pdata, c) {
   run(c)
   # Access and save tracking data, model outputs
   out <- list()
-  out$tdata <- get_tracking_data(c) %>% filter(year %in% years)
-  out$results <- fetchvars(c, years)
+  out$tdata <- get_tracking_data(c) %>% filter(year %in% OUTPUT_YEARS)
+  out$results <- fetchvars(c, OUTPUT_YEARS)
   return(out)
 }
 
