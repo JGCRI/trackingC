@@ -1,7 +1,7 @@
 ---
 title: "trackingC.Rmd"
 author: "Leeya Pressburger"
-date: "2/3/2022"
+date: "`r Sys.Date()`"
 output:
   bookdown::html_document2:
     fig_caption: yes
@@ -163,7 +163,7 @@ tdata <- list()
 for(n in seq_len(length(out))){
   tdata[[n]] <- out[[n]]$tdata
 }
-output <- bind_rows(tdata, .id = "run_number") %>% as_tibble
+trk_output <- bind_rows(tdata, .id = "run_number") %>% as_tibble
 
 # Then, access model output data
 results <- list()
@@ -174,16 +174,17 @@ results <- bind_rows(results, .id = "run_number") %>% as_tibble()
 
 # Can left join with runlist to get param values
 # Make sure data is same class
-output$run_number <- as.integer(output$run_number)
-output <- left_join(output, runlist, by = "run_number")
+trk_output$run_number <- as.integer(trk_output$run_number)
+trk_output <- left_join(trk_output, runlist, by = "run_number")
 
 results$run_number <- as.integer(results$run_number)
 results <- left_join(results, runlist, by = "run_number")
 
-# If there are over 100 observations per time point, we want to use slice_sample() to randomly select rows to plot.
+# If there are over 100 observations per time point, 
+# we use slice_sample() to randomly select rows to plot.
 # Pull random run numbers from the runlist and filter output by random runs
 max_display <- slice_sample(runlist, n = 100)
-output_slice <- filter(output, run_number %in% max_display$run_number)
+trk_output_slice <- filter(trk_output, run_number %in% max_display$run_number)
 results_slice <- filter(results, run_number %in% max_display$run_number)
 ```
 
@@ -249,7 +250,7 @@ ggplot(temp, aes(year, fill = source, color = source)) +
 
 ``` {r atmosphere-by-source, fig.cap = " Fraction of CO2 in the atmosphere by source pool from 30 random runs. Dark line shows the median."}
 # This code just looks at the atmosphere pool
-atmos <- output_slice %>%
+atmos <- trk_output_slice %>%
   filter(pool_name == "atmos_c")
 
 # This plot looks at source fraction by source pool in the atmosphere as well as the median run.
@@ -313,7 +314,7 @@ ggplot(ff, aes(year)) +
 # Step 2: for each year and source_name, compute destination_fraction
 # group_by(year, source_name) %>% mutate(destination_fraction = source_quantity / sum(source_quantity))
 
-destination <- output_slice %>%
+ffi_destinations <- trk_output %>%
   filter(source_name == "earth_c", pool_name != "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
   group_by(year, run_number) %>%
@@ -322,7 +323,7 @@ destination <- output_slice %>%
   ungroup()
 
 # Just looking at particular runs
-dest_runs <- filter(destination, run_number %in% c(1:30))
+dest_runs <- filter(ffi_destinations, run_number %in% c(1:30))
 
 ggplot(dest_runs, aes(year, destination_fraction, 
                    fill = pool_name)) +
@@ -336,18 +337,18 @@ ggplot(dest_runs, aes(year, destination_fraction,
        y = "Destination of FFI emissions (fraction)")
 ```
 
-```{r parameter-space, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating XXX."}
+```{r parameter-space, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating XXX, for the year 2100."}
 # Single time point, pool, and source - exploring how the parameter space 
 # is linked to output
 
-single <- output %>%
+ffi_atm_2100 <- trk_output %>%
   filter(pool_name == "atmos_c",
          source_name == "earth_c",
          year == 2100) %>% 
   mutate(sf = cut(source_fraction, 3))
 
 n <- length(name_vector)
-ggpairs(single,
+ggpairs(ffi_atm_2100,
         columns = 9:(9 + (n-1)),
         aes(color = sf), 
         diag = list(mapping = aes(alpha = 0.5)),
@@ -359,7 +360,7 @@ ggpairs(single,
 
 ```{r relative-importance, fig.cap = " Relative importance of parameters over time in controlling atmosphere as a destination of fossil fuel and industrial (FFI) emissions."}
 # Filter to just atmosphere pool, and remove unneeded columns
-dest_e2a <- filter(destination, pool_name == "atmos_c")
+dest_e2a <- filter(ffi_destinations, pool_name == "atmos_c")
 dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", names(name_vector))]
 
 # Function to calculate relative importance of parameters in
@@ -397,9 +398,9 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
 
 ## Airborne fraction
 
-```{r airborne, warning = FALSE, fig.cap = " Mathematically defined airborne fraction with a line depicting the actual amount of human emissions that remains in the atmosphere"}
+```{r af-windows, fig.cap = " Airborne fraction computed over varying time windows."}
 # Prep the data
-os_atm_earth <- output_slice %>%
+os_atm_earth <- trk_output %>%
   # Isolate atmosphere and earth total pool values
   filter(pool_name %in% c("atmos_c", "earth_c")) %>% 
   group_by(run_number, year, pool_name) %>% 
@@ -434,21 +435,19 @@ for (groupsize in seq(1, 40, length.out = 10)) {
 af_results <- bind_rows(af_results, .id = "window_size") %>% 
   mutate(window_size = as.integer(window_size))
 
-results <- af_results %>%
-  group_by(group, year) %>%
-  mutate(sdev = sd(af, na.rm = TRUE),
-         minimum = min(af),
-         maximum = max(af),
-         med = median(af))
-
 af_results %>% 
   group_by(year, window_size) %>% 
-  summarise(af = mean(af)) %>% 
+  summarise(af = mean(af), .groups = "drop") %>% 
   ggplot(aes(year, af, color = window_size, group = window_size)) + 
-  geom_line() + ggtitle("AF computed using various time windows")
+  geom_line(na.rm = TRUE) + 
+  xlab("Year") + ylab("Airborne fraction")
+```
+
+
+```{r airborne, warning = FALSE, fig.cap = " Mathematically defined airborne fraction with a line depicting the actual amount of human emissions remaining in the atmosphere"}
 
 # Overlay with the fraction of emissions remaining in the atmosphere
-ea <- output_slice %>%
+ea <- trk_output_slice %>%
   select(-c(names(name_vector))) %>%
   # Isolate earth_c emissions in atmos_c
   filter(pool_name == "atmos_c", 
@@ -461,13 +460,14 @@ ea <- output_slice %>%
          frac = diff_source / cumulative)
 
 # Compute cumulative emissions over time
-# Destination
-emissions <- output_slice %>%
+# We use the change in earth_c to compute emissions; note this will not work
+# if ever using a scenario with fossil fuel sequestration (atmosphere -> earth)
+emissions <- trk_output_slice %>%
   filter(pool_name == "earth_c",
          source_name == "earth_c",
          run_number == min(run_number)) %>%
   arrange(year) %>%
-  mutate(emissions = c(0, diff(pool_value)),
+  mutate(emissions = -c(0, diff(pool_value)),
          # relative to 2000
          cumulative_emissions = cumsum(emissions)) %>%
   select(year, cumulative_emissions)
@@ -475,20 +475,28 @@ emissions <- output_slice %>%
 # Compute what fraction of cumulative emissions are in the atmosphere for each year
 # Destination
 # Airborne fraction - what fraction remains in atmosphere (when math breaks down - yay tracking)
-emissions_fraction <- output_slice %>%
+emissions_fraction <- trk_output_slice %>%
   filter(pool_name == "atmos_c", 
          source_name == "earth_c") %>%
   # How much earth_c is in atmos_c? 
   mutate(source_quantity = pool_value * source_fraction) %>%
   left_join(emissions, by = "year") %>%
   select(run_number, year, source_quantity, cumulative_emissions) %>%
-  mutate(c_emissions_fraction = -1 *(source_quantity / cumulative_emissions)) %>% 
+  mutate(c_emissions_fraction = source_quantity / cumulative_emissions) %>% 
   group_by(year) %>%
   summarize(sdev = sd(c_emissions_fraction),
             med = median(c_emissions_fraction),
             minimum = min(c_emissions_fraction),
             maximum = max(c_emissions_fraction))
-  
+
+# LEEYAP - YOU ALREADY HAVE A 'RESULTS' VARIABLE; DON'T OVERWRITE!
+results <- af_results %>%
+  group_by(group, year) %>%
+  mutate(sdev = sd(af, na.rm = TRUE),
+         minimum = min(af),
+         maximum = max(af),
+         med = median(af))
+
 plot_r <- results %>% 
  filter(window_size == 1)
 
@@ -506,10 +514,9 @@ ggplot(data = plot_r, aes(year, group = run_number,
        y = "Airborne fraction")
 ```
 
+## Airborne fraction (old)
 
-## Airborne fraction
-
-``` {r AF, fig.cap = " Airborne fraction over time"}
+``` {r AF, fig.cap = " Airborne fraction over time."}
 # To calculate the airborne fraction, we need to find how much earth_c
 # flows to the atmos_c pool from time t to t+1 and divide by the difference
 # in earth_c from t to t+1
@@ -519,7 +526,7 @@ pad  <- function(x, n) {
     c(rep(0, len.diff), x) 
 } 
 
-ea <- output_slice %>%
+ea <- trk_output_slice %>%
   # Isolate earth_c emissions in atmos_c
   filter(pool_name == "atmos_c", 
          source_name == "earth_c") %>%
@@ -529,7 +536,7 @@ ea <- output_slice %>%
   # Compute year-to-year difference
   mutate(e_in_a = pad(diff(source_quantity), length(source_quantity))) 
 
-de <- output_slice %>%
+de <- trk_output_slice %>%
   # Isolate earth_c pool
   filter(pool_name == "earth_c",
          source_name == "earth_c") %>%
