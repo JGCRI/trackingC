@@ -284,12 +284,12 @@ atmos <- trk_output_slice %>%
   filter(pool_name == "atmos_c")
 
 # This plot looks at source fraction by source pool in the atmosphere as well as the median run.
-ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = run_number)) +
+ggplot(atmos, aes(year, source_fraction, color = pool_name, group = run_number), alpha = 0.15) +
   geom_line(size = 0.5, show.legend = FALSE) +
   facet_wrap(~source_name, scales = "free") +
   labs(x = "Year",
        y = "Source fraction") +
-  scale_color_grey(start = 0.7, end = 0.7) +
+  scale_color_viridis_d() +
   stat_summary(color = "black",
                fun = median, 
                geom = "line", 
@@ -479,20 +479,6 @@ af_results %>%
 
 
 ```{r airborne, warning = FALSE, fig.cap = " Mathematically defined airborne fraction with a line depicting the actual amount of human emissions remaining in the atmosphere"}
-
-# Compute the fraction of emissions remaining in the atmosphere
-ea <- trk_output_slice %>%
-  select(-c(names(name_vector))) %>%
-  # Isolate earth_c emissions in atmos_c
-  filter(pool_name == "atmos_c", 
-         source_name == "earth_c") %>%
-  # How much earth_c is in atmos_c? What are cumulative emissions?
-  mutate(source_quantity = pool_value * source_fraction) %>%
-  group_by(run_number) %>%
-  mutate(cumulative = c(NA, cumsum(diff(source_quantity))),
-         diff_source = c(NA, diff(source_quantity)),
-         frac = diff_source / cumulative)
-
 # Compute cumulative emissions over time
 # We use the change in earth_c to compute emissions; note this will not work
 # if ever using a scenario with fossil fuel sequestration (atmosphere -> earth)
@@ -516,11 +502,12 @@ emissions_fraction <- trk_output_slice %>%
   select(run_number, year, source_quantity, cumulative_emissions) %>%
   mutate(c_emissions_fraction = source_quantity / cumulative_emissions) %>% 
   group_by(year) %>%
-  summarize(sdev = sd(c_emissions_fraction),
+  mutate(sdev = sd(c_emissions_fraction),
             med = median(c_emissions_fraction),
             minimum = min(c_emissions_fraction),
             maximum = max(c_emissions_fraction))
 
+# Classical definition of AF
 plot_r <- af_results %>%
   group_by(group, year) %>%
   mutate(sdev = sd(af, na.rm = TRUE),
@@ -528,18 +515,18 @@ plot_r <- af_results %>%
          maximum = max(af),
          med = median(af)) %>% 
   filter(window_size == 1,
-         run_number %in% ea$run_number)
+         run_number %in% emissions_fraction$run_number)
 
 # Plot the data
-ggplot(data = plot_r, aes(year, group = run_number,
+ggplot(data = plot_r, aes(year,
                    color = plot_r$window_size, 
                    fill = plot_r$window_size)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum, group = run_number), alpha = 0.15) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev, group = run_number), alpha = 0.5) +
   scale_color_viridis_c() +
   scale_fill_viridis_c() +
   geom_line(aes(y = med), size = 1) +
-  geom_line(data = ea, aes(y = frac, group = run_number), color = "black") +
+  geom_line(data = emissions_fraction, aes(y = med), color = "black", na.rm = TRUE) +
   theme(legend.position = "none") +
   labs(x = "Year",
        y = "Airborne fraction")
