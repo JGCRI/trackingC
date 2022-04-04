@@ -64,12 +64,12 @@ formula above produces negative numbers if $\Delta$ATM < 0.
 
 ## Setup
 
-1. Create random parameter draw from a priori PDFs from literature (note that 
+1. Create random parameter draws from a priori PDFs from literature (note that 
 we have not yet implemented joint PDFs).
 2. Parameterize Hector.
 3. Run Hector 1000 times (note that we are working on parallelizing this script
 to be run on pic, and the number of runs will scale up - at least 100,000?)
-4. Extracte standard output (pools and fluxes) and carbon tracking data. 
+4. Extract standard output (pools and fluxes) and carbon tracking data. 
 5. Visualize data in four parts: sanity checks, graphs focusing on ƒATM~ffi~,
 graphs focusing on ƒFFI~atm~, and graphs of airborne fraction.
 
