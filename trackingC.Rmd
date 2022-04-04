@@ -426,9 +426,14 @@ calc_relimp <- function(x) {
   # Calculate relative importance metrics and extract 'lmg' results
   # 'lmg' is the R^2 contribution averaged over orderings among regressors;
   # should sum to one because we're using relative importances (rela=TRUE)
-  relimp <- calc.relimp(m, type = "lmg", rela = TRUE)@lmg
+  relimp <- try(calc.relimp(m, type = "lmg", rela = TRUE)@lmg)
+  if(class(relimp) == "try-error") {
+    message(yr, " calc.relimp error")
+    return(NULL)
+  }
   # Return a data frame: year, parameter, relative importance
   tibble(year = yr, param = names(relimp), value = relimp)
+  
 }
 
 # Run calc_relimp above on each year's data
