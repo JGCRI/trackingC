@@ -20,17 +20,31 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Science background
 
-Basically the introductory sentences from existing google doc:
+* We are pumping massive amounts of carbon dioxide into the atmosphere. 
+Many studies have looked at the current dynamics of the C cycle, and/or 
+long-term ultimate fate of anthropogenic CO~2~.  
 
-* Point 1
-* Point 2
-* Point 3
+* Simple climate models are a useful tool to understanding the short-term 
+impacts of humans on the climate. In particular, the simple climate model 
+Hector 3.0.0 incorporates a novel carbon tracking feature, allowing the user to 
+trace the origins of CO~2~ as it moves through the Earth system.  
+
+* Using this model allows us to understand how sensitive Hector is to changing 
+parameters as well as determining the uncertainties in model projections.
 
 ## Goals
 
-* Goal 1
-* Goal 2
-* Goal 3
+Using Hector v3.0.0 and its novel carbon tracking feature, we want to:  
+
+* Understand the ultimate fate and distribution of anthropogenic CO~2~ and 
+its controls.  
+
+* Understand the uncertainties on the lifetime and fate of FFI emissions.  
+
+* Understand the uncertainties on the trends/robustness of airborne fraction as
+a metric for understanding how anthropogenic emissions influence the Earth system,
+and how Earth system feedbacks influence airborne fraction.
+
 
 # Methods
 
@@ -47,13 +61,18 @@ the ratio above will not exactly be that, because in some circumstances earth
 system feedbacks will add to atmospheric C as well. In addition, the 
 formula above produces negative numbers if $\Delta$ATM < 0.
 
-Could also use "A" (atmosphere) and "E" (emissions) above, if clearer?
 
 ## Setup
 
-We (describe methodology in a few bullets): random parameter draws from
-a priori PDFs from literature; parameterized Hector; ran XXX times; using
-both standard outputs (pools and fluxes) and carbon-tracking data.
+1. Create random parameter draw from a priori PDFs from literature (note that 
+we have not yet implemented joint PDFs).
+2. Parameterize Hector.
+3. Run Hector 1000 times (note that we are working on parallelizing this script
+to be run on pic, and the number of runs will scale up - at least 100,000?)
+4. Extracte standard output (pools and fluxes) and carbon tracking data. 
+5. Visualize data in four parts: sanity checks, graphs focusing on ƒATM~ffi~,
+graphs focusing on ƒFFI~atm~, and graphs of airborne fraction.
+
 
 ### R setup
 
@@ -76,7 +95,7 @@ ssp245 <- system.file("input/hector_ssp245.ini", package = "hector")
 core <- newcore(ssp245)
 
 # Set range of years for output data
-OUTPUT_YEARS <- 2000:2200
+OUTPUT_YEARS <- 1950:2200
 
 # Set random number generator to allow for reproducibility 
 set.seed(10)
@@ -145,7 +164,7 @@ run_hector <- function(pdata, c) {
     setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
   }
   # Set a tracking date, reset and run core
-  setvar(c, NA, TRACKING_DATE(), 1750, NA)
+  setvar(c, NA, TRACKING_DATE(), 1950, NA)
   reset(c)
   run(c)
   # Access and save tracking data, model outputs
@@ -276,7 +295,7 @@ ggplot(temp, aes(year, fill = source, color = source)) +
        y = expression(degree*C))
 ```
 
-## Atmosphere sources
+## Atmosphere sources - ƒATM~ffi~
 
 ``` {r atmosphere-by-source, fig.cap = " Fraction of CO2 in the atmosphere by source pool from 30 random runs. Dark line shows the median."}
 # This code just looks at the atmosphere pool
@@ -284,12 +303,12 @@ atmos <- trk_output_slice %>%
   filter(pool_name == "atmos_c")
 
 # This plot looks at source fraction by source pool in the atmosphere as well as the median run.
-ggplot(atmos, aes(year, source_fraction, color = pool_name, group = run_number), alpha = 0.15) +
+ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = run_number)) +
   geom_line(size = 0.5, show.legend = FALSE) +
   facet_wrap(~source_name, scales = "free") +
   labs(x = "Year",
        y = "Source fraction") +
-  scale_color_viridis_d() +
+  scale_color_grey(start = 0.7, end = 0.7) +
   stat_summary(color = "black",
                fun = median, 
                geom = "line", 
@@ -327,17 +346,15 @@ ff <- atmos %>%
             sf_max = max(source_fraction),
             sf_median = median(source_fraction))
 
-ggplot(ff, aes(year, color = source_name, fill = source_name)) +
+ggplot(ff, aes(year)) +
   geom_line(aes(y = sf_median)) +
   geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
-  scale_color_viridis_d() +
-  scale_fill_viridis_d() +
   labs(x = "Year",
        y = "Fraction atmospheric C derived from FFI emissions")
 ```
 
-## Destination of FFI emissions
+## Destination of FFI emissions - ƒFFI~atm~
 
 ```{r destination, fig.cap = " Final destination pools of fossil fuel and industrial (FFI) emissions for 30 random runs."}
 # Where does carbon end up?
