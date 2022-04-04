@@ -144,8 +144,8 @@ run_hector <- function(pdata, c) {
     message("\tSetting ", p)
     setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
   }
-  # Set a tracking data, reset and run core
-  setvar(c, NA, TRACKING_DATE(), 1950, NA)
+  # Set a tracking date, reset and run core
+  setvar(c, NA, TRACKING_DATE(), 1750, NA)
   reset(c)
   run(c)
   # Access and save tracking data, model outputs
@@ -322,15 +322,17 @@ ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
 ff <- atmos %>% 
   filter(source_name == "earth_c") %>%
   group_by(year) %>%
-  summarize(sf_sd = sd(source_fraction), 
+  mutate(sf_sd = sd(source_fraction), 
             sf_min = min(source_fraction),
             sf_max = max(source_fraction),
             sf_median = median(source_fraction))
 
-ggplot(ff, aes(year)) +
+ggplot(ff, aes(year, color = source_name, fill = source_name)) +
   geom_line(aes(y = sf_median)) +
   geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d() +
   labs(x = "Year",
        y = "Fraction atmospheric C derived from FFI emissions")
 ```
@@ -470,13 +472,15 @@ af_results %>%
   summarise(af = mean(af), .groups = "drop") %>% 
   ggplot(aes(year, af, color = window_size, group = window_size)) + 
   geom_line(na.rm = TRUE) + 
-  xlab("Year") + ylab("Airborne fraction")
+  labs(x = "Year",
+       y = "Airborne fraction")
+
 ```
 
 
 ```{r airborne, warning = FALSE, fig.cap = " Mathematically defined airborne fraction with a line depicting the actual amount of human emissions remaining in the atmosphere"}
 
-# Overlay with the fraction of emissions remaining in the atmosphere
+# Compute the fraction of emissions remaining in the atmosphere
 ea <- trk_output_slice %>%
   select(-c(names(name_vector))) %>%
   # Isolate earth_c emissions in atmos_c
@@ -502,9 +506,7 @@ emissions <- trk_output_slice %>%
          cumulative_emissions = cumsum(emissions)) %>%
   select(year, cumulative_emissions)
   
-# Compute what fraction of cumulative emissions are in the atmosphere for each year
-# Destination
-# Airborne fraction - what fraction remains in atmosphere (when math breaks down - yay tracking)
+# Compute the fraction of fossil fuel emissions residing in the atmosphere
 emissions_fraction <- trk_output_slice %>%
   filter(pool_name == "atmos_c", 
          source_name == "earth_c") %>%
@@ -519,22 +521,21 @@ emissions_fraction <- trk_output_slice %>%
             minimum = min(c_emissions_fraction),
             maximum = max(c_emissions_fraction))
 
-# LEEYAP - YOU ALREADY HAVE A 'RESULTS' VARIABLE; DON'T OVERWRITE!
-results <- af_results %>%
+plot_r <- af_results %>%
   group_by(group, year) %>%
   mutate(sdev = sd(af, na.rm = TRUE),
          minimum = min(af),
          maximum = max(af),
-         med = median(af))
+         med = median(af)) %>% 
+  filter(window_size == 1,
+         run_number %in% ea$run_number)
 
-plot_r <- results %>% 
- filter(window_size == 1)
-
+# Plot the data
 ggplot(data = plot_r, aes(year, group = run_number,
                    color = plot_r$window_size, 
                    fill = plot_r$window_size)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.01) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.02) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5) +
   scale_color_viridis_c() +
   scale_fill_viridis_c() +
   geom_line(aes(y = med), size = 1) +
@@ -542,53 +543,11 @@ ggplot(data = plot_r, aes(year, group = run_number,
   theme(legend.position = "none") +
   labs(x = "Year",
        y = "Airborne fraction")
-```
 
-## Airborne fraction (old)
-
-``` {r AF, fig.cap = " Airborne fraction over time."}
-# To calculate the airborne fraction, we need to find how much earth_c
-# flows to the atmos_c pool from time t to t+1 and divide by the difference
-# in earth_c from t to t+1
-
-pad  <- function(x, n) {
-    len.diff <- n - length(x)
-    c(rep(0, len.diff), x) 
-} 
-
-ea <- trk_output_slice %>%
-  # Isolate earth_c emissions in atmos_c
-  filter(pool_name == "atmos_c", 
-         source_name == "earth_c") %>%
-  # How much earth_c is in atmos_c?
-  mutate(source_quantity = pool_value * source_fraction) %>%
-  group_by(run_number) %>%
-  # Compute year-to-year difference
-  mutate(e_in_a = pad(diff(source_quantity), length(source_quantity))) 
-
-de <- trk_output_slice %>%
-  # Isolate earth_c pool
-  filter(pool_name == "earth_c",
-         source_name == "earth_c") %>%
-  select(-c(names(name_vector))) %>%
-  mutate(e_in_a = ea$e_in_a) %>%
-  group_by(run_number) %>%
-  # Compute difference in pool over time and airborne fraction
-  mutate(delta_e = pad(diff(pool_value), length(pool_value)),
-         AF = round((e_in_a / -delta_e), 4))
-
-de %>% 
-  # Remove first row with NaN AF value
-  slice(-1) %>%
-  ggplot(aes(year, AF, group = run_number, color = AF)) +
-  geom_line() + 
-  scale_color_viridis_c() +
-  labs(x = "Year",
-       y = "Airborne fraction")
 ```
 
 # The End
 
-```{r}
+```{r info}
 sessionInfo()
 ```
