@@ -109,9 +109,9 @@ set.seed(10)
 # Function to access lognorm parameters with a desired mean and standard deviation
 # Reference: https://msalganik.wordpress.com/2017/01/21/making-sense-of-the-rlnorm-function-in-r/
 lognorm <- function(m, sd){
-  location <- log(m^2 / sqrt(sd^2 + m^2))
-  shape <- sqrt(log(1 + (sd^2 / m^2)))
-  v <- c(location, shape)
+  mn <- log(m^2 / sqrt(sd^2 + m^2))
+  stdev <- sqrt(log(1 + (sd^2 / m^2)))
+  v <- c(mn, stdev)
 }
 
 N_RUNS <- 1000
@@ -219,22 +219,22 @@ results <- list()
 for(n in seq_len(length(out))){
   results[[n]] <- out[[n]]$results
 }
-results <- bind_rows(results, .id = "run_number") %>% as_tibble()
+model_output <- bind_rows(results, .id = "run_number") %>% as_tibble()
 
 # Can left join with runlist to get param values
 # Make sure data is same class
 trk_output$run_number <- as.integer(trk_output$run_number)
 trk_output <- left_join(trk_output, runlist, by = "run_number")
 
-results$run_number <- as.integer(results$run_number)
-results <- left_join(results, runlist, by = "run_number")
+model_output$run_number <- as.integer(model_output$run_number)
+model_output <- left_join(model_output, runlist, by = "run_number")
 
 # If there are over 100 observations per time point, 
 # we use slice_sample() to randomly select rows to plot.
 # Pull random run numbers from the runlist and filter output by random runs
 max_display <- slice_sample(runlist, n = 100)
 trk_output_slice <- filter(trk_output, run_number %in% max_display$run_number)
-results_slice <- filter(results, run_number %in% max_display$run_number)
+model_output_slice <- filter(model_output, run_number %in% max_display$run_number)
 ```
 
 # Results
@@ -270,7 +270,7 @@ cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
   mutate(source = "CMIP6")
 
 # Extract Hector data
-hector <- results %>%
+hector <- model_output %>%
   filter(variable == "Tgav",
          year >= 2015 & year <= 2100) %>%
   group_by(year) %>%
