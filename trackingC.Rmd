@@ -507,7 +507,7 @@ af_results %>%
 # Compute cumulative emissions over time
 # We use the change in earth_c to compute emissions; note this will not work
 # if ever using a scenario with fossil fuel sequestration (atmosphere -> earth)
-emissions <- trk_output_slice %>%
+emissions <- trk_output %>%
   filter(pool_name == "earth_c",
          source_name == "earth_c",
          run_number == min(run_number)) %>%
@@ -518,7 +518,7 @@ emissions <- trk_output_slice %>%
   select(year, cumulative_emissions)
   
 # Compute the fraction of fossil fuel emissions residing in the atmosphere
-emissions_fraction <- trk_output_slice %>%
+emissions_fraction <- trk_output %>%
   filter(pool_name == "atmos_c", 
          source_name == "earth_c") %>%
   # How much earth_c is in atmos_c? 
@@ -544,10 +544,12 @@ plot_r <- af_results %>%
 
 # Plot the data
 ggplot(data = plot_r, aes(year,
-                   color = plot_r$window_size, 
+                   color = plot_r$window_size,
                    fill = plot_r$window_size)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum, group = run_number), alpha = 0.15) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev, group = run_number), alpha = 0.3) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum, group = run_number), 
+              alpha = 0.15, color = NA) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev, group = run_number), 
+              alpha = 0.5, color = NA) +
   geom_line(aes(y = med, size = 1)) +
   geom_line(data = emissions_fraction, aes(y = med), color = "black", na.rm = TRUE) +
   theme(legend.position = "none") +
