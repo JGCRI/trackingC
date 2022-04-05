@@ -530,33 +530,51 @@ emissions_fraction <- trk_output %>%
   mutate(sdev = sd(c_emissions_fraction),
             med = median(c_emissions_fraction),
             minimum = min(c_emissions_fraction),
-            maximum = max(c_emissions_fraction))
+            maximum = max(c_emissions_fraction),
+         def = "EmissFraction")
 
 # Classical definition of AF
-plot_r <- af_results %>%
+classic_af <- af_results %>%
   group_by(group, year) %>%
   mutate(sdev = sd(af, na.rm = TRUE),
          minimum = min(af),
          maximum = max(af),
-         med = median(af)) %>% 
+         med = median(af),
+         def = "ClassicAF") %>% 
   filter(window_size == 1,
          run_number %in% emissions_fraction$run_number)
 
+# Isolate relevant parameters and plot
+plot_data <- bind_rows(emissions_fraction, classic_af) %>%
+  select(run_number, year, minimum, maximum, med, sdev, def)
+
+ggplot(plot_data, aes(x = year, group = paste0(def, run_number), fill = def)) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum), 
+              alpha = 0.05) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), 
+              alpha = 0.10) +
+  geom_line(aes(y = med, color = def)) +
+  scale_color_viridis_d(begin = 0.5) +
+  scale_fill_viridis_d(begin = 0.5) +
+   labs(x = "Year",
+        y = "Airborne fraction")
+
+
 # Plot the data
-ggplot(data = plot_r, aes(year,
-                   color = plot_r$window_size,
-                   fill = plot_r$window_size)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum, group = run_number), 
-              alpha = 0.15, color = NA) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev, group = run_number), 
-              alpha = 0.5, color = NA) +
-  geom_line(aes(y = med, size = 1)) +
-  geom_line(data = emissions_fraction, aes(y = med), color = "black", na.rm = TRUE) +
-  theme(legend.position = "none") +
-  scale_color_viridis_c() +
-  scale_fill_viridis_c() +
-  labs(x = "Year",
-       y = "Airborne fraction")
+# ggplot(data = plot_r, aes(year,
+#                    color = plot_r$window_size,
+#                    fill = plot_r$window_size)) +
+#   geom_ribbon(aes(ymin = minimum, ymax = maximum, group = run_number), 
+#               alpha = 0.15, color = NA) +
+#   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev, group = run_number), 
+#               alpha = 0.3, color = NA) +
+#   geom_line(aes(y = med, size = 1)) +
+#   geom_line(data = emissions_fraction, aes(y = med), color = "black", na.rm = TRUE) +
+#   theme(legend.position = "none") +
+#   scale_color_viridis_c(begin = 0.5) +
+#   scale_fill_viridis_c(begin = 0.5) +
+#   labs(x = "Year",
+#        y = "Airborne fraction")
 
 ```
 
