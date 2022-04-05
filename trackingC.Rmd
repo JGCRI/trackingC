@@ -359,7 +359,7 @@ ggplot(ff, aes(year)) +
 
 ## Destination of FFI emissions - ƒFFI~atm~
 
-```{r destination, fig.cap = " Final destination pools of fossil fuel and industrial (FFI) emissions for 30 random runs."}
+```{r destination, fig.cap = " Final destination pools of fossil fuel and industrial (FFI) emissions for 16 random runs."}
 # Where does carbon end up?
 # We have pool_name, source_name, source_fraction
 # Step 1: compute source_quantity = pool_value * source_fraction
@@ -375,7 +375,7 @@ ffi_destinations <- trk_output %>%
   ungroup()
 
 # Just looking at particular runs
-dest_runs <- filter(ffi_destinations, run_number %in% c(1:30))
+dest_runs <- filter(ffi_destinations, run_number %in% c(1:16))
 
 ggplot(dest_runs, aes(year, destination_fraction, 
                    fill = pool_name)) +
