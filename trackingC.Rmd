@@ -450,7 +450,7 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
   coord_cartesian(expand = FALSE) +
   scale_fill_viridis_d(direction = -1) +
   labs(x = "Year",
-       y = expression(Relative~importance~"for"~ƒFFI[atm]))
+       y = expression(Relative~importance~"for"~FFI[atm]))
 ```
 
 ## Airborne fraction
