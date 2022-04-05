@@ -297,23 +297,26 @@ ggplot(temp, aes(year, fill = source, color = source)) +
 
 ## Atmosphere sources - ƒATM~ffi~
 
-``` {r atmosphere-by-source, fig.cap = " Fraction of CO2 in the atmosphere by source pool from 30 random runs. Dark line shows the median."}
+``` {r atmosphere-by-source, fig.cap = " Fraction of CO2 in the atmosphere by source pool from 100 random runs. Dark line shows the median."}
 # This code just looks at the atmosphere pool
-atmos <- trk_output_slice %>%
+atmos <- trk_output %>%
   filter(pool_name == "atmos_c")
 
 # This plot looks at source fraction by source pool in the atmosphere as well as the median run.
-ggplot(atmos, aes(year, source_fraction, color = as.factor(run_number), group = run_number)) +
+atmos %>%
+  filter(run_number %in% max_display$run_number) %>%
+  ggplot(aes(year, source_fraction, 
+             color = as.factor(run_number), group = run_number)) +
   geom_line(size = 0.5, show.legend = FALSE) +
-  facet_wrap(~source_name, scales = "free") +
+  facet_wrap( ~ source_name, scales = "free") +
   labs(x = "Year",
        y = "Source fraction") +
   scale_color_grey(start = 0.7, end = 0.7) +
   stat_summary(color = "black",
-               fun = median, 
-               geom = "line", 
-               group = "run_number",
-               size = 0.7)
+    fun = median,
+    geom = "line",
+    group = "run_number",
+    size = 0.7)
 ```
 
 ``` {r coeff-var, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
@@ -544,12 +547,12 @@ ggplot(data = plot_r, aes(year,
                    color = plot_r$window_size, 
                    fill = plot_r$window_size)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum, group = run_number), alpha = 0.15) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev, group = run_number), alpha = 0.5) +
-  scale_color_viridis_c() +
-  scale_fill_viridis_c() +
-  geom_line(aes(y = med), size = 1) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev, group = run_number), alpha = 0.3) +
+  geom_line(aes(y = med, size = 1)) +
   geom_line(data = emissions_fraction, aes(y = med), color = "black", na.rm = TRUE) +
   theme(legend.position = "none") +
+  scale_color_viridis_c() +
+  scale_fill_viridis_c() +
   labs(x = "Year",
        y = "Airborne fraction")
 
