@@ -13,7 +13,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 ```
 
 # Introduction
@@ -103,6 +103,10 @@ set.seed(10)
 
 ### Create runlist of parameter draws
 
+Currently, we are looking at six Hector parameters: `BETA(), Q10_RH(), ECS(),
+NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY()`. We created a runlist with 1000 random
+draws in a normal (or lognormal, where applicable) distribution.
+
 ```{r params}
 # Create runlist of parameters of interest
 
@@ -152,6 +156,7 @@ units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)",
 ```
 
 ## Run the model
+Run the model and store outputs and tracking data.
 
 ```{r functions, cache=TRUE, message=FALSE}
 run_hector <- function(pdata, c) {
@@ -204,6 +209,7 @@ tm <- difftime(Sys.time(), start, units = "secs") %>% round(1)
 Doing `r N_RUNS` runs took `r tm` seconds or `r tm/N_RUNS` s/job.
 
 ## Process data
+Get lists from above into nice dataframes.
 
 ``` {r data}
 # Get output data frames
@@ -550,9 +556,9 @@ plot_data <- bind_rows(emissions_fraction, classic_af) %>%
 
 ggplot(plot_data, aes(x = year, group = paste0(def, run_number), fill = def)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), 
-              alpha = 0.05) +
+              alpha = 0.15) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), 
-              alpha = 0.10) +
+              alpha = 0.3) +
   geom_line(aes(y = med, color = def)) +
   scale_color_viridis_d(begin = 0.5) +
   scale_fill_viridis_d(begin = 0.5) +
