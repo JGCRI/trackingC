@@ -336,24 +336,6 @@ atmos %>%
     size = 0.7)
 ```
 
-``` {r coeff-var, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
-# Compute coefficient of variability for each source in the atmosphere pool
-atmos_cv <- atmos %>%
-  group_by(year, source_name) %>%
-  mutate(sdev = sd(source_fraction),
-         mean = mean(source_fraction),
-         cv = sdev / mean)
-
-# Plot the coefficient of variability for each source in atmosphere pool over time
-ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
-  geom_line() +
-  scale_color_viridis_d() +
-  # Could add facets to look at variability, but more useful to compare CV
-  #facet_wrap(~source_name, scales = "free") +
-  labs(x = "Source fraction",
-       y = "CV")
-```
-
 ``` {r earthc-in-atmos, fig.cap = " Fraction of atmospheric carbon from fossil fuel and industrial (FFI) emissions over time. Line shows median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
 # This chunk looks at the atmosphere pool with just one source (earth_c) 
 # and plots source fraction over time with a mean and confidence interval
@@ -372,6 +354,44 @@ ggplot(ff, aes(year)) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
   labs(x = "Year",
        y = "Fraction atmospheric C derived from FFI emissions")
+```
+
+``` {r coeff-var, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
+# Compute coefficient of variability for each source in the atmosphere pool
+atmos_cv <- atmos %>%
+  group_by(year, source_name) %>%
+  mutate(sdev = sd(source_fraction),
+         mean = mean(source_fraction),
+         cv = sdev / mean)
+
+# Plot the coefficient of variability for each source in atmosphere pool over time
+ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
+  geom_line() +
+  scale_color_viridis_d() +
+  # Could add facets to look at variability, but more useful to compare CV
+  #facet_wrap(~source_name, scales = "free") +
+  labs(x = "Source fraction",
+       y = "CV")
+```
+
+```{r parameter-space, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating how much of the atmosphere is composed of anthropogenic carbon in the year 2100."}
+# Single time point, pool, and source - exploring how the parameter space 
+# is linked to output
+
+ffi_atm_2100 <- trk_output %>%
+  filter(pool_name == "atmos_c",
+         source_name == "earth_c",
+         year == 2100) %>% 
+  mutate(sf = cut(source_fraction, 3))
+
+n <- length(name_vector)
+ggpairs(ffi_atm_2100,
+        columns = 9:(9 + (n-1)),
+        aes(color = sf), 
+        diag = list(mapping = aes(alpha = 0.5)),
+        upper = list(continuous = "blank")) + 
+  scale_color_viridis_d() + 
+  scale_fill_viridis_d()
 ```
 
 ## Destination of FFI emissions - ƒFFI~atm~
@@ -405,27 +425,6 @@ ggplot(dest_runs, aes(year, destination_fraction,
   labs(x = "Year",
        y = "Destination of FFI emissions (fraction)")
 ```
-
-```{r parameter-space, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating how much of the atmosphere is composed of anthropogenic carbon in the year 2100."}
-# Single time point, pool, and source - exploring how the parameter space 
-# is linked to output
-
-ffi_atm_2100 <- trk_output %>%
-  filter(pool_name == "atmos_c",
-         source_name == "earth_c",
-         year == 2100) %>% 
-  mutate(sf = cut(source_fraction, 3))
-
-n <- length(name_vector)
-ggpairs(ffi_atm_2100,
-        columns = 9:(9 + (n-1)),
-        aes(color = sf), 
-        diag = list(mapping = aes(alpha = 0.5)),
-        upper = list(continuous = "blank")) + 
-  scale_color_viridis_d() + 
-  scale_fill_viridis_d()
-```
-
 
 ```{r relative-importance, message=FALSE, warning=FALSE, fig.cap = " Relative importance of parameters over time in controlling atmosphere as a destination of fossil fuel and industrial (FFI) emissions."}
 # Filter to just atmosphere pool, and remove unneeded columns
@@ -569,9 +568,9 @@ plot_data <- bind_rows(emissions_fraction, classic_af) %>%
 
 ggplot(plot_data, aes(x = year, fill = def)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), 
-              alpha = 0.15) +
+              alpha = 0.2) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), 
-              alpha = 0.3) +
+              alpha = 0.4) +
   geom_line(aes(y = med, color = def)) +
   scale_color_viridis_d(begin = 0.5) +
   scale_fill_viridis_d(begin = 0.5) +
