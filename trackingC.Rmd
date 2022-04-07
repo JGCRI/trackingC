@@ -529,7 +529,9 @@ emissions <- trk_output %>%
          source_name == "earth_c",
          run_number == min(run_number)) %>%
   arrange(year) %>%
-  mutate(emissions = -c(0, diff(pool_value)),
+  # the NA at the end here is so that cumulative emissions 'line up' correctly
+  # with the source_quantity (earth-origin atmosphere C) calculated below
+  mutate(emissions = -c(diff(pool_value), NA),
          # relative to 2000
          cumulative_emissions = cumsum(emissions)) %>%
   select(year, cumulative_emissions)
