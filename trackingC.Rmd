@@ -22,7 +22,13 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 
 * We are pumping massive amounts of carbon dioxide into the atmosphere. 
 Many studies have looked at the current dynamics of the C cycle, and/or 
-long-term ultimate fate of anthropogenic CO~2~.  
+long-term ultimate fate of anthropogenic CO~2~.
+
+* There are many uncertainties surrounding the trend of airborne fraction
+(thought of as how much anthropogenic remains in the atmosphere, though
+see below), and more generally surrounding feedbacks and processes in the
+earth system controlling the growth of atmospheric CO~2~ 
+and thus radiative forcing.
 
 * Simple climate models are a useful tool to understanding the short-term 
 impacts of humans on the climate. In particular, the simple climate model 
@@ -68,10 +74,15 @@ formula above produces negative numbers if $\Delta$ATM < 0.
 we have not yet implemented joint PDFs).
 2. Parameterize Hector.
 3. Run Hector 1000 times (note that we are working on parallelizing this script
-to be run on pic, and the number of runs will scale up - at least 100,000?)
+to be run on pic, and the number of runs will scale up - at least 100,000?). 
+4. Note that we currently turn tracking on at 1950--i.e., at this date
+everything is assumed to be "pure" (atmosphere is 100% atmosphere, etc.) 
+and things move and mix from there.
 4. Extract standard output (pools and fluxes) and carbon tracking data. 
-5. Visualize data in four parts: sanity checks, graphs focusing on ƒATM~ffi~,
-graphs focusing on ƒFFI~atm~, and graphs of airborne fraction.
+5. Visualize data in four parts: sanity checks, graphs focusing on ƒATM~ffi~ 
+(i.e., patterns and dynamics of the origin of atmospheric C),
+graphs focusing on ƒFFI~atm~ (i.e., controls on the destination of FFI C), 
+and graphs of airborne fraction.
 
 
 ### R setup
@@ -395,7 +406,7 @@ ggplot(dest_runs, aes(year, destination_fraction,
        y = "Destination of FFI emissions (fraction)")
 ```
 
-```{r parameter-space, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating XXX, for the year 2100."}
+```{r parameter-space, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating how much of the atmosphere is composed of anthropogenic carbon in the year 2100."}
 # Single time point, pool, and source - exploring how the parameter space 
 # is linked to output
 
@@ -416,7 +427,7 @@ ggpairs(ffi_atm_2100,
 ```
 
 
-```{r relative-importance, fig.cap = " Relative importance of parameters over time in controlling atmosphere as a destination of fossil fuel and industrial (FFI) emissions."}
+```{r relative-importance, message=FALSE, warning=FALSE, fig.cap = " Relative importance of parameters over time in controlling atmosphere as a destination of fossil fuel and industrial (FFI) emissions."}
 # Filter to just atmosphere pool, and remove unneeded columns
 dest_e2a <- filter(ffi_destinations, pool_name == "atmos_c")
 dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", names(name_vector))]
@@ -509,7 +520,7 @@ af_results %>%
 ```
 
 
-```{r airborne, warning = FALSE, fig.cap = " Mathematically defined airborne fraction with a line depicting the actual amount of human emissions remaining in the atmosphere"}
+```{r airborne, warning = FALSE, fig.cap = " Year-by-year mathematically defined airborne fraction. The yellow line and band shows the actual amount of human emissions remaining in the atmosphere from the model's carbon-tracking mechanism."}
 # Compute cumulative emissions over time
 # We use the change in earth_c to compute emissions; note this will not work
 # if ever using a scenario with fossil fuel sequestration (atmosphere -> earth)
@@ -554,7 +565,7 @@ classic_af <- af_results %>%
 plot_data <- bind_rows(emissions_fraction, classic_af) %>%
   select(run_number, year, minimum, maximum, med, sdev, def)
 
-ggplot(plot_data, aes(x = year, group = paste0(def, run_number), fill = def)) +
+ggplot(plot_data, aes(x = year, fill = def)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), 
               alpha = 0.15) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), 
