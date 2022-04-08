@@ -45,7 +45,7 @@ Using Hector v3.0.0 and its novel carbon tracking feature, we want to:
 * Understand the ultimate fate and distribution of anthropogenic CO~2~ and 
 its controls.  
 
-* Understand the uncertainties on the lifetime and fate of FFI emissions.  
+* Understand the uncertainties on the lifetime and fate of FFI CO~2~ emissions.  
 
 * Understand the uncertainties on the trends/robustness of airborne fraction as
 a metric for understanding how anthropogenic emissions influence the Earth system,
@@ -56,15 +56,15 @@ and how Earth system feedbacks influence airborne fraction.
 
 ## Definitions
 
-* ƒATM~ffi~: the fraction of atmospheric carbon derived from fossil fuel industrial emissions
-* ƒFFI~atm~: the fraction of fossil fuel emissions residing in the atmosphere
+* ƒATM~ffi~: the fraction of atmospheric CO~2~ derived from fossil fuel industrial emissions
+* ƒFFI~atm~: the fraction of fossil fuel CO~2~ emissions residing in the atmosphere
 * AF: airborne fraction, conventionally computed as $\Delta$ATM / $\Sigma$FFI over some time period
 
 Note that while AF is commonly described as "the fraction of anthropogenic 
 emissions which remain in the atmosphere" 
 ([source](https://gml.noaa.gov/co2conference/posters_pdf/jones1_poster.pdf)), 
 the ratio above will not exactly be that, because in some circumstances earth 
-system feedbacks will add to atmospheric C as well. In addition, the 
+system feedbacks will add to atmospheric CO~2~ as well. In addition, the 
 formula above produces negative numbers if $\Delta$ATM < 0.
 
 
@@ -80,10 +80,9 @@ everything is assumed to be "pure" (atmosphere is 100% atmosphere, etc.)
 and things move and mix from there.
 4. Extract standard output (pools and fluxes) and carbon tracking data. 
 5. Visualize data in four parts: sanity checks, graphs focusing on ƒATM~ffi~ 
-(i.e., patterns and dynamics of the origin of atmospheric C),
-graphs focusing on ƒFFI~atm~ (i.e., controls on the destination of FFI C), 
-and graphs of airborne fraction.
-
+(i.e., patterns and dynamics of the origin of atmospheric CO~2~),
+graphs focusing on ƒFFI~atm~ (i.e., controls on the destination of FFI CO~2~), 
+and graphs of airborne fraction.  
 
 ### R setup
 
@@ -173,7 +172,9 @@ Run the model and store outputs and tracking data.
 run_hector <- function(pdata, c) {
   
   # Function to set multiple parameter values for Hector, run a core, and retrieve tracking data
-  # pdata will be the runlist specified above and c is a newcore environment
+  # pdata will be the runlist specified above
+  # c is a Hector newcore environment
+  
   # For each parameter within each run, set its value and units
   for(p in colnames(pdata)) {
     message("\tSetting ", p)
@@ -191,6 +192,7 @@ run_hector <- function(pdata, c) {
 }
 
 # Run function for each row of the runlist
+
 # Create destination list
 out <- list()
 
@@ -201,7 +203,7 @@ errors <- list()
 # If there is an error, record which row triggers the error, and skip to the next row
 
 # Record start time 
-start <- Sys.time()
+start_time <- Sys.time()
 
 for(row in seq_len(nrow(runlist))) {
   message(row, "/", nrow(runlist))
@@ -214,7 +216,7 @@ for(row in seq_len(nrow(runlist))) {
   }}  
 
 # Compute difference in time between start and after loop is run
-tm <- difftime(Sys.time(), start, units = "secs") %>% round(1)
+tm <- difftime(Sys.time(), start_time, units = "secs") %>% round(1)
 ```
 
 Doing `r N_RUNS` runs took `r tm` seconds or `r tm/N_RUNS` s/job.
@@ -246,8 +248,9 @@ trk_output <- left_join(trk_output, runlist, by = "run_number")
 model_output$run_number <- as.integer(model_output$run_number)
 model_output <- left_join(model_output, runlist, by = "run_number")
 
-# If there are over 100 observations per time point, 
-# we use slice_sample() to randomly select rows to plot.
+# If there are over 100 observations per time point and we want to plot
+# individual runs, we use slice_sample() to randomly select 100 rows.
+
 # Pull random run numbers from the runlist and filter output by random runs
 max_display <- slice_sample(runlist, n = 100)
 trk_output_slice <- filter(trk_output, run_number %in% max_display$run_number)
@@ -262,7 +265,7 @@ in a manuscript.
 ## Realized parameter PDFs
 
 ``` {r params-PDFs, fig.cap = paste0(" Probability densities of each parameter (N=", N_RUNS, " draws).")}
-# Density plot to visualize parameter distributions
+# Density plots to visualize parameter distributions
 runlist %>% 
   select(-run_number) %>%
   pivot_longer(everything()) %>% 
@@ -275,7 +278,7 @@ runlist %>%
 ## Hector temperature vs. CMIP6 
 
 ``` {r cmip, fig.cap = " Global temperature anomaly from CMIP6 and Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
-# Read in comparison data
+# Read in CMIP6 comparison data
 cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
   filter(variable == "Tgav",
          experiment == "ssp245") %>%
@@ -300,7 +303,7 @@ hector <- model_output %>%
 # Combine data
 temp <- bind_rows(cmip, hector)
 
-# Plot temperature spread
+# Plot temperature spreads
 ggplot(temp, aes(year, fill = source, color = source)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
@@ -315,12 +318,12 @@ ggplot(temp, aes(year, fill = source, color = source)) +
 ## Atmosphere sources - ƒATM~ffi~
 
 ``` {r atmosphere-by-source, fig.cap = " Fraction of CO2 in the atmosphere by source pool from 100 random runs. Dark line shows the median."}
-# This code just looks at the atmosphere pool
-atmos <- trk_output %>%
+# Isolate the atmosphere pool to better understand its composition 
+atmosphere_pool <- trk_output %>%
   filter(pool_name == "atmos_c")
 
-# This plot looks at source fraction by source pool in the atmosphere as well as the median run.
-atmos %>%
+# This plot looks at source fraction by source pool in the atmosphere and the median run.
+atmosphere_pool %>%
   filter(run_number %in% max_display$run_number) %>%
   ggplot(aes(year, source_fraction, 
              color = as.factor(run_number), group = run_number)) +
@@ -330,17 +333,17 @@ atmos %>%
        y = "Source fraction") +
   scale_color_grey(start = 0.7, end = 0.7) +
   stat_summary(color = "black",
-    fun = median,
-    geom = "line",
-    group = "run_number",
-    size = 0.7)
+               fun = median,
+               geom = "line",
+               group = "run_number",
+               size = 0.7)
 ```
 
-``` {r earthc-in-atmos, fig.cap = " Fraction of atmospheric carbon from fossil fuel and industrial (FFI) emissions over time. Line shows median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
+``` {r earthc-in-atmos, fig.cap = " Fraction of atmospheric CO2 from fossil fuel and industrial (FFI) emissions over time. Line shows median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
 # This chunk looks at the atmosphere pool with just one source (earth_c) 
-# and plots source fraction over time with a mean and confidence interval
+# and plots source fraction over time with a confidence interval
 
-ff <- atmos %>% 
+ff <- atmosphere_pool %>% 
   filter(source_name == "earth_c") %>%
   group_by(year) %>%
   mutate(sf_sd = sd(source_fraction), 
@@ -353,12 +356,12 @@ ggplot(ff, aes(year)) +
   geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
   labs(x = "Year",
-       y = "Fraction atmospheric C derived from FFI emissions")
+       y = "Fraction of atmospheric CO2")
 ```
 
 ``` {r coeff-var, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
 # Compute coefficient of variability for each source in the atmosphere pool
-atmos_cv <- atmos %>%
+atmos_cv <- atmosphere_pool %>%
   group_by(year, source_name) %>%
   mutate(sdev = sd(source_fraction),
          mean = mean(source_fraction),
@@ -368,53 +371,52 @@ atmos_cv <- atmos %>%
 ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
   geom_line() +
   scale_color_viridis_d() +
-  # Could add facets to look at variability, but more useful to compare CV
-  #facet_wrap(~source_name, scales = "free") +
   labs(x = "Source fraction",
-       y = "CV")
+       y = "Coefficient of variability")
 ```
 
-```{r parameter-space, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating how much of the atmosphere is composed of anthropogenic carbon in the year 2100."}
-# Single time point, pool, and source - exploring how the parameter space 
-# is linked to output
+```{r parameter-space, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating how much of the atmosphere is composed of anthropogenic CO2 in the year 2100."}
+# Exploring how the parameter space is linked to output
+# What parameters control the percentage of earth_c in the atmosphere?
+# Isolating the year 2100
 
-ffi_atm_2100 <- trk_output %>%
-  filter(pool_name == "atmos_c",
-         source_name == "earth_c",
+ffi_atm_2100 <- atmosphere_pool %>%
+  filter(source_name == "earth_c",
          year == 2100) %>% 
   mutate(sf = cut(source_fraction, 3))
 
 n <- length(name_vector)
 ggpairs(ffi_atm_2100,
         columns = 9:(9 + (n-1)),
+        # Color by magnitude of source_fraction - how much earth_c is in the atmosphere
         aes(color = sf), 
         diag = list(mapping = aes(alpha = 0.5)),
-        upper = list(continuous = "blank")) + 
+        upper = list(continuous = "blank"),
+        legend = c(6,5)) + 
   scale_color_viridis_d() + 
-  scale_fill_viridis_d()
+  scale_fill_viridis_d() +
+  labs(color = "Source Fraction")
 ```
 
 ## Destination of FFI emissions - ƒFFI~atm~
 
 ```{r destination, fig.cap = " Final destination pools of fossil fuel and industrial (FFI) emissions for 16 random runs."}
-# Where does carbon end up?
-# We have pool_name, source_name, source_fraction
+# Where does CO2 end up?
 # Step 1: compute source_quantity = pool_value * source_fraction
 # Step 2: for each year and source_name, compute destination_fraction
-# group_by(year, source_name) %>% mutate(destination_fraction = source_quantity / sum(source_quantity))
 
 ffi_destinations <- trk_output %>%
   filter(source_name == "earth_c", pool_name != "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
   group_by(year, run_number) %>%
-  mutate(destination_fraction = source_quantity / sum(source_quantity),
-         destination_percent = destination_fraction * 100) %>% 
+  mutate(destination_fraction = source_quantity / sum(source_quantity)) %>% 
   ungroup()
 
-# Just looking at particular runs
-dest_runs <- filter(ffi_destinations, run_number %in% c(1:16))
+# Just looking at 16 random runs
+dest_runs <- slice_sample(ffi_destinations, n = 16)
+dest_plot <- filter(ffi_destinations, run_number %in% dest_runs$run_number)
 
-ggplot(dest_runs, aes(year, destination_fraction, 
+ggplot(dest_plot, aes(year, destination_fraction, 
                    fill = pool_name)) +
   geom_area() +
   scale_fill_viridis_d() +
@@ -423,7 +425,7 @@ ggplot(dest_runs, aes(year, destination_fraction,
         strip.text.x = element_blank(),
         axis.text.x = element_text(angle = 90)) +
   labs(x = "Year",
-       y = "Destination of FFI emissions (fraction)")
+       y = "Fraction of FFI emissions")
 ```
 
 ```{r relative-importance, message=FALSE, warning=FALSE, fig.cap = " Relative importance of parameters over time in controlling atmosphere as a destination of fossil fuel and industrial (FFI) emissions."}
@@ -455,7 +457,7 @@ calc_relimp <- function(x) {
   
 }
 
-# Run calc_relimp above on each year's data
+# Run calc_relimp() above on each year's data
 dest_split <- split(dest_e2a_minimal, dest_e2a_minimal$year)
 relimp_out <- lapply(dest_split, FUN = calc_relimp) %>% 
   bind_rows()
@@ -473,7 +475,7 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
 
 ```{r af-windows, fig.cap = " Airborne fraction computed over varying time windows."}
 # Prep the data
-os_atm_earth <- trk_output %>%
+atm_earth_diffs <- trk_output %>%
   # Isolate atmosphere and earth total pool values
   filter(pool_name %in% c("atmos_c", "earth_c")) %>% 
   group_by(run_number, year, pool_name) %>% 
@@ -489,9 +491,9 @@ os_atm_earth <- trk_output %>%
 # using various window sizes
 af_results <- list()
 for (groupsize in seq(1, 40, length.out = 10)) {
-  ngroups = length(unique(os_atm_earth$year)) / groupsize
+  ngroups = length(unique(atm_earth_diffs$year)) / groupsize
   
-  os_atm_earth %>% 
+  atm_earth_diffs %>% 
     group_by(run_number) %>% 
     mutate(group = cut(year, breaks = ngroups)) %>% 
     # compute differences over the group of years
@@ -531,7 +533,7 @@ emissions <- trk_output %>%
   # the NA at the end here is so that cumulative emissions 'line up' correctly
   # with the source_quantity (earth-origin atmosphere C) calculated below
   mutate(emissions = -c(diff(pool_value), NA),
-         # relative to 2000
+         # relative to core$trackingDate
          cumulative_emissions = cumsum(emissions)) %>%
   select(year, cumulative_emissions)
   
@@ -576,23 +578,6 @@ ggplot(plot_data, aes(x = year, fill = def)) +
   scale_fill_viridis_d(begin = 0.5) +
    labs(x = "Year",
         y = "Airborne fraction")
-
-
-# Plot the data
-# ggplot(data = plot_r, aes(year,
-#                    color = plot_r$window_size,
-#                    fill = plot_r$window_size)) +
-#   geom_ribbon(aes(ymin = minimum, ymax = maximum, group = run_number), 
-#               alpha = 0.15, color = NA) +
-#   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev, group = run_number), 
-#               alpha = 0.3, color = NA) +
-#   geom_line(aes(y = med, size = 1)) +
-#   geom_line(data = emissions_fraction, aes(y = med), color = "black", na.rm = TRUE) +
-#   theme(legend.position = "none") +
-#   scale_color_viridis_c(begin = 0.5) +
-#   scale_fill_viridis_c(begin = 0.5) +
-#   labs(x = "Year",
-#        y = "Airborne fraction")
 
 ```
 
