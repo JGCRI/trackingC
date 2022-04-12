@@ -315,6 +315,43 @@ ggplot(temp, aes(year, fill = source, color = source)) +
        y = expression(degree*C))
 ```
 
+## Hector atmospheric CO~2~ vs observed data
+
+``` {r ca-comp, fig.cap = " Hector CO2 data in 1971 and 2021 compared to observational data from NOAA"}
+noaa <- read.csv("noaa_co2_data.csv")
+noaa71 <- noaa %>% filter(year == 1971)
+noaa21 <- noaa %>% filter(year == 2021)
+
+hector_co2_71 <- model_output %>%
+  filter(variable == "Ca",
+         year == 1971) %>%
+  select(run_number, year, value)
+
+hector_co2_21 <- model_output %>%
+  filter(variable == "Ca",
+         year == 2021) %>%
+  select(run_number, year, value)
+
+hector_co2_71 %>%
+  ggplot(aes(value)) + 
+  geom_histogram(bins = 40) +
+  geom_vline(aes(xintercept = noaa71$mean), color = "red") +
+  labs(x = "Atmospheric CO2 (ppm)",
+       y = "Count",
+       title = "Hector atmospheric CO2 output versus NOAA observational data (1971)",
+       color = "NOAA")
+
+hector_co2_21 %>%
+  ggplot(aes(value)) + 
+  geom_histogram(bins = 40) +
+  geom_vline(aes(xintercept = noaa21$mean), color = "red")  +
+  labs(x = "Atmospheric CO2 (ppm)",
+       y = "Count",
+       title = "Hector atmospheric CO2 output versus NOAA observational data (2021)")
+
+
+```
+
 ## Atmosphere sources - ƒATM~ffi~
 
 ``` {r atmosphere-by-source, fig.cap = " Fraction of CO2 in the atmosphere by source pool from 100 random runs. Dark line shows the median."}
