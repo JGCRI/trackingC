@@ -631,7 +631,6 @@ tracking_output <- list()
 set_tracking <- function(c, date){
   setvar(c, NA, TRACKING_DATE(), date, "(unitless)")
   reset(c)
-  # Side note - run(c, runtodate = (date + 50)) returned an error and wouldn't run
   run(c, (date + 50))
   tdata <- get_tracking_data(c)
   tdata$ty <- date
@@ -655,35 +654,49 @@ all_years_tracking %>%
        y = "Source fraction") +
   scale_color_viridis_c()
 
-# Calculate true AF for the first year after tracking only
-true_dates <- dates + 1
-
-# Find cumulative emissions
-emissions_yr1 <- all_years_tracking %>%
-  filter(pool_name == "earth_c",
-         source_name == "earth_c",
-         year %in% c(dates, true_dates)) %>%
-  arrange(year) %>%
-  # the NA at the end here is so that cumulative emissions 'line up' correctly
-  # with the source_quantity (earth-origin atmosphere C) calculated below
-  mutate(emissions = -c(diff(pool_value), NA),
-         # relative to core$trackingDate
-         cumulative_emissions = cumsum(emissions)) %>%
-  select(year, cumulative_emissions) %>%
-  slice(-c(3,6,9,12,15,18,21,24,27,30))
-  
-# Compute the fraction of fossil fuel emissions residing in the atmosphere
-emissions_fraction_yr1 <- all_years_tracking %>%
-  filter(pool_name == "atmos_c", 
-         source_name == "earth_c",
-         year %in% emissions_yr1$year) %>%
-  # How much earth_c is in atmos_c? 
+# Plot the destination of earth_c emissions
+all_years_tracking %>%
+  filter(source_name == "earth_c", pool_name != "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
-  left_join(emissions_yr1, by = "year") %>%
-  select(year, source_quantity, cumulative_emissions) %>%
-  mutate(c_emissions_fraction = source_quantity / cumulative_emissions)
+  group_by(year) %>%
+  mutate(destination_fraction = source_quantity / sum(source_quantity)) %>% 
+  ungroup() %>%
+  ggplot(aes(year, destination_fraction, fill = pool_name), group = ty) +
+  geom_area() +
+  #facet_wrap(~ty) +
+  labs(x = "Year",
+       y = "Destination fraction") +
+  scale_fill_viridis_d()
 
-year_one <- filter(emissions_fraction_yr1, year %in% true_dates)
+# # Calculate true AF for the first year after tracking only
+# true_dates <- dates + 1
+# 
+# # Find cumulative emissions
+# emissions_yr1 <- all_years_tracking %>%
+#   filter(pool_name == "earth_c",
+#          source_name == "earth_c",
+#          year %in% c(dates, true_dates)) %>%
+#   arrange(year) %>%
+#   # the NA at the end here is so that cumulative emissions 'line up' correctly
+#   # with the source_quantity (earth-origin atmosphere C) calculated below
+#   mutate(emissions = -c(diff(pool_value), NA),
+#          # relative to core$trackingDate
+#          cumulative_emissions = cumsum(emissions)) %>%
+#   select(year, cumulative_emissions) %>%
+#   slice(-c(3,6,9,12,15,18,21,24,27,30))
+#   
+# # Compute the fraction of fossil fuel emissions residing in the atmosphere
+# emissions_fraction_yr1 <- all_years_tracking %>%
+#   filter(pool_name == "atmos_c", 
+#          source_name == "earth_c",
+#          year %in% emissions_yr1$year) %>%
+#   # How much earth_c is in atmos_c? 
+#   mutate(source_quantity = pool_value * source_fraction) %>%
+#   left_join(emissions_yr1, by = "year") %>%
+#   select(year, source_quantity, cumulative_emissions) %>%
+#   mutate(c_emissions_fraction = source_quantity / cumulative_emissions)
+# 
+# year_one <- filter(emissions_fraction_yr1, year %in% true_dates)
 
 
 ```
