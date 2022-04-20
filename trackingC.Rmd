@@ -318,6 +318,8 @@ ggplot(temp, aes(year, fill = source, color = source)) +
 ## Hector atmospheric CO~2~ vs observed data
 
 ``` {r ca-comp, fig.cap = " Hector CO2 data in 1971 and 2021 compared to observational data from NOAA"}
+# Comparing outputs to NOAA CO2 data from Mauna Loa observatory
+# https://gml.noaa.gov/ccgg/trends/data.html
 noaa <- read.csv("noaa_co2_data.csv")
 noaa71 <- noaa %>% filter(year == 1971)
 noaa21 <- noaa %>% filter(year == 2021)
