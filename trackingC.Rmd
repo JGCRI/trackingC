@@ -179,8 +179,8 @@ jv <- as_tibble(joint_vals)
 colnames(jv) <- c("ECS", "DIFFUSIVITY")
 # Filter and bind to the runlist
 jv %>% 
-  filter(ECS > 0) %>% 
   mutate(ECS = exp(ECS)) %>%
+  filter(ECS > 0) %>% 
   sample_n(N_RUNS) %>%
   bind_cols(runlist, .) ->
   runlist
@@ -373,7 +373,9 @@ hector_temp <- model_output %>%
 
 # Check if Hector outputs are within CMIP6 range
 for(n in seq_len(nrow(hector_temp))){
-  if(hector_temp$hmin[n] < hector_temp$minimum[n] | hector_temp$hmax[n] > hector_temp$maximum[n]) hector_temp$fail[n] <- "yes" else hector_temp$fail[n] <- "no"
+  if(hector_temp$hmin[n] < hector_temp$minimum[n] | 
+     hector_temp$hmax[n] > hector_temp$maximum[n]) hector_temp$fail[n] <- "yes" 
+  else hector_temp$fail[n] <- "no"
 }
 
 # Filter for more than 50% "yes"
