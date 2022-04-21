@@ -95,6 +95,7 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(gridExtra)
+library(ggExtra)
 library(GGally)
 library(bookdown)
 
@@ -103,6 +104,14 @@ theme_set(theme_light())
 # Read in ini file, initiate new core
 ssp245 <- system.file("input/hector_ssp245.ini", package = "hector") 
 core <- newcore(ssp245)
+
+# Number of model runs to perform
+N_RUNS <- 1000
+# We use GitHub Actions to make sure this RMarkdown knits successfully
+# But if running there, only do a small number of Hector simulations
+if(Sys.getenv("CI") == "true") {
+  N_RUNS <- 100
+}
 
 # Set range of years for output data
 OUTPUT_YEARS <- 1950:2200
@@ -114,7 +123,7 @@ set.seed(10)
 ### Create runlist of parameter draws
 
 Currently, we are looking at six Hector parameters: `BETA(), Q10_RH(), ECS(),
-NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY()`. We created a runlist with 1000 random
+NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY()`. We created a runlist with `r N_RUNS` random
 draws in a normal (or lognormal, where applicable) distribution.
 
 ```{r params}
@@ -126,14 +135,6 @@ lognorm <- function(m, sd){
   mn <- log(m^2 / sqrt(sd^2 + m^2))
   stdev <- sqrt(log(1 + (sd^2 / m^2)))
   v <- c(mn, stdev)
-}
-
-N_RUNS <- 1000
-
-# We use GitHub Actions to make sure this RMarkdown knits successfully
-# But if running there, only do a small number of Hector simulations
-if(Sys.getenv("CI") == "true") {
-  N_RUNS <- 100
 }
 
 # Runlist contains run number, parameter, and a random distribution
@@ -152,15 +153,15 @@ runlist <- tibble(
 # ECS (equilibrium climate sensitivity) and ocean heat diffusivity are 
 # notably correlated with each other, so use a joint PDF for these
 
-# ECS should be log-normally distributed, but a N(3, 2) produces a curve
-# that's pretty close if we toss out all values <= 0 (about 12%)
+# ECS should be log-normally distributed, but a N(3, 1) produces a curve
+# that's pretty close if we toss out all values <= 0 (about 0.3%)
 # If we do this, we can use MASS::mvrnorm() which saves us a LOT of work
 # writing a custom rejection sampling routine...
-#ecs_vals <- rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
-ecs_vals <- rnorm(N_RUNS, mean = 3, sd = 2) # see note above
+ecs_vals_lognorm <- rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
+ecs_vals <- rnorm(N_RUNS, mean = 3, sd = 1) # see note above
 diff_vals <- rnorm(N_RUNS, mean = 2.3, sd = 0.23)
 
-DESIRED_PCOR <- -0.8  # ECS and diffusivity should be negatively correlated
+DESIRED_PCOR <- -0.75  # ECS and diffusivity should be negatively correlated
 # https://en.wikipedia.org/wiki/Covariance_and_correlation
 desired_cov <- DESIRED_PCOR * sd(ecs_vals) * sd(diff_vals)
 # Set up the variance-covariance matrix
@@ -179,6 +180,18 @@ jv %>%
   sample_n(N_RUNS) %>% 
   bind_cols(runlist, .) ->
   runlist
+
+# Visualize proper lognormal versus normal distributions for ECS
+p <- ggplot(runlist, aes(ECS, DIFFUSIVITY)) + 
+  geom_point(alpha = 0.2) + 
+  geom_density_2d() +
+  ggtitle("Joint distribution of ECS and DIFFUSIVITY")
+ggExtra::ggMarginal(p, type = "histogram", alpha = 0.2)
+# Visualize the final joint distribution of ECS and DIFFUSIVITY
+tibble(lognorm = ecs_vals_lognorm, norm = runlist$ECS) %>% 
+  pivot_longer(everything()) %>% 
+  ggplot(aes(value, fill = name)) + geom_density(alpha = 0.5) +
+  ggtitle("Comparison of (proper) lognormal with normal for ECS")
 
 # Name and units of parameters
 name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), 
@@ -248,7 +261,11 @@ tm <- difftime(Sys.time(), start_time, units = "secs") %>% round(1)
 
 Doing `r N_RUNS` runs took `r tm` seconds or `r tm/N_RUNS` s/job.
 
+`r length(errors)` runs had errors.
+
+
 ## Process data
+
 Get lists from above into nice dataframes.
 
 ``` {r data}
