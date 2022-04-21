@@ -349,7 +349,8 @@ hector <- model_output %>%
   filter(variable == "Tgav",
          year >= 2015 & year <= 2100) %>%
   group_by(year) %>%
-  summarize(sdev = sd(value),
+  summarize(run_number = run_number,
+            sdev = sd(value),
             minimum = min(value),
             maximum = max(value),
             med = median(value)) %>%
@@ -358,8 +359,38 @@ hector <- model_output %>%
 # Combine data
 temp <- bind_rows(cmip, hector)
 
+# Filter out unrealistic values - for each run, if more than 50% of values are
+# outside of the min/max of the CMIP data, the run is nixed
+cmip_bounds <- cmip %>% select(year, minimum, maximum)
+hector_temp <- model_output %>%
+  filter(variable == "Tgav",
+         year >= 2015 & year <= 2100) %>%
+  group_by(year) %>%
+  mutate(hmin = min(value),
+         hmax = max(value)) %>%
+  select(run_number, year, hmin, hmax) %>%
+  left_join(cmip_bounds, by = "year")
+
+# Check if Hector outputs are within CMIP6 range
+for(n in seq_len(nrow(hector_temp))){
+  if(hector_temp$hmin[n] < hector_temp$minimum[n] | hector_temp$hmax[n] > hector_temp$maximum[n]) hector_temp$fail[n] <- "yes" else hector_temp$fail[n] <- "no"
+}
+
+# Filter for more than 50% "yes"
+# 86 entries per run number
+test <- hector_temp %>%
+  filter(fail == "yes") %>%
+  group_by(run_number) %>%
+  mutate(num_fails = length(run_number),
+         percent_fails = (num_fails / 86) * 100) %>%
+  filter(percent_fails > 50)
+
+bad_runs <- unique(test$run_number)
+
 # Plot temperature spreads
-ggplot(temp, aes(year, fill = source, color = source)) +
+temp %>%
+  filter(run_number %in% !bad_runs) %>%
+  ggplot(aes(year, fill = source, color = source)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
   geom_line(aes(y = med), size = 2) +
