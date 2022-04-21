@@ -171,7 +171,7 @@ Sigma <- matrix(c(var(ecs_vals),
                 2, 2)
 # ...and generate values--twice as many as needed because we toss out
 # negative ECS values below (see note above)
-joint_vals <- MASS::mvrnorm(n = N_RUNS * 2, c(mean(ecs_vals), mean(diff_vals)), Sigma)
+joint_vals <- MASS::mvrnorm(n = N_RUNS * 2, c(mean(ecs_vals), mean(diffusion_vals)), Sigma)
 jv <- as_tibble(joint_vals)
 colnames(jv) <- c("ECS", "DIFFUSIVITY")
 # Filter and bind to the runlist
@@ -217,10 +217,12 @@ run_hector <- function(pdata, c) {
   # c is a Hector newcore environment
   
   # For each parameter within each run, set its value and units
+    message("\tSetting", appendLF = FALSE)
   for(p in colnames(pdata)) {
-    message("\tSetting ", p)
+    message(" ", p, appendLF = FALSE)
     setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
   }
+  message(" ...running")
   # Set a tracking date, reset and run core
   setvar(c, NA, TRACKING_DATE(), 1950, NA)
   reset(c)
@@ -258,6 +260,9 @@ for(row in seq_len(nrow(runlist))) {
 
 # Compute difference in time between start and after loop is run
 tm <- difftime(Sys.time(), start_time, units = "secs") %>% round(1)
+
+# Collapse errors into a single vector
+errors <- unlist(errors)
 ```
 
 Doing `r N_RUNS` runs took `r tm` seconds or `r tm/N_RUNS` s/job.
@@ -301,6 +306,7 @@ max_display <- slice_sample(runlist, n = 100)
 trk_output_slice <- filter(trk_output, run_number %in% max_display$run_number)
 model_output_slice <- filter(model_output, run_number %in% max_display$run_number)
 ```
+
 
 # Results
 
