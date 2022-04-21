@@ -153,31 +153,35 @@ runlist <- tibble(
 # ECS (equilibrium climate sensitivity) and ocean heat diffusivity are 
 # notably correlated with each other, so use a joint PDF for these
 
-# ECS should be log-normally distributed, but N(3, 1) produces a curve
-# that's pretty close if we toss out all values <= 0 (about 0.3%)
+# ECS is log-normally distributed, but we will transform it to fit a 
+# normal distribution by taking the log of the entire distribution
 # If we do this, we can use MASS::mvrnorm() which saves us a LOT of work
 # writing a custom rejection sampling routine...
+# We will then transform the final values back to fit a lognormal distribution
+# by taking the exponential of our ECS values
+# Both distributions are currently Hector defaults
 ecs_vals_lognorm <- rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
-ecs_vals <- rnorm(N_RUNS, mean = 3, sd = 1) # see note above
+ecs_vals_to_norm <- log(ecs_vals_lognorm)
 diffusion_vals <- rnorm(N_RUNS, mean = 2.3, sd = 0.23)
 
 DESIRED_PCOR <- -0.75  # ECS and diffusivity should be negatively correlated
 # https://en.wikipedia.org/wiki/Covariance_and_correlation
-desired_cov <- DESIRED_PCOR * sd(ecs_vals) * sd(diffusion_vals)
+desired_cov <- DESIRED_PCOR * sd(ecs_vals_to_norm) * sd(diffusion_vals)
 # Set up the variance-covariance matrix
-Sigma <- matrix(c(var(ecs_vals), 
+Sigma <- matrix(c(var(ecs_vals_to_norm), 
                   desired_cov, desired_cov, 
                   var(diffusion_vals)),
                 2, 2)
 # ...and generate values--twice as many as needed because we toss out
 # negative ECS values below (see note above)
-joint_vals <- MASS::mvrnorm(n = N_RUNS * 2, c(mean(ecs_vals), mean(diffusion_vals)), Sigma)
+joint_vals <- MASS::mvrnorm(n = N_RUNS * 2, c(mean(ecs_vals_to_norm), mean(diffusion_vals)), Sigma)
 jv <- as_tibble(joint_vals)
 colnames(jv) <- c("ECS", "DIFFUSIVITY")
 # Filter and bind to the runlist
 jv %>% 
   filter(ECS > 0) %>% 
-  sample_n(N_RUNS) %>% 
+  mutate(ECS = exp(ECS)) %>%
+  sample_n(N_RUNS) %>%
   bind_cols(runlist, .) ->
   runlist
 
@@ -187,11 +191,11 @@ p <- ggplot(runlist, aes(ECS, DIFFUSIVITY)) +
   geom_density_2d() +
   ggtitle("Joint distribution of ECS and DIFFUSIVITY")
 ggExtra::ggMarginal(p, type = "histogram", alpha = 0.2)
-# Visualize proper lognormal versus normal distributions for ECS
+# Visualize proper lognormal versus transformed distributions for ECS
 tibble(lognorm = ecs_vals_lognorm, norm = runlist$ECS) %>% 
   pivot_longer(everything()) %>% 
   ggplot(aes(value, fill = name)) + geom_density(alpha = 0.5) +
-  ggtitle("Comparison of (proper) lognormal with normal for ECS")
+  ggtitle("Comparison of (proper) lognormal with transformed distribution for ECS")
 
 # Name and units of parameters
 name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), 
