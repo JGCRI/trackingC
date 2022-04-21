@@ -206,6 +206,7 @@ units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)",
 ```
 
 ## Run the model
+
 Run the model and store outputs and tracking data.
 
 ```{r functions, cache=TRUE, message=FALSE}
