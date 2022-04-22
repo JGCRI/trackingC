@@ -1,0 +1,327 @@
+---
+title: "trackingC_setup"
+author: "Leeya Pressburger"
+date: "`r Sys.Date()`"
+output:
+  bookdown::html_document2:
+    fig_caption: yes
+    number_sections: yes
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
+```
+
+# Introduction
+
+## Science background
+
+* We are pumping massive amounts of carbon dioxide into the atmosphere. 
+Many studies have looked at the current dynamics of the C cycle, and/or 
+long-term ultimate fate of anthropogenic CO~2~.
+
+* There are many uncertainties surrounding the trend of airborne fraction
+(thought of as how much anthropogenic remains in the atmosphere, though
+see below), and more generally surrounding feedbacks and processes in the
+earth system controlling the growth of atmospheric CO~2~ 
+and thus radiative forcing.
+
+* Simple climate models are a useful tool to understanding the short-term 
+impacts of humans on the climate. In particular, the simple climate model 
+Hector 3.0.0 incorporates a novel carbon tracking feature, allowing the user to 
+trace the origins of CO~2~ as it moves through the Earth system.  
+
+* Using this model allows us to understand how sensitive Hector is to changing 
+parameters as well as determining the uncertainties in model projections.
+
+## Goals
+
+Using Hector v3.0.0 and its novel carbon tracking feature, we want to:  
+
+* Understand the ultimate fate and distribution of anthropogenic CO~2~ and 
+its controls.  
+
+* Understand the uncertainties on the lifetime and fate of FFI CO~2~ emissions.  
+
+* Understand the uncertainties on the trends/robustness of airborne fraction as
+a metric for understanding how anthropogenic emissions influence the Earth system,
+and how Earth system feedbacks influence airborne fraction.
+
+
+# Methods
+
+## Definitions
+
+* ƒATM~ffi~: the fraction of atmospheric CO~2~ derived from fossil fuel industrial emissions
+* ƒFFI~atm~: the fraction of fossil fuel CO~2~ emissions residing in the atmosphere
+* AF: airborne fraction, conventionally computed as $\Delta$ATM / $\Sigma$FFI over some time period
+
+Note that while AF is commonly described as "the fraction of anthropogenic 
+emissions which remain in the atmosphere" 
+([source](https://gml.noaa.gov/co2conference/posters_pdf/jones1_poster.pdf)), 
+the ratio above will not exactly be that, because in some circumstances earth 
+system feedbacks will add to atmospheric CO~2~ as well. In addition, the 
+formula above produces negative numbers if $\Delta$ATM < 0.
+
+
+## Setup
+
+1. Create random parameter draws from a priori PDFs from literature (note that 
+we have not yet implemented joint PDFs).
+2. Parameterize Hector.
+3. Run Hector 1000 times (note that we are working on parallelizing this script
+to be run on pic, and the number of runs will scale up - at least 100,000?). 
+4. Note that we currently turn tracking on at 1950--i.e., at this date
+everything is assumed to be "pure" (atmosphere is 100% atmosphere, etc.) 
+and things move and mix from there.
+4. Extract standard output (pools and fluxes) and carbon tracking data. 
+5. Visualize data in four parts: sanity checks, graphs focusing on ƒATM~ffi~ 
+(i.e., patterns and dynamics of the origin of atmospheric CO~2~),
+graphs focusing on ƒFFI~atm~ (i.e., controls on the destination of FFI CO~2~), 
+and graphs of airborne fraction.  
+
+### R setup
+
+Load necessary packages, read in an ini file and initiate core, and set seed for reproducibility.
+
+```{r intro, warning=FALSE, message=FALSE}
+library(hector)
+library(relaimpo)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(gridExtra)
+library(ggExtra)
+library(GGally)
+library(bookdown)
+
+theme_set(theme_light())
+
+# Read in ini file, initiate new core
+ssp245 <- system.file("input/hector_ssp245.ini", package = "hector") 
+core <- newcore(ssp245)
+
+# Number of model runs to perform
+N_RUNS <- 1000
+
+# We use GitHub Actions to make sure this RMarkdown knits successfully
+# But if running there, only do a small number of Hector simulations
+if(Sys.getenv("CI") == "true") {
+  N_RUNS <- 100
+}
+
+# Set range of years for output data
+OUTPUT_YEARS <- 1950:2200
+
+# Set random number generator to allow for reproducibility 
+set.seed(10)
+```
+
+### Create runlist of parameter draws
+
+Currently, we are looking at six Hector parameters: `BETA(), Q10_RH(), ECS(),
+NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY()`. We created a runlist with `r N_RUNS` random
+draws in a normal (or lognormal, where applicable) distribution.
+
+ECS (equilibrium climate sensitivity) and ocean heat diffusivity are 
+notably correlated with each other, so we use a joint PDF for these.  
+
+ECS is log-normally distributed, but we will transform it to fit a 
+normal distribution by taking the log of the entire distribution.
+If we do this, we can use MASS::mvrnorm() which saves us a LOT of work in
+writing a custom rejection sampling routine...  
+
+We will then transform the final values back to fit a lognormal distribution
+by taking the exponential of our ECS values
+
+```{r runlist}
+# Create runlist of parameters of interest
+
+# Function to access lognorm parameters with a desired mean and standard deviation
+# Reference: https://msalganik.wordpress.com/2017/01/21/making-sense-of-the-rlnorm-function-in-r/
+lognorm <- function(m, sd){
+  mn <- log(m^2 / sqrt(sd^2 + m^2))
+  stdev <- sqrt(log(1 + (sd^2 / m^2)))
+  v <- c(mn, stdev)
+}
+
+# Runlist contains run number, parameter, and a random distribution
+runlist <- tibble(
+  run_number = 1:N_RUNS,
+  # Keenan et al. (2021)
+  "BETA" = rnorm(N_RUNS, mean = 0.5, sd = 0.1),
+  # Davidson and Janssens (2006)
+  "Q10_RH" = rlnorm(N_RUNS, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
+  # Ito (2011)
+  "NPP_FLUX0" = rnorm(N_RUNS, mean = 56.2, sd = 5.62),
+  # Hector default
+  "AERO_SCALE" = rnorm(N_RUNS, mean = 1.0, sd = 0.1)
+)
+
+# Name and units of all parameters
+name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), 
+                 "ECS" = ECS(), "NPP_FLUX0" = NPP_FLUX0(),
+                 "AERO_SCALE" = AERO_SCALE(), "DIFFUSIVITY" = DIFFUSIVITY()
+                 )
+
+units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)", 
+                  "ECS" = "degC", "NPP_FLUX0" = "Pg C/yr",
+                  "AERO_SCALE" = "(unitless)", "DIFFUSIVITY" = "cm2/s"
+                  )
+
+```
+
+``` {r joint-params, fig.cap = " The final joint distribution of ECS and diffusivity. The individual parameter distributions are shown on the x and y axes."}
+# Joint PDF for ECS and diffusivity
+# Both distributions are currently Hector defaults
+ecs_vals_lognorm <- rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
+# Transform ECS distribution to log(distribution)
+ecs_vals_to_norm <- log(ecs_vals_lognorm)
+diffusion_vals <- rnorm(N_RUNS, mean = 2.3, sd = 0.23)
+
+DESIRED_PCOR <- -0.75  # ECS and diffusivity should be negatively correlated
+# https://en.wikipedia.org/wiki/Covariance_and_correlation
+desired_cov <- DESIRED_PCOR * sd(ecs_vals_to_norm) * sd(diffusion_vals)
+# Set up the variance-covariance matrix
+Sigma <- matrix(c(var(ecs_vals_to_norm), 
+                  desired_cov, desired_cov, 
+                  var(diffusion_vals)),
+                2, 2)
+# ...and generate values--twice as many as needed because we toss out
+# negative ECS values below (see note above)
+joint_vals <- MASS::mvrnorm(n = N_RUNS * 2, c(mean(ecs_vals_to_norm), mean(diffusion_vals)), Sigma)
+jv <- as_tibble(joint_vals)
+colnames(jv) <- c("ECS", "DIFFUSIVITY")
+
+# Filter and bind to the runlist
+jv %>% 
+  mutate(ECS = exp(ECS)) %>%
+  filter(ECS > 0) %>% 
+  sample_n(N_RUNS) %>%
+  bind_cols(runlist, .) ->
+  runlist
+
+# Visualize the final joint distribution of ECS and DIFFUSIVITY
+p <- ggplot(runlist, aes(ECS, DIFFUSIVITY)) + 
+  geom_point(alpha = 0.2) + 
+  geom_density_2d() +
+  ggtitle("Joint distribution of ECS and DIFFUSIVITY")
+ggExtra::ggMarginal(p, type = "histogram", alpha = 0.2)
+
+```
+
+``` {r log-dist, fig.cap = " Comparing the original, random, lognormal distribution for ECS with the final transformed version, the exponential of the log of ECS."}
+
+# Visualize proper lognormal versus transformed distributions for ECS
+tibble(lognorm = ecs_vals_lognorm, transformed = runlist$ECS) %>% 
+  pivot_longer(everything()) %>% 
+  ggplot(aes(value, fill = name)) + geom_density(alpha = 0.5) +
+  ggtitle("Comparison of (proper) lognormal with transformed distribution for ECS")
+
+```
+
+## Run the model
+
+Run the model and store outputs and tracking data.
+
+```{r functions, cache=TRUE, message=FALSE}
+run_hector <- function(pdata, c) {
+  
+  # Function to set multiple parameter values for Hector, run a core, and retrieve tracking data
+  # pdata will be the runlist specified above
+  # c is a Hector newcore environment
+  
+  # For each parameter within each run, set its value and units
+    message("\tSetting", appendLF = FALSE)
+  for(p in colnames(pdata)) {
+    message(" ", p, appendLF = FALSE)
+    setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
+  }
+  message("  ")
+  # Set a tracking date, reset and run core
+  setvar(c, NA, TRACKING_DATE(), 1950, NA)
+  reset(c)
+  run(c)
+  # Access and save tracking data, model outputs
+  out <- list()
+  out$tdata <- get_tracking_data(c) %>% filter(year %in% OUTPUT_YEARS)
+  out$results <- fetchvars(c, OUTPUT_YEARS)
+  return(out)
+}
+
+# Run function for each row of the runlist
+
+# Create destination list
+out <- list()
+
+# List for the rows that error
+errors <- list()
+
+# For each row of the runlist, apply the run_hector() function
+# If there is an error, record which row triggers the error, and skip to the next row
+
+# Record start time 
+start_time <- Sys.time()
+
+for(row in seq_len(nrow(runlist))) {
+  message(row, "/", nrow(runlist))
+  outp <- try(run_hector(runlist[row,][-1], core))
+  if(class(outp) == "try-error") { 
+    # if there is an error, record row numbers that error
+    errors[[row]] <- runlist$run_number[[row]]
+  } else {
+    out[[runlist$run_number[row]]] <- outp
+  }}  
+
+# Compute difference in time between start and after loop is run
+tm <- difftime(Sys.time(), start_time, units = "secs") %>% round(1)
+
+# Collapse errors into a single vector
+errors <- unlist(errors)
+```
+
+Doing `r N_RUNS` runs took `r tm` seconds or `r tm/N_RUNS` s/job.
+
+`r length(errors)` runs had errors.
+
+
+## Process data
+
+Get lists from above into nice dataframes.
+
+``` {r data}
+# Get output data frames
+# First, access tracking data
+tdata <- list()
+for(n in seq_len(length(out))){
+  tdata[[n]] <- out[[n]]$tdata
+}
+trk_output <- bind_rows(tdata, .id = "run_number") %>% as_tibble
+
+# Then, access model output data
+results <- list()
+for(n in seq_len(length(out))){
+  results[[n]] <- out[[n]]$results
+}
+model_output <- bind_rows(results, .id = "run_number") %>% as_tibble()
+
+# Can left join with runlist to get param values
+# Make sure data is same class
+trk_output$run_number <- as.integer(trk_output$run_number)
+trk_output <- left_join(trk_output, runlist, by = "run_number")
+
+model_output$run_number <- as.integer(model_output$run_number)
+model_output <- left_join(model_output, runlist, by = "run_number")
+
+```
+
+# Save outputs
+``` {r output-files}
+write.csv(runlist, "./data_files/runlist.csv")
+write.csv(model_output, "./data_files/model_output.csv")
+write.csv(trk_output, "./data_files/trk_output.csv")
+```
