@@ -107,6 +107,7 @@ core <- newcore(ssp245)
 
 # Number of model runs to perform
 N_RUNS <- 1000
+
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
 if(Sys.getenv("CI") == "true") {
@@ -437,12 +438,12 @@ noaa <- read.csv("noaa_co2_data.csv")
 noaa71 <- noaa %>% filter(year == 1971)
 noaa21 <- noaa %>% filter(year == 2021)
 
-hector_co2_71 <- model_output %>%
+hector_co2_71 <- model_output_filtered %>%
   filter(variable == "Ca",
          year == 1971) %>%
   select(run_number, year, value)
 
-hector_co2_21 <- model_output %>%
+hector_co2_21 <- model_output_filtered %>%
   filter(variable == "Ca",
          year == 2021) %>%
   select(run_number, year, value)
@@ -708,10 +709,10 @@ calc_emissions_fraction <- function(data, emissions_data){
 }
 
 # Compute cumulative emissions over time
-emissions <- calc_emissions(trk_output)
+emissions <- calc_emissions(trk_output_filtered)
 
 # Compute the fraction of fossil fuel emissions residing in the atmosphere
-emissions_fraction <- calc_emissions_fraction(trk_output, emissions)
+emissions_fraction <- calc_emissions_fraction(trk_output_filtered, emissions)
 
 # Classical definition of AF
 classic_af <- af_results %>%
@@ -807,6 +808,7 @@ emissions_frac_one <- calc_emissions_fraction(year_one, emissions_one)
 
 
 ```
+
 # The End
 
 ```{r info}
