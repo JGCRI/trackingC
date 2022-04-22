@@ -91,7 +91,7 @@ runlist %>%
 
 ``` {r cmip, fig.cap = " Visualization of sample model runs. The red dots represent the CMIP6 minimums and maximums for global temperature anomaly, and the runs that pass must fall within these bounds more than 50% of the time."}
 # Read in CMIP6 comparison data
-cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
+cmip <- read.csv("./data_files/CMIP6_annual_tas_global.csv") %>%
   filter(variable == "Tgav",
          experiment == "ssp245") %>%
   group_by(year) %>%
@@ -176,7 +176,7 @@ model_output_filtered %>%
 ``` {r ca-comp, fig.cap = " Hector CO2 data in 1971 and 2021 compared to observational data from NOAA"}
 # Comparing outputs to NOAA CO2 data from Mauna Loa observatory
 # https://gml.noaa.gov/ccgg/trends/data.html
-noaa <- read.csv("noaa_co2_data.csv")
+noaa <- read.csv("./data_files/noaa_co2_data.csv")
 noaa71 <- noaa %>% filter(year == 1971)
 noaa21 <- noaa %>% filter(year == 2021)
 
