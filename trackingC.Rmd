@@ -386,6 +386,7 @@ hector_temp %>%
   geom_line() + 
   geom_point(aes(y = minimum), color = "red") + 
   geom_point(aes(y = maximum), color = "red") +
+  scale_color_viridis_c() +
   labs(x = "Year",
        y = expression(degree*C))
 
