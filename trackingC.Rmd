@@ -126,7 +126,18 @@ Currently, we are looking at six Hector parameters: `BETA(), Q10_RH(), ECS(),
 NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY()`. We created a runlist with `r N_RUNS` random
 draws in a normal (or lognormal, where applicable) distribution.
 
-```{r params}
+ECS (equilibrium climate sensitivity) and ocean heat diffusivity are 
+notably correlated with each other, so we use a joint PDF for these.  
+
+ECS is log-normally distributed, but we will transform it to fit a 
+normal distribution by taking the log of the entire distribution.
+If we do this, we can use MASS::mvrnorm() which saves us a LOT of work in
+writing a custom rejection sampling routine...  
+
+We will then transform the final values back to fit a lognormal distribution
+by taking the exponential of our ECS values
+
+```{r runlist}
 # Create runlist of parameters of interest
 
 # Function to access lognorm parameters with a desired mean and standard deviation
@@ -150,17 +161,24 @@ runlist <- tibble(
   "AERO_SCALE" = rnorm(N_RUNS, mean = 1.0, sd = 0.1)
 )
 
-# ECS (equilibrium climate sensitivity) and ocean heat diffusivity are 
-# notably correlated with each other, so use a joint PDF for these
+# Name and units of all parameters
+name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), 
+                 "ECS" = ECS(), "NPP_FLUX0" = NPP_FLUX0(),
+                 "AERO_SCALE" = AERO_SCALE(), "DIFFUSIVITY" = DIFFUSIVITY()
+                 )
 
-# ECS is log-normally distributed, but we will transform it to fit a 
-# normal distribution by taking the log of the entire distribution
-# If we do this, we can use MASS::mvrnorm() which saves us a LOT of work
-# writing a custom rejection sampling routine...
-# We will then transform the final values back to fit a lognormal distribution
-# by taking the exponential of our ECS values
+units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)", 
+                  "ECS" = "degC", "NPP_FLUX0" = "Pg C/yr",
+                  "AERO_SCALE" = "(unitless)", "DIFFUSIVITY" = "cm2/s"
+                  )
+
+```
+
+``` {r joint-params, fig.cap = " The final joint distribution of ECS and diffusivity. The individual parameter distributions are shown on the x and y axes."}
+# Joint PDF for ECS and diffusivity
 # Both distributions are currently Hector defaults
 ecs_vals_lognorm <- rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
+# Transform ECS distribution to log(distribution)
 ecs_vals_to_norm <- log(ecs_vals_lognorm)
 diffusion_vals <- rnorm(N_RUNS, mean = 2.3, sd = 0.23)
 
@@ -177,6 +195,7 @@ Sigma <- matrix(c(var(ecs_vals_to_norm),
 joint_vals <- MASS::mvrnorm(n = N_RUNS * 2, c(mean(ecs_vals_to_norm), mean(diffusion_vals)), Sigma)
 jv <- as_tibble(joint_vals)
 colnames(jv) <- c("ECS", "DIFFUSIVITY")
+
 # Filter and bind to the runlist
 jv %>% 
   mutate(ECS = exp(ECS)) %>%
@@ -191,22 +210,17 @@ p <- ggplot(runlist, aes(ECS, DIFFUSIVITY)) +
   geom_density_2d() +
   ggtitle("Joint distribution of ECS and DIFFUSIVITY")
 ggExtra::ggMarginal(p, type = "histogram", alpha = 0.2)
+
+```
+
+``` {r log-dist, fig.cap = " Comparing the original, random, lognormal distribution for ECS with the final transformed version, the exponential of the log of ECS."}
+
 # Visualize proper lognormal versus transformed distributions for ECS
-tibble(lognorm = ecs_vals_lognorm, norm = runlist$ECS) %>% 
+tibble(lognorm = ecs_vals_lognorm, transformed = runlist$ECS) %>% 
   pivot_longer(everything()) %>% 
   ggplot(aes(value, fill = name)) + geom_density(alpha = 0.5) +
   ggtitle("Comparison of (proper) lognormal with transformed distribution for ECS")
 
-# Name and units of parameters
-name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), 
-                 "ECS" = ECS(), "NPP_FLUX0" = NPP_FLUX0(),
-                 "AERO_SCALE" = AERO_SCALE(), "DIFFUSIVITY" = DIFFUSIVITY()
-                 )
-
-units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)", 
-                  "ECS" = "degC", "NPP_FLUX0" = "Pg C/yr",
-                  "AERO_SCALE" = "(unitless)", "DIFFUSIVITY" = "cm2/s"
-                  )
 ```
 
 ## Run the model
@@ -226,7 +240,7 @@ run_hector <- function(pdata, c) {
     message(" ", p, appendLF = FALSE)
     setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
   }
-  message(" ...running")
+  message("  ")
   # Set a tracking date, reset and run core
   setvar(c, NA, TRACKING_DATE(), 1950, NA)
   reset(c)
@@ -332,7 +346,7 @@ runlist %>%
 
 ## Hector temperature vs. CMIP6 
 
-``` {r cmip, fig.cap = " Global temperature anomaly from CMIP6 and filtered Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
+``` {r cmip, fig.cap = " Visualization of sample model runs. The red dots represent the CMIP6 minimums and maximums for global temperature anomaly, and the runs that pass must fall within these bounds more than 50% of the time."}
 # Read in CMIP6 comparison data
 cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
   filter(variable == "Tgav",
@@ -371,14 +385,18 @@ hector_temp %>%
   ggplot(aes(year, value, color = fraction_fail, group = run_number)) + 
   geom_line() + 
   geom_point(aes(y = minimum), color = "red") + 
-  geom_point(aes(y = maximum), color = "red")
+  geom_point(aes(y = maximum), color = "red") +
+  labs(x = "Year",
+       y = expression(degree*C))
 
+```
+
+``` {r filtered, fig.cap = "Global temperature anomaly from CMIP6 and filtered Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
 # Filter out 'unrealistic' runs (identified above)
-model_output %>%
+model_output_filtered <- model_output %>%
   left_join(run_fail_summary, by = "run_number") %>% 
-  filter(fraction_fail < 0.5) ->
-  model_output_filtered
-
+  filter(fraction_fail < 0.5)
+  
 # Plot temperature spreads for the filtered runs
 model_output_filtered %>%
   filter(variable == "Tgav",
