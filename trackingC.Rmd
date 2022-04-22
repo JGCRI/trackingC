@@ -397,6 +397,11 @@ hector_temp %>%
 model_output_filtered <- model_output %>%
   left_join(run_fail_summary, by = "run_number") %>% 
   filter(fraction_fail < 0.5)
+
+# Note that the tracking output needs to be filtered as well
+good_runs <- unique(model_output_filtered$run_number)
+trk_output_filtered <- trk_output %>%
+  filter(run_number %in% good_runs)
   
 # Plot temperature spreads for the filtered runs
 model_output_filtered %>%
@@ -427,7 +432,7 @@ model_output_filtered %>%
 
 ``` {r atmosphere-by-source, fig.cap = " Fraction of CO2 in the atmosphere by source pool from 100 random runs. Dark line shows the median."}
 # Isolate the atmosphere pool to better understand its composition 
-atmosphere_pool <- trk_output %>%
+atmosphere_pool <- trk_output_filtered %>%
   filter(pool_name == "atmos_c")
 
 # This plot looks at source fraction by source pool in the atmosphere and the median run.
@@ -513,7 +518,7 @@ ggpairs(ffi_atm_2100,
 # Step 1: compute source_quantity = pool_value * source_fraction
 # Step 2: for each year and source_name, compute destination_fraction
 
-ffi_destinations <- trk_output %>%
+ffi_destinations <- trk_output_filtered %>%
   filter(source_name == "earth_c", pool_name != "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
   group_by(year, run_number) %>%
@@ -524,8 +529,7 @@ ffi_destinations <- trk_output %>%
 dest_runs <- slice_sample(ffi_destinations, n = 16)
 dest_plot <- filter(ffi_destinations, run_number %in% dest_runs$run_number)
 
-ggplot(dest_plot, aes(year, destination_fraction, 
-                   fill = pool_name)) +
+ggplot(dest_plot, aes(year, destination_fraction, fill = pool_name)) +
   geom_area() +
   scale_fill_viridis_d() +
   facet_wrap(~run_number) +
@@ -583,7 +587,7 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
 
 ```{r af-windows, fig.cap = " Airborne fraction computed over varying time windows."}
 # Prep the data
-atm_earth_diffs <- trk_output %>%
+atm_earth_diffs <- trk_output_filtered %>%
   # Isolate atmosphere and earth total pool values
   filter(pool_name %in% c("atmos_c", "earth_c")) %>% 
   group_by(run_number, year, pool_name) %>% 
@@ -633,7 +637,7 @@ af_results %>%
 # Compute cumulative emissions over time
 # We use the change in earth_c to compute emissions; note this will not work
 # if ever using a scenario with fossil fuel sequestration (atmosphere -> earth)
-emissions <- trk_output %>%
+emissions <- trk_output_filtered %>%
   filter(pool_name == "earth_c",
          source_name == "earth_c",
          run_number == min(run_number)) %>%
@@ -646,7 +650,7 @@ emissions <- trk_output %>%
   select(year, cumulative_emissions)
   
 # Compute the fraction of fossil fuel emissions residing in the atmosphere
-emissions_fraction <- trk_output %>%
+emissions_fraction <- trk_output_filtered %>%
   filter(pool_name == "atmos_c", 
          source_name == "earth_c") %>%
   # How much earth_c is in atmos_c? 
