@@ -564,33 +564,42 @@ af_results %>%
 # Compute cumulative emissions over time
 # We use the change in earth_c to compute emissions; note this will not work
 # if ever using a scenario with fossil fuel sequestration (atmosphere -> earth)
-emissions <- trk_output %>%
-  filter(pool_name == "earth_c",
+calc_emissions <- function(data){
+  data %>% 
+    filter(pool_name == "earth_c",
          source_name == "earth_c",
          run_number == min(run_number)) %>%
-  arrange(year) %>%
-  # the NA at the end here is so that cumulative emissions 'line up' correctly
-  # with the source_quantity (earth-origin atmosphere C) calculated below
-  mutate(emissions = -c(diff(pool_value), NA),
-         # relative to core$trackingDate
-         cumulative_emissions = cumsum(emissions)) %>%
-  select(year, cumulative_emissions)
-  
+    arrange(year) %>%
+    # the NA at the end here is so that cumulative emissions 'line up' correctly
+    # with the source_quantity (earth-origin atmosphere C) calculated below
+    mutate(emissions = -c(diff(pool_value), NA),
+           # relative to core$trackingDate
+           cumulative_emissions = cumsum(emissions)) %>%
+    select(year, cumulative_emissions)
+}
+
+calc_emissions_fraction <- function(data, emissions_data){
+  data %>%
+    filter(pool_name == "atmos_c", 
+           source_name == "earth_c") %>%
+    # How much earth_c is in atmos_c? 
+    mutate(source_quantity = pool_value * source_fraction) %>%
+    left_join(emissions_data, by = "year") %>%
+    select(run_number, year, source_quantity, cumulative_emissions) %>%
+    mutate(c_emissions_fraction = source_quantity / cumulative_emissions) %>% 
+    group_by(year) %>%
+    mutate(sdev = sd(c_emissions_fraction),
+           med = median(c_emissions_fraction),
+           minimum = min(c_emissions_fraction),
+           maximum = max(c_emissions_fraction),
+           def = "EmissFraction")
+}
+
+# Compute cumulative emissions over time
+emissions <- calc_emissions(trk_output)
+
 # Compute the fraction of fossil fuel emissions residing in the atmosphere
-emissions_fraction <- trk_output %>%
-  filter(pool_name == "atmos_c", 
-         source_name == "earth_c") %>%
-  # How much earth_c is in atmos_c? 
-  mutate(source_quantity = pool_value * source_fraction) %>%
-  left_join(emissions, by = "year") %>%
-  select(run_number, year, source_quantity, cumulative_emissions) %>%
-  mutate(c_emissions_fraction = source_quantity / cumulative_emissions) %>% 
-  group_by(year) %>%
-  mutate(sdev = sd(c_emissions_fraction),
-            med = median(c_emissions_fraction),
-            minimum = min(c_emissions_fraction),
-            maximum = max(c_emissions_fraction),
-         def = "EmissFraction")
+emissions_fraction <- calc_emissions_fraction(trk_output, emissions)
 
 # Classical definition of AF
 classic_af <- af_results %>%
@@ -619,9 +628,10 @@ ggplot(plot_data, aes(x = year, fill = def)) +
         y = "Airborne fraction")
 
 ```
+
 ## Turning on tracking at different dates
 
-```{r tracking}
+```{r tracking-multiple-years, fig.cap = " Amount of CO2 in the atmosphere sourced from human emissions. Note that turning on tracking in different years does not have a dramatic effect on the composition of the atmosphere pool."}
 # Prep
 tcore <- reset(core)
 dates <- seq(from = 1750, to = 2250, 50)
@@ -663,44 +673,28 @@ all_years_tracking %>%
   ungroup() %>%
   ggplot(aes(year, destination_fraction, fill = pool_name), group = ty) +
   geom_area() +
-  #facet_wrap(~ty) +
   labs(x = "Year",
        y = "Destination fraction") +
   scale_fill_viridis_d()
 
-# # Calculate true AF for the first year after tracking only
-# true_dates <- dates + 1
-# 
-# # Find cumulative emissions
-# emissions_yr1 <- all_years_tracking %>%
-#   filter(pool_name == "earth_c",
-#          source_name == "earth_c",
-#          year %in% c(dates, true_dates)) %>%
-#   arrange(year) %>%
-#   # the NA at the end here is so that cumulative emissions 'line up' correctly
-#   # with the source_quantity (earth-origin atmosphere C) calculated below
-#   mutate(emissions = -c(diff(pool_value), NA),
-#          # relative to core$trackingDate
-#          cumulative_emissions = cumsum(emissions)) %>%
-#   select(year, cumulative_emissions) %>%
-#   slice(-c(3,6,9,12,15,18,21,24,27,30))
-#   
-# # Compute the fraction of fossil fuel emissions residing in the atmosphere
-# emissions_fraction_yr1 <- all_years_tracking %>%
-#   filter(pool_name == "atmos_c", 
-#          source_name == "earth_c",
-#          year %in% emissions_yr1$year) %>%
-#   # How much earth_c is in atmos_c? 
-#   mutate(source_quantity = pool_value * source_fraction) %>%
-#   left_join(emissions_yr1, by = "year") %>%
-#   select(year, source_quantity, cumulative_emissions) %>%
-#   mutate(c_emissions_fraction = source_quantity / cumulative_emissions)
-# 
-# year_one <- filter(emissions_fraction_yr1, year %in% true_dates)
+```
+
+``` {r tracking-af}
+# We want to calculate airborne fraction in the year immediately following the 
+# tracking date. 
+date_plus_one <- dates + 1
+year_one <- all_years_tracking %>% 
+  filter(year %in% date_plus_one) %>%
+  mutate(run_number = 1)
+
+# Compute cumulative emissions over time
+emissions_one <- calc_emissions(year_one)
+
+# Compute the fraction of fossil fuel emissions residing in the atmosphere
+emissions_frac_one <- calc_emissions_fraction(year_one, emissions_one)
 
 
 ```
-
 # The End
 
 ```{r info}
