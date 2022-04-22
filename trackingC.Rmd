@@ -332,7 +332,7 @@ runlist %>%
 
 ## Hector temperature vs. CMIP6 
 
-``` {r cmip, fig.cap = " Global temperature anomaly from CMIP6 and Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
+``` {r cmip, fig.cap = " Global temperature anomaly from CMIP6 and filtered Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
 # Read in CMIP6 comparison data
 cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
   filter(variable == "Tgav",
@@ -344,54 +344,55 @@ cmip <- read.csv("CMIP6_annual_tas_global.csv") %>%
             med = median(value)) %>%
   mutate(source = "CMIP6")
 
-# Extract Hector data
-hector <- model_output %>%
-  filter(variable == "Tgav",
-         year >= 2015 & year <= 2100) %>%
-  group_by(year) %>%
-  summarize(run_number = run_number,
-            sdev = sd(value),
-            minimum = min(value),
-            maximum = max(value),
-            med = median(value)) %>%
-  mutate(source = "Hector")
-
-# Combine data
-temp <- bind_rows(cmip, hector)
-
-# Filter out unrealistic values - for each run, if more than 50% of values are
+# Identify unrealistic runs - for each run, if more than 50% of values are
 # outside of the min/max of the CMIP data, the run is nixed
 cmip_bounds <- cmip %>% select(year, minimum, maximum)
 hector_temp <- model_output %>%
   filter(variable == "Tgav",
          year >= 2015 & year <= 2100) %>%
-  group_by(year) %>%
-  mutate(hmin = min(value),
-         hmax = max(value)) %>%
-  select(run_number, year, hmin, hmax) %>%
-  left_join(cmip_bounds, by = "year")
+  select(run_number, year, value) %>%
+  left_join(cmip_bounds, by = "year") %>% 
+  mutate(fail = value < minimum | value > maximum)
 
-# Check if Hector outputs are within CMIP6 range
-for(n in seq_len(nrow(hector_temp))){
-  if(hector_temp$hmin[n] < hector_temp$minimum[n] | 
-     hector_temp$hmax[n] > hector_temp$maximum[n]) hector_temp$fail[n] <- "yes" 
-  else hector_temp$fail[n] <- "no"
-}
-
-# Filter for more than 50% "yes"
-# 86 entries per run number
-test <- hector_temp %>%
-  filter(fail == "yes") %>%
+run_fail_summary <- hector_temp %>%
   group_by(run_number) %>%
-  mutate(num_fails = length(run_number),
-         percent_fails = (num_fails / 86) * 100) %>%
-  filter(percent_fails > 50)
+  summarise(fraction_fail = sum(fail) / n())
 
-bad_runs <- unique(test$run_number)
+# Make a table of failure rates
+run_fail_summary %>% 
+  group_by(fraction_fail > 0.5) %>% 
+  summarise(n()) %>% 
+  knitr::kable()
 
-# Plot temperature spreads
-temp %>%
-  filter(run_number %in% !bad_runs) %>%
+# ...and a figure 
+hector_temp %>% 
+  left_join(run_fail_summary, by = "run_number") %>% 
+  filter(run_number <= 100) %>% # this is a debugging figure; plot just 100 runs for clarity
+  ggplot(aes(year, value, color = fraction_fail, group = run_number)) + 
+  geom_line() + 
+  geom_point(aes(y = minimum), color = "red") + 
+  geom_point(aes(y = maximum), color = "red")
+
+# Filter out 'unrealistic' runs (identified above)
+model_output %>%
+  left_join(run_fail_summary, by = "run_number") %>% 
+  filter(fraction_fail < 0.5) ->
+  model_output_filtered
+
+# Plot temperature spreads for the filtered runs
+model_output_filtered %>%
+  filter(variable == "Tgav",
+         year >= 2015 & year <= 2100) %>% 
+  # compute median, min, max, etc. for all remaining runs
+  group_by(year) %>%
+  summarize(sdev = sd(value),
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value), .groups = "drop") %>% 
+  # combine with CMIP6 data
+  mutate(source = "Hector") %>% 
+  bind_rows(cmip) %>% 
+  # ...and plot
   ggplot(aes(year, fill = source, color = source)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
