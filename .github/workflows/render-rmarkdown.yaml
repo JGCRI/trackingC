@@ -30,4 +30,5 @@ jobs:
         shell: Rscript {0}
       - name: Render Rmarkdown files
         run: |
+          Rscript -e 'rmarkdown::render("./trackingC_setup.Rmd")'
           Rscript -e 'rmarkdown::render("./trackingC.Rmd")'
