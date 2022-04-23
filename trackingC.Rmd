@@ -30,23 +30,16 @@ library(gridExtra)
 library(ggExtra)
 library(GGally)
 library(bookdown)
+library(data.table) # for fread()
 
 theme_set(theme_light())
 
-# Read in ini file, initiate new core
-ssp245 <- system.file("input/hector_ssp245.ini", package = "hector") 
-core <- newcore(ssp245)
-
-# Set range of years for output data
-OUTPUT_YEARS <- 1950:2200
-
-# Set random number generator to allow for reproducibility 
-set.seed(10)
+source("trackingC_common.R")
 
 # Read in data files
-runlist <- read.csv("./data_files/runlist.csv")
-model_output <- read.csv("./data_files/model_output.csv")
-trk_output <- read.csv("./data_files/trk_output.csv")
+runlist <- fread("./output_files/runlist.csv")
+model_output <- fread("./output_files/model_output.csv")
+trk_output <- fread("./output_files/trk_output.csv")
 
 # If there are over 100 observations per time point and we want to plot
 # individual runs, we use slice_sample() to randomly select 100 rows.
@@ -553,7 +546,6 @@ emissions_frac_one %>%
   geom_point() +
   scale_color_viridis_c()
 ```
-
 
 # The End
 

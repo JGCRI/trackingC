@@ -24,7 +24,7 @@ jobs:
       - name: Install rmarkdown and needed packages
         run: |
           install.packages(c("rmarkdown", "readr", "dplyr", "tidyr", "remotes"))
-          install.packages(c("kableExtra", "relaimpo", "bookdown"))
+          install.packages(c("kableExtra", "relaimpo", "bookdown", "data.table"))
           install.packages(c("ggplot2", "ggExtra", "gridExtra", "GGally"))
           remotes::install_github("jgcri/hector@land_tracking")
         shell: Rscript {0}

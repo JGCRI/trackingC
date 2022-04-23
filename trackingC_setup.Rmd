@@ -101,21 +101,7 @@ library(bookdown)
 
 theme_set(theme_light())
 
-# Read in ini file, initiate new core
-ssp245 <- system.file("input/hector_ssp245.ini", package = "hector") 
-core <- newcore(ssp245)
-
-# Number of model runs to perform
-N_RUNS <- 1000
-
-# We use GitHub Actions to make sure this RMarkdown knits successfully
-# But if running there, only do a small number of Hector simulations
-if(Sys.getenv("CI") == "true") {
-  N_RUNS <- 100
-}
-
-# Set range of years for output data
-OUTPUT_YEARS <- 1950:2200
+source("trackingC_common.R")
 
 # Set random number generator to allow for reproducibility 
 set.seed(10)
@@ -320,8 +306,9 @@ model_output <- left_join(model_output, runlist, by = "run_number")
 ```
 
 # Save outputs
+
 ``` {r output-files}
-write.csv(runlist, "./data_files/runlist.csv")
-write.csv(model_output, "./data_files/model_output.csv")
-write.csv(trk_output, "./data_files/trk_output.csv")
+write.csv(runlist, "./output_files/runlist.csv", row.names = FALSE)
+write.csv(model_output, "./output_files/model_output.csv", row.names = FALSE)
+write.csv(trk_output, "./output_files/trk_output.csv", row.names = FALSE)
 ```
