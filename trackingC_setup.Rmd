@@ -312,3 +312,9 @@ write.csv(runlist, "./output_files/runlist.csv", row.names = FALSE)
 write.csv(model_output, "./output_files/model_output.csv", row.names = FALSE)
 write.csv(trk_output, "./output_files/trk_output.csv", row.names = FALSE)
 ```
+
+# The End
+
+```{r info}
+sessionInfo()
+```
