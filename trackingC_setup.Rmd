@@ -140,24 +140,31 @@ runlist <- tibble(
   run_number = 1:N_RUNS,
   # Keenan et al. (2021)
   "BETA" = rnorm(N_RUNS, mean = 0.5, sd = 0.1),
+  
   # Davidson and Janssens (2006)
   "Q10_RH" = rlnorm(N_RUNS, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
+  
   # Ito (2011)
   "NPP_FLUX0" = rnorm(N_RUNS, mean = 56.2, sd = 5.62),
+  
   # Hector default
-  "AERO_SCALE" = rnorm(N_RUNS, mean = 1.0, sd = 0.1)
+  "AERO_SCALE" = rnorm(N_RUNS, mean = 1.0, sd = 0.1),
+  
+  # Land use change emissions scaling parameter, to account for uncertainties in values for LUC
+  # Friedlingstein et al 2021 state: 
+  # Cumulative CO2 emissions from land-use changes (ELUC) for 1850-2020 were 200 ± 65 GtC...
+  # ...large spread among individual estimates of 140 GtC (updated H&N2017), 270 GtC (BLUE),
+  # and 195 GtC (OSCAR) for the three bookkeeping models and a similar wide estimate of 190 ± 60 GtC for the DGVMs
+  # Cumulative LUC_EMISSIONS() in Hector from 1850 to 2020 total 168 GtC
+  # We want to create a random distribution to scale our Hector emissions
+  # to account for the large uncertainties
+  # Our bounds for a reasonable scalar therefore are (270/168) and (140/168)
+  # Or, 0.83 < x < 1.61 
+  # The following distribution roughly aligns with the above criteria
+  # Using a lognormal distribution because we do not want negative or near-zero values
+  "LUC_SCALAR" = rlnorm(N_RUNS, lognorm(1.25, 0.2)[1], lognorm(1.25, 0.2)[2])
 )
 
-# Name and units of all parameters
-name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), 
-                 "ECS" = ECS(), "NPP_FLUX0" = NPP_FLUX0(),
-                 "AERO_SCALE" = AERO_SCALE(), "DIFFUSIVITY" = DIFFUSIVITY()
-                 )
-
-units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)", 
-                  "ECS" = "degC", "NPP_FLUX0" = "Pg C/yr",
-                  "AERO_SCALE" = "(unitless)", "DIFFUSIVITY" = "cm2/s"
-                  )
 
 ```
 
@@ -225,7 +232,8 @@ run_hector <- function(pdata, c) {
     message("\tSetting", appendLF = FALSE)
   for(p in colnames(pdata)) {
     message(" ", p, appendLF = FALSE)
-    setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
+    if(p == scalar) setvar(c, core$strtdate:core$enddate, LUC_EMISSIONS(), (luc$value * pdata["LUC_SCALAR"][[1]]), "Pg C/yr")
+    else setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
   }
   message("  ")
   # Set a tracking date, reset and run core
@@ -235,7 +243,7 @@ run_hector <- function(pdata, c) {
   # Access and save tracking data, model outputs
   out <- list()
   out$tdata <- get_tracking_data(c) %>% filter(year %in% OUTPUT_YEARS)
-  out$results <- fetchvars(c, OUTPUT_YEARS)
+  out$results <- fetchvars(c, OUTPUT_YEARS, c("Ca", "Ftot", "FCO2", "Tgav", "luc_emissions"))
   return(out)
 }
 
