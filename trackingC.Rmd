@@ -30,7 +30,7 @@ library(gridExtra)
 library(ggExtra)
 library(GGally)
 library(bookdown)
-library(data.table) # for fread()
+library(data.table)
 
 theme_set(theme_light())
 
