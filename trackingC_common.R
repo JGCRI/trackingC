@@ -35,4 +35,4 @@ units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)",
                   "LUC_SCALAR" = "(unitless)"
 )
 
-scalar <- "LUC_SCALAR"
+scalar_vector <- "LUC_SCALAR"

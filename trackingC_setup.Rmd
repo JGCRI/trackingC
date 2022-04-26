@@ -234,7 +234,7 @@ run_hector <- function(pdata, c) {
   for(p in colnames(pdata)) {
     message(" ", p, appendLF = FALSE)
     # If the parameter is a scaling constant, multiply and set scaled values
-    if(p == scalar) setvar(c, luc$year, LUC_EMISSIONS(), (luc$value * pdata[p][[1]]), "Pg C/yr")
+    if(p %in% scalar_vector) setvar(c, luc$year, LUC_EMISSIONS(), (luc$value * pdata[p][[1]]), "Pg C/yr")
     # Otherwise, simply set the value of the parameter itself
     else setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
   }
