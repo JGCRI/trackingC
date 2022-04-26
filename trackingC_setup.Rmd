@@ -245,7 +245,9 @@ run_hector <- function(pdata, c) {
   run(c)
   # Access and save tracking data, model outputs
   out <- list()
-  out$tdata <- get_tracking_data(c) %>% filter(year %in% OUTPUT_YEARS)
+  out$tdata <- get_tracking_data(c) %>% 
+    filter(year %in% OUTPUT_YEARS, 
+           source_name == "earth_c" | pool_name == "atmos_c")
   out$results <- fetchvars(c, OUTPUT_YEARS, c("Ca", "Ftot", "FCO2", "Tgav", "luc_emissions"))
   return(out)
 }
