@@ -44,3 +44,6 @@ vignettes/*.pdf
 
 # OS files
 .DS_Store
+
+# Output files
+output_files/*.csv
