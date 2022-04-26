@@ -402,6 +402,8 @@ af_results %>%
 # Compute cumulative emissions over time
 # We use the change in earth_c to compute emissions; note this will not work
 # if ever using a scenario with fossil fuel sequestration (atmosphere -> earth)
+
+# This function computes annual cumulative earth_c emissions for a given tracking dataset
 calc_emissions <- function(data){
   data %>% 
     filter(pool_name == "earth_c",
@@ -416,6 +418,9 @@ calc_emissions <- function(data){
     select(year, cumulative_emissions)
 }
 
+# This function takes a given tracking dataset and its corresponding cumulative 
+# emissions dataset as found above to calculate what fraction of the cumulative
+# emissions come from earth_c emisions that are now in the atmosphere
 calc_emissions_fraction <- function(data, emissions_data){
   data %>%
     filter(pool_name == "atmos_c", 
@@ -439,7 +444,7 @@ emissions <- calc_emissions(trk_output_filtered)
 # Compute the fraction of fossil fuel emissions residing in the atmosphere
 emissions_fraction <- calc_emissions_fraction(trk_output_filtered, emissions)
 
-# Classical definition of AF
+# Classical definition of AF - find summary stats
 classic_af <- af_results %>%
   group_by(group, year) %>%
   mutate(sdev = sd(af, na.rm = TRUE),
@@ -470,7 +475,7 @@ ggplot(plot_data, aes(x = year, fill = def)) +
 ## Turning on tracking at different dates
 
 ```{r tracking-multiple-years, warning = FALSE, fig.cap = " Amount of CO2 in the atmosphere sourced from human emissions. Note that turning on tracking in different years does not have a dramatic effect on the composition of the atmosphere pool."}
-# Prep
+# Prepare data: reset the core, set start dates every 50 years
 tcore <- reset(core)
 dates <- seq(from = 1750, to = 2250, 50)
 tracking_output <- list()
@@ -523,6 +528,7 @@ all_years_tracking %>%
 date_plus_one <- dates + 1
 year_one <- all_years_tracking %>% 
   filter(year %in% date_plus_one) %>%
+  # Assign arbitrary run number in order to use the emissions functions defined above
   mutate(run_number = 1)
 
 # Compute cumulative emissions over time
@@ -531,6 +537,7 @@ emissions_one <- calc_emissions(year_one)
 # Compute the fraction of fossil fuel emissions residing in the atmosphere
 emissions_frac_one <- calc_emissions_fraction(year_one, emissions_one)
 
+# Plot
 emissions_frac_one %>%
   ggplot(aes(year, c_emissions_fraction, color = cumulative_emissions)) +
   geom_point() +
