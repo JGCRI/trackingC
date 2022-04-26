@@ -30,7 +30,7 @@ library(gridExtra)
 library(ggExtra)
 library(GGally)
 library(bookdown)
-library(data.table) # for fread()
+library(data.table)
 
 theme_set(theme_light())
 
@@ -49,16 +49,6 @@ max_display <- slice_sample(runlist, n = 100)
 trk_output_slice <- filter(trk_output, run_number %in% max_display$run_number)
 model_output_slice <- filter(model_output, run_number %in% max_display$run_number)
 
-# Name and units of all parameters
-name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), 
-                 "ECS" = ECS(), "NPP_FLUX0" = NPP_FLUX0(),
-                 "AERO_SCALE" = AERO_SCALE(), "DIFFUSIVITY" = DIFFUSIVITY()
-                 )
-
-units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)", 
-                  "ECS" = "degC", "NPP_FLUX0" = "Pg C/yr",
-                  "AERO_SCALE" = "(unitless)", "DIFFUSIVITY" = "cm2/s"
-                  )
 
 ```
 
@@ -479,7 +469,7 @@ ggplot(plot_data, aes(x = year, fill = def)) +
 
 ## Turning on tracking at different dates
 
-```{r tracking-multiple-years, fig.cap = " Amount of CO2 in the atmosphere sourced from human emissions. Note that turning on tracking in different years does not have a dramatic effect on the composition of the atmosphere pool."}
+```{r tracking-multiple-years, warning = FALSE, fig.cap = " Amount of CO2 in the atmosphere sourced from human emissions. Note that turning on tracking in different years does not have a dramatic effect on the composition of the atmosphere pool."}
 # Prep
 tcore <- reset(core)
 dates <- seq(from = 1750, to = 2250, 50)
