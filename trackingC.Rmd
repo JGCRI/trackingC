@@ -141,7 +141,7 @@ model_output_filtered %>%
             med = median(value), .groups = "drop") %>% 
   # combine with CMIP6 data
   mutate(source = "Hector") %>% 
-  bind_rows(cmip) %>% 
+  bind_rows(cmip) %>%
   # ...and plot
   ggplot(aes(year, fill = source, color = source)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
@@ -156,39 +156,53 @@ model_output_filtered %>%
 
 ## Hector atmospheric CO~2~ vs observed data
 
-``` {r ca-comp, fig.cap = " Hector CO2 data in 1971 and 2021 compared to observational data from NOAA"}
+``` {r ca-comp, fig.cap = " Historical CO2 data from Hector runs, NOAA observations, and CMIP6 models."}
 # Comparing outputs to NOAA CO2 data from Mauna Loa observatory
 # https://gml.noaa.gov/ccgg/trends/data.html
 noaa <- read.csv("./data_files/noaa_co2_data.csv")
-noaa71 <- noaa %>% filter(year == 1971)
-noaa21 <- noaa %>% filter(year == 2021)
+noaa_co2 <- noaa %>% 
+  mutate(units = "ppm",
+         source = "NOAA")
 
-hector_co2_71 <- model_output_filtered %>%
+cmip_co2 <- read.csv("./data_files/CMIP6_annual_co2.csv")
+cmip_co2_r <- cmip_co2 %>%
+  filter(year %in% 1959:2021,
+         experiment == "historical") %>%
+  mutate(value = value * 1e6,
+         units = "ppm") %>%
+  group_by(year) %>%
+  summarize(sdev = sd(value), 
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value),
+            source = "CMIP6",
+            .groups = "drop")
+
+hector_co2 <- model_output_filtered %>%
   filter(variable == "Ca",
-         year == 1971) %>%
-  select(run_number, year, value)
+         year %in% 1959:2021) %>%
+  select(run_number, year, value) %>%
+  mutate(units = "ppm") %>%
+  group_by(year) %>%
+  summarize(sdev = sd(value), 
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value),
+            source = "Hector",
+            .groups = "drop")
 
-hector_co2_21 <- model_output_filtered %>%
-  filter(variable == "Ca",
-         year == 2021) %>%
-  select(run_number, year, value)
+plot_data_co2 <- bind_rows(cmip_co2_r, hector_co2)
 
-hector_co2_71 %>%
-  ggplot(aes(value)) + 
-  geom_histogram(bins = 40) +
-  geom_vline(aes(xintercept = noaa71$mean), color = "red") +
-  labs(x = "Atmospheric CO2 (ppm)",
-       y = "Count",
-       title = "Hector atmospheric CO2 output versus NOAA observational data (1971)",
-       color = "NOAA")
-
-hector_co2_21 %>%
-  ggplot(aes(value)) + 
-  geom_histogram(bins = 35) +
-  geom_vline(aes(xintercept = noaa21$mean), color = "red")  +
-  labs(x = "Atmospheric CO2 (ppm)",
-       y = "Count",
-       title = "Hector atmospheric CO2 output versus NOAA observational data (2021)")
+plot_data_co2 %>% 
+  ggplot(aes(year, fill = source, color = source)) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
+  geom_line(aes(y = med), size = 2) +
+  geom_line(data = noaa_co2, aes(year, value, color = source), size = 2) +
+  scale_color_viridis_d(begin = 0.5) +
+  scale_fill_viridis_d(begin = 0.5) +
+  labs(x = "Year",
+       y = "CO2 (ppm)")
 
 
 ```
