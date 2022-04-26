@@ -161,11 +161,10 @@ model_output_filtered %>%
 # https://gml.noaa.gov/ccgg/trends/data.html
 noaa <- read.csv("./data_files/noaa_co2_data.csv")
 noaa_co2 <- noaa %>% 
-  mutate(units = "ppm",
-         source = "NOAA")
+  mutate(source = "NOAA")
 
-cmip_co2 <- read.csv("./data_files/CMIP6_annual_co2.csv")
-cmip_co2_r <- cmip_co2 %>%
+cmip_c <- read.csv("./data_files/CMIP6_annual_co2.csv")
+cmip_co2 <- cmip_c %>%
   filter(year %in% 1959:2021,
          experiment == "historical") %>%
   mutate(value = value * 1e6,
@@ -191,7 +190,7 @@ hector_co2 <- model_output_filtered %>%
             source = "Hector",
             .groups = "drop")
 
-plot_data_co2 <- bind_rows(cmip_co2_r, hector_co2)
+plot_data_co2 <- bind_rows(cmip_co2, hector_co2)
 
 plot_data_co2 %>% 
   ggplot(aes(year, fill = source, color = source)) +
