@@ -469,7 +469,7 @@ ggplot(plot_data, aes(x = year, fill = def)) +
 
 ## Turning on tracking at different dates
 
-```{r tracking-multiple-years, fig.cap = " Amount of CO2 in the atmosphere sourced from human emissions. Note that turning on tracking in different years does not have a dramatic effect on the composition of the atmosphere pool."}
+```{r tracking-multiple-years, warning = FALSE, fig.cap = " Amount of CO2 in the atmosphere sourced from human emissions. Note that turning on tracking in different years does not have a dramatic effect on the composition of the atmosphere pool."}
 # Prep
 tcore <- reset(core)
 dates <- seq(from = 1750, to = 2250, 50)

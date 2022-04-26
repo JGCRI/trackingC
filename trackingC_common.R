@@ -5,7 +5,7 @@
 ssp245 <- system.file("input/hector_ssp245.ini", package = "hector") 
 core <- newcore(ssp245)
 
-# Extract LUC emissions data
+# Extract and LUC emissions data for later multiplication by LUC_SCALAR
 run(core)
 luc <- fetchvars(core, core$strtdate:core$enddate, LUC_EMISSIONS())
 

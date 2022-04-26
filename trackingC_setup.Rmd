@@ -163,7 +163,7 @@ runlist <- tibble(
   # Or, 0.83 < x < 1.61 
   # The following distribution roughly aligns with the above criteria
   # Using a lognormal distribution because we do not want negative or near-zero values
-  "LUC_SCALAR" = rlnorm(N_RUNS, lognorm(1.25, 0.2)[1], lognorm(1.25, 0.2)[2])
+  "LUC_SCALAR" = rlnorm(N_RUNS, lognorm(1.3, 0.2)[1], lognorm(1.3, 0.2)[2])
 )
 
 
@@ -233,7 +233,9 @@ run_hector <- function(pdata, c) {
     message("\tSetting", appendLF = FALSE)
   for(p in colnames(pdata)) {
     message(" ", p, appendLF = FALSE)
-    if(p == scalar) setvar(c, core$strtdate:core$enddate, LUC_EMISSIONS(), (luc$value * pdata["LUC_SCALAR"][[1]]), "Pg C/yr")
+    # If the parameter is a scaling constant, multiply and set scaled values
+    if(p == scalar) setvar(c, luc$year, LUC_EMISSIONS(), (luc$value * pdata[p][[1]]), "Pg C/yr")
+    # Otherwise, simply set the value of the parameter itself
     else setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
   }
   message("  ")
