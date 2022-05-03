@@ -139,14 +139,14 @@ lognorm <- function(m, sd){
 # Runlist contains run number, parameter, and a random distribution
 runlist <- tibble(
   run_number = 1:N_RUNS,
-  # Keenan et al. (2021)
+  # Keenan et al. (2021) (0.54, 0.03)
   "BETA" = rnorm(N_RUNS, mean = 0.5, sd = 0.1),
   
   # Davidson and Janssens (2006)
   "Q10_RH" = rlnorm(N_RUNS, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
   
   # Ito (2011)
-  "NPP_FLUX0" = rnorm(N_RUNS, mean = 56.2, sd = 5.62),
+  "NPP_FLUX0" = rnorm(N_RUNS, mean = 56.2, sd = 14.3),
   
   # Hector default
   "AERO_SCALE" = rnorm(N_RUNS, mean = 1.0, sd = 0.1),
@@ -171,14 +171,17 @@ runlist <- tibble(
 
 ``` {r joint-params, fig.cap = " The final joint distribution of ECS and diffusivity. The individual parameter distributions are shown on the x and y axes."}
 # Joint PDF for ECS and diffusivity
-# Both distributions are currently Hector defaults
-ecs_vals_lognorm <- rlnorm(N_RUNS, lognorm(3, 1.0)[1], lognorm(3, 1.0)[2])
+# Sherwood et al (2020)
+ecs_vals_lognorm <- rlnorm(N_RUNS, lognorm(3.25, 0.65)[1], lognorm(3.25, 0.65)[2])
 # Transform ECS distribution to log(distribution)
 ecs_vals_to_norm <- log(ecs_vals_lognorm)
 diffusion_vals <- rnorm(N_RUNS, mean = 2.3, sd = 0.23)
 
 DESIRED_PCOR <- -0.75  # ECS and diffusivity should be negatively correlated
 # https://en.wikipedia.org/wiki/Covariance_and_correlation
+# To calculate covariance from the desired correlation, multiply the 
+# correlation by the square of the variance of each variable - the standard deviation
+# https://web.stanford.edu/class/archive/cs/cs109/cs109.1178/lectureHandouts/150-covariance.pdf
 desired_cov <- DESIRED_PCOR * sd(ecs_vals_to_norm) * sd(diffusion_vals)
 # Set up the variance-covariance matrix
 Sigma <- matrix(c(var(ecs_vals_to_norm), 

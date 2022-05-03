@@ -110,8 +110,8 @@ hector_temp %>%
   filter(run_number <= 100) %>% # this is a debugging figure; plot just 100 runs for clarity
   ggplot(aes(year, value, color = fraction_fail, group = run_number)) + 
   geom_line() + 
-  geom_point(aes(y = minimum), color = "red") + 
-  geom_point(aes(y = maximum), color = "red") +
+  geom_point(aes(y = minimum), color = "black") + 
+  geom_point(aes(y = maximum), color = "black") +
   scale_color_viridis_c() +
   labs(x = "Year",
        y = expression(degree*C))
