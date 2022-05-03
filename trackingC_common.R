@@ -1,17 +1,26 @@
 
 # Settings used by both trackingC_setup.Rmd and trackingC.Rmd
 
-# Read in ini file, initiate new core
-ssp245 <- system.file("input/hector_ssp245.ini", package = "hector") 
-core <- newcore(ssp245)
+# # Read in ini file, initiate new core
+# ssp245 <- system.file("input/hector_ssp245.ini", package = "hector") 
+# core <- newcore(ssp245)
 
 # Extract and LUC emissions data for later multiplication by LUC_SCALAR
-run(core)
-luc <- fetchvars(core, core$strtdate:core$enddate, LUC_EMISSIONS())
+# run(core)
+# luc <- fetchvars(core, core$strtdate:core$enddate, LUC_EMISSIONS())
 
+SSP_files <- c("SSP119" = system.file("input/hector_ssp119.ini", package = "hector"),
+               "SSP245" = system.file("input/hector_ssp245.ini", package = "hector"),
+               "SSP585" = system.file("input/hector_ssp585.ini", package = "hector"))
 
 # Number of model runs to perform
-N_RUNS <- 1000
+N_RUNS <- c(
+  "SSP119" = 100,
+  "SSP245" = 100,
+  "SSP585" = 100
+)
+
+MAIN_SCENARIO <- "SSP245"
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
@@ -26,13 +35,13 @@ OUTPUT_YEARS <- 1950:2200
 name_vector <- c("BETA" = BETA(), "Q10_RH" = Q10_RH(), 
                  "ECS" = ECS(), "NPP_FLUX0" = NPP_FLUX0(),
                  "AERO_SCALE" = AERO_SCALE(), "DIFFUSIVITY" = DIFFUSIVITY(),
-                 "LUC_SCALAR" = "LUC_SCALAR"
+                 "LUC_SCALE" = "LUC_SCALE"
 )
 
 units_vector <- c("BETA" = "(unitless)", "Q10_RH" = "(unitless)", 
                   "ECS" = "degC", "NPP_FLUX0" = "Pg C/yr",
                   "AERO_SCALE" = "(unitless)", "DIFFUSIVITY" = "cm2/s",
-                  "LUC_SCALAR" = "(unitless)"
+                  "LUC_SCALE" = "(unitless)"
 )
 
-scalar_vector <- "LUC_SCALAR"
+scalar_vector <- "LUC_SCALE"
