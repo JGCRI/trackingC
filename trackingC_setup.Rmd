@@ -136,24 +136,21 @@ lognorm <- function(m, sd){
   v <- c(mn, stdev)
 }
 
-# Runlist contains run number, parameter, and a random distribution
-run <- list()
-for(s in names(SSP_files)){
- run[[s]] <- data.frame(
-    scenario = rep(s, times = N_RUNS[s]),
-    run_number = 1:N_RUNS[s],
-    
+N_RUNS_SCE <- 100
+params <- function(runs){
+  tibble(
+    run_number = 1:runs,
     # Keenan et al. (2021) (0.54, 0.03)
-    "BETA" = rnorm(N_RUNS[s], mean = 0.5, sd = 0.1),
+    "BETA" = rnorm(runs, mean = 0.5, sd = 0.1),
     
     # Davidson and Janssens (2006)
-    "Q10_RH" = rlnorm(N_RUNS[s], lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
+    "Q10_RH" = rlnorm(runs, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
     
     # Ito (2011)
-    "NPP_FLUX0" = rnorm(N_RUNS[s], mean = 56.2, sd = 14.3),
+    "NPP_FLUX0" = rnorm(runs, mean = 56.2, sd = 14.3),
     
     # Hector default
-    "AERO_SCALE" = rnorm(N_RUNS[s], mean = 1.0, sd = 0.1),
+    "AERO_SCALE" = rnorm(runs, mean = 1.0, sd = 0.1),
     
     # Land use change emissions scaling parameter, to account for uncertainties in values for LUC
     # Friedlingstein et al 2021 state: 
@@ -167,11 +164,34 @@ for(s in names(SSP_files)){
     # Or, 0.83 < x < 1.61 
     # The following distribution roughly aligns with the above criteria
     # Using a lognormal distribution because we do not want negative or near-zero values
-    "LUC_SCALE" = rlnorm(N_RUNS[s], lognorm(1.3, 0.2)[1], lognorm(1.3, 0.2)[2])
+    "LUC_SCALE" = rlnorm(runs, lognorm(1.3, 0.2)[1], lognorm(1.3, 0.2)[2])
   )
 }
 
-runlist <- bind_rows(run)
+run <- list()
+for(s in names(SSP_files)){
+ run[[s]] <- data.frame(
+   run_number = 1:N_RUNS_SCE,
+   scenario = rep(s, times = N_RUNS_SCE)
+ )}
+
+runlist_sce <- bind_rows(run)
+param_sce <- params(N_RUNS_SCE)
+
+runlist_scenario <- left_join(runlist_sce, param_sce, by = "run_number")
+
+N_RUNS_MAIN <- 9999
+runlist_ma <- tibble(
+  run_number = (1 + N_RUNS_SCE:N_RUNS_MAIN),
+  scenario = rep("SSP245", times = length(run_number))
+)
+
+param_main <- params(nrow(runlist_ma))
+runlist_mai <- left_join(runlist_ma, param_main, by = "run_number")
+
+runlist_main <- runlist_scenario %>%
+  filter(scenario == "SSP245") %>%
+  bind_rows(runlist_mai)
 
 ```
 
