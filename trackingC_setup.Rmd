@@ -136,7 +136,7 @@ lognorm <- function(m, sd){
   v <- c(mn, stdev)
 }
 
-N_RUNS_SCE <- 100
+# Function to create a tibble of random draws given a specified number to produce
 params <- function(runs){
   tibble(
     run_number = 1:runs,
@@ -168,27 +168,38 @@ params <- function(runs){
   )
 }
 
+# Create a runlist of 100 runs for each SSP
+# First, create run_number and scenario identifier columns
+N_RUNS_SCE <- 100
+
 run <- list()
 for(s in names(SSP_files)){
  run[[s]] <- data.frame(
    run_number = 1:N_RUNS_SCE,
    scenario = rep(s, times = N_RUNS_SCE)
  )}
-
 runlist_sce <- bind_rows(run)
+
+# Next, create a parameter dataframe using the params() function, above
 param_sce <- params(N_RUNS_SCE)
 
+# Join the data
 runlist_scenario <- left_join(runlist_sce, param_sce, by = "run_number")
 
-N_RUNS_MAIN <- 9999
+# Next, create a dataframe for just the main scenario, SSP
+# This will include the first 100 runs from the scenario runlist, above
+# So, if we want 1,000 runs, we need to pass in one less
+N_RUNS_MAIN <- 1000
 runlist_ma <- tibble(
-  run_number = (1 + N_RUNS_SCE:N_RUNS_MAIN),
+  run_number = (1 + N_RUNS_SCE:(N_RUNS_MAIN-1)),
   scenario = rep("SSP245", times = length(run_number))
 )
 
+# Create parameter dataset and combine with run number and scenario
 param_main <- params(nrow(runlist_ma))
 runlist_mai <- left_join(runlist_ma, param_main, by = "run_number")
 
+# Now, combine the first 100 runs from runlist_scenario to get a final, main scenario runlist
 runlist_main <- runlist_scenario %>%
   filter(scenario == "SSP245") %>%
   bind_rows(runlist_mai)
@@ -197,11 +208,12 @@ runlist_main <- runlist_scenario %>%
 
 ``` {r joint-params, fig.cap = " The final joint distribution of ECS and diffusivity. The individual parameter distributions are shown on the x and y axes."}
 # Joint PDF for ECS and diffusivity
+# Use N_RUNS_MAIN and down sort later
 # Sherwood et al (2020)
-ecs_vals_lognorm <- rlnorm(N_RUNS, lognorm(3.25, 0.65)[1], lognorm(3.25, 0.65)[2])
+ecs_vals_lognorm <- rlnorm(N_RUNS_MAIN, lognorm(3.25, 0.65)[1], lognorm(3.25, 0.65)[2])
 # Transform ECS distribution to log(distribution)
 ecs_vals_to_norm <- log(ecs_vals_lognorm)
-diffusion_vals <- rnorm(N_RUNS, mean = 2.3, sd = 0.23)
+diffusion_vals <- rnorm(N_RUNS_MAIN, mean = 2.3, sd = 0.23)
 
 DESIRED_PCOR <- -0.75  # ECS and diffusivity should be negatively correlated
 # https://en.wikipedia.org/wiki/Covariance_and_correlation
@@ -216,7 +228,7 @@ Sigma <- matrix(c(var(ecs_vals_to_norm),
                 2, 2)
 # ...and generate values--twice as many as needed because we toss out
 # negative ECS values below (see note above)
-joint_vals <- MASS::mvrnorm(n = N_RUNS * 2, c(mean(ecs_vals_to_norm), mean(diffusion_vals)), Sigma)
+joint_vals <- MASS::mvrnorm(n = N_RUNS_MAIN * 2, c(mean(ecs_vals_to_norm), mean(diffusion_vals)), Sigma)
 jv <- as_tibble(joint_vals)
 colnames(jv) <- c("ECS", "DIFFUSIVITY")
 
@@ -224,9 +236,16 @@ colnames(jv) <- c("ECS", "DIFFUSIVITY")
 jv %>% 
   mutate(ECS = exp(ECS)) %>%
   filter(ECS > 0) %>% 
-  sample_n(N_RUNS) %>%
-  bind_cols(runlist, .) ->
+  sample_n(N_RUNS_MAIN) %>%
+  bind_cols(runlist_main, .) ->
   runlist
+
+# Down sort to the first 100 runs and bind to the scenario runlist
+small_runlist <- runlist %>%
+  filter(run_number %in% 1:100) %>%
+  select(run_number, ECS, DIFFUSIVITY)
+
+runlist_scenario <- left_join(runlist_scenario, small_runlist, by = "run_number")
 
 # Visualize the final joint distribution of ECS and DIFFUSIVITY
 p <- ggplot(runlist, aes(ECS, DIFFUSIVITY)) + 
