@@ -13,13 +13,6 @@ SSP_files <- c("SSP119" = system.file("input/hector_ssp119.ini", package = "hect
                "SSP245" = system.file("input/hector_ssp245.ini", package = "hector"),
                "SSP585" = system.file("input/hector_ssp585.ini", package = "hector"))
 
-# Number of model runs to perform
-N_RUNS <- c(
-  "SSP119" = 100,
-  "SSP245" = 100,
-  "SSP585" = 100
-)
-
 MAIN_SCENARIO <- "SSP245"
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
