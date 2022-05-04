@@ -49,7 +49,6 @@ max_display <- slice_sample(runlist, n = 100)
 trk_output_slice <- filter(trk_output, run_number %in% max_display$run_number)
 model_output_slice <- filter(model_output, run_number %in% max_display$run_number)
 
-
 ```
 
 # Results
@@ -62,7 +61,8 @@ in a manuscript.
 ``` {r params-PDFs, fig.cap = paste0(" Probability densities of each parameter (N=", N_RUNS, " draws).")}
 # Density plots to visualize parameter distributions
 runlist %>% 
-  select(-run_number) %>%
+  filter(ssp == MAIN_SCENARIO) %>%
+  select(-c(run_number, ssp)) %>%
   pivot_longer(everything()) %>% 
   ggplot(aes(value)) +
   geom_density() + 
@@ -74,28 +74,44 @@ runlist %>%
 
 ``` {r cmip, fig.cap = " Visualization of sample model runs. The red dots represent the CMIP6 minimums and maximums for global temperature anomaly, and the runs that pass must fall within these bounds more than 50% of the time."}
 # Read in CMIP6 comparison data
-cmip <- read.csv("./data_files/CMIP6_annual_tas_global.csv") %>%
-  filter(variable == "Tgav",
-         experiment == "ssp245") %>%
-  group_by(year) %>%
+cmip_raw <- read.csv("./data_files/CMIP6_annual_tas_global.csv")
+
+# Isolate desired scenarios
+cmip_sce <- list()
+for(n in names(SSP_files)){
+  cmip_sce[[n]] <- cmip_raw %>% 
+    filter(experiment == n)
+}  
+cmip_sce <- bind_rows(cmip_sce) 
+
+# Filter for Tgav and calculate summary metrics
+cmip_scenarios <- cmip_sce %>%
+  rename(ssp = experiment) %>%
+  filter(variable == "Tgav") %>%
+  group_by(year, ssp) %>%
   summarize(sdev = sd(value),
             minimum = min(value),
             maximum = max(value),
             med = median(value)) %>%
-  mutate(source = "CMIP6")
+  mutate(source = "CMIP6") %>%
+  arrange(ssp, year)
 
 # Identify unrealistic runs - for each run, if more than 50% of values are
 # outside of the min/max of the CMIP data, the run is nixed
-cmip_bounds <- cmip %>% select(year, minimum, maximum)
+cmip_bounds <- cmip_scenarios %>% 
+  group_by(ssp) %>%
+  select(year, minimum, maximum)
+
 hector_temp <- model_output %>%
   filter(variable == "Tgav",
-         year >= 2015 & year <= 2100) %>%
-  select(run_number, year, value) %>%
-  left_join(cmip_bounds, by = "year") %>% 
+         year >= 2015 & year <= 2100,
+         run_number <= 100) %>%
+  select(run_number, ssp, year, value) %>%
+  left_join(cmip_bounds, by = c("year", "ssp")) %>% 
   mutate(fail = value < minimum | value > maximum)
 
 run_fail_summary <- hector_temp %>%
-  group_by(run_number) %>%
+  group_by(ssp, run_number) %>%
   summarise(fraction_fail = sum(fail) / n())
 
 # Make a table of failure rates
@@ -106,12 +122,13 @@ run_fail_summary %>%
 
 # ...and a figure 
 hector_temp %>% 
-  left_join(run_fail_summary, by = "run_number") %>% 
+  left_join(run_fail_summary, by = c("run_number", "ssp")) %>% 
   filter(run_number <= 100) %>% # this is a debugging figure; plot just 100 runs for clarity
   ggplot(aes(year, value, color = fraction_fail, group = run_number)) + 
   geom_line() + 
   geom_point(aes(y = minimum), color = "black") + 
   geom_point(aes(y = maximum), color = "black") +
+  facet_wrap(~ssp) +
   scale_color_viridis_c() +
   labs(x = "Year",
        y = expression(degree*C))

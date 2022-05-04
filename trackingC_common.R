@@ -9,11 +9,11 @@
 # run(core)
 # luc <- fetchvars(core, core$strtdate:core$enddate, LUC_EMISSIONS())
 
-SSP_files <- c("SSP119" = system.file("input/hector_ssp119.ini", package = "hector"),
-               "SSP245" = system.file("input/hector_ssp245.ini", package = "hector"),
-               "SSP585" = system.file("input/hector_ssp585.ini", package = "hector"))
+SSP_files <- c("ssp119" = system.file("input/hector_ssp119.ini", package = "hector"),
+               "ssp245" = system.file("input/hector_ssp245.ini", package = "hector"),
+               "ssp585" = system.file("input/hector_ssp585.ini", package = "hector"))
 
-MAIN_SCENARIO <- "SSP245"
+MAIN_SCENARIO <- "ssp245"
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
