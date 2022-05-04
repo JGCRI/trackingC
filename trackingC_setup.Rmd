@@ -188,15 +188,17 @@ runlist_scenario <- left_join(runlist_sce, param_sce, by = "run_number")
 
 # Next, create a dataframe for just the main scenario, SSP
 # This will include the first 100 runs from the scenario runlist, above
-# So, if we want 1,000 runs, we need to pass in one less
 N_RUNS_MAIN <- 1000
 runlist_ma <- tibble(
+  # Creates a sequence from one above the number of scenario runs to the
+  # number of main runs, eg 101 to 1000
   run_number = (1 + N_RUNS_SCE:(N_RUNS_MAIN-1)),
   ssp = rep("SSP245", times = length(run_number))
 )
 
 # Create parameter dataset and combine with run number and scenario
 param_main <- params(nrow(runlist_ma))
+param_main$run_number <- param_main$run_number + N_RUNS_SCE
 runlist_mai <- left_join(runlist_ma, param_main, by = "run_number")
 
 # Now, combine the first 100 runs from runlist_scenario to get a final, main scenario runlist
@@ -325,7 +327,7 @@ for(s in names(SSP_files)) {
   # Filter runlist by scenario
   s_runlist <- runlist %>% filter(ssp == s)
   core <- newcore(SSP_files[s])
-  # Extract and LUC emissions data for later multiplication by LUC_SCALAR
+  # Extract and LUC emissions data for later multiplication by LUC_SCALE
   run(core)
   luc <- fetchvars(core, core$strtdate:core$enddate, LUC_EMISSIONS())
   for(row in seq_len(nrow(s_runlist))) {
@@ -346,7 +348,7 @@ tm <- difftime(Sys.time(), start_time, units = "secs") %>% round(1)
 errors <- unlist(errors)
 ```
 
-Doing `r N_RUNS` runs took `r tm` seconds or `r tm/N_RUNS` s/job.
+Doing `r ((N_RUNS_SCE * 2) + N_RUNS_MAIN)` runs took `r tm` seconds or `r tm/((N_RUNS_SCE * 2) + N_RUNS_MAIN)` s/job.
 
 `r length(errors)` runs had errors.
 
