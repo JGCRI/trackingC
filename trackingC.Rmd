@@ -316,21 +316,22 @@ ggpairs(ffi_atm_2100,
 # Step 2: for each year and source_name, compute destination_fraction
 
 ffi_destinations <- trk_output_filtered %>%
-  filter(ssp == MAIN_SCENARIO, source_name == "earth_c", pool_name != "earth_c") %>%
+  filter(source_name == "earth_c", pool_name != "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
-  group_by(year, run_number) %>%
+  group_by(year, ssp, run_number) %>%
   mutate(destination_fraction = source_quantity / sum(source_quantity)) %>% 
   ungroup()
 
 # Just looking at 16 random runs
-dest_runs <- slice_sample(ffi_destinations, n = 16)
-dest_plot <- filter(ffi_destinations, run_number %in% dest_runs$run_number)
+dest_runs <- slice_sample(ffi_destinations, n = 10)
+dest_plot <- filter(ffi_destinations, 
+                    run_number %in% dest_runs$run_number & run_number < N_RUNS_SCE)
 
 ggplot(dest_plot, aes(year, destination_fraction, fill = pool_name)) +
   geom_area() +
   scale_fill_viridis_d() +
-  facet_wrap(~run_number) +
-  theme(strip.background = element_blank(), 
+  facet_grid(ssp~run_number) +
+  theme(#strip.background = element_blank(),
         strip.text.x = element_blank(),
         axis.text.x = element_text(angle = 90)) +
   labs(x = "Year",
