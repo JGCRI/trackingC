@@ -528,6 +528,7 @@ set_tracking <- function(c, date){
   run(c, (date + 50))
   tdata <- get_tracking_data(c)
   tdata$ty <- date
+  tdata$ssp <- MAIN_SCENARIO
   tdata
 }
 
