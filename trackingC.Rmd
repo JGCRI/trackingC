@@ -390,27 +390,27 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
 # Prep the data
 atm_earth_diffs <- trk_output_filtered %>%
   # Isolate atmosphere and earth total pool values
-  filter(ssp == MAIN_SCENARIO, pool_name %in% c("atmos_c", "earth_c")) %>% 
-  group_by(run_number, year, pool_name) %>% 
+  filter(pool_name %in% c("atmos_c", "earth_c")) %>% 
+  group_by(run_number, year, pool_name, ssp) %>% 
   summarise(pool_value = mean(pool_value), .groups = "drop") %>% 
   arrange(year) %>% 
   # Put atmosphere and earth in separate columns and compute diffs
   pivot_wider(names_from = "pool_name", values_from = "pool_value") %>% 
-  group_by(run_number) %>% 
+  group_by(run_number, ssp) %>% 
   mutate(atm_diff = c(NA, diff(atmos_c)), 
          earth_diff = c(NA, diff(earth_c)))
 
 # Compute AF (classical definition of delta CO2atm / emissions) 
 # using various window sizes
 af_results <- list()
-for (groupsize in seq(1, 40, length.out = 10)) {
+for(groupsize in seq(1, 40, length.out = 10)) {
   ngroups = length(unique(atm_earth_diffs$year)) / groupsize
   
   atm_earth_diffs %>% 
-    group_by(run_number) %>% 
+    group_by(run_number, ssp) %>% 
     mutate(group = cut(year, breaks = ngroups)) %>% 
     # compute differences over the group of years
-    group_by(run_number, group) %>%
+    group_by(run_number, group, ssp) %>%
     summarise(year = max(year), 
               atm_diff = sum(atm_diff), 
               earth_diff = sum(earth_diff), 
@@ -424,10 +424,11 @@ af_results <- bind_rows(af_results, .id = "window_size") %>%
   mutate(window_size = as.integer(window_size))
 
 af_results %>% 
-  group_by(year, window_size) %>% 
+  group_by(year, ssp, window_size) %>% 
   summarise(af = mean(af), .groups = "drop") %>% 
   ggplot(aes(year, af, color = window_size, group = window_size)) + 
   geom_line(na.rm = TRUE) + 
+  facet_wrap(~ssp, scales = "free") +
   labs(x = "Year",
        y = "Airborne fraction")
 
@@ -446,13 +447,16 @@ calc_emissions <- function(data){
          source_name == "earth_c",
          run_number == min(run_number)) %>%
     arrange(year) %>%
+    group_by(ssp) %>%
     # the NA at the end here is so that cumulative emissions 'line up' correctly
     # with the source_quantity (earth-origin atmosphere C) calculated below
     mutate(emissions = -c(diff(pool_value), NA),
            # relative to core$trackingDate
            cumulative_emissions = cumsum(emissions)) %>%
-    select(year, cumulative_emissions)
+    select(year, ssp, cumulative_emissions) %>%
+    arrange(ssp, year)
 }
+
 
 # This function takes a given tracking dataset and its corresponding cumulative 
 # emissions dataset as found above to calculate what fraction of the cumulative
@@ -463,10 +467,10 @@ calc_emissions_fraction <- function(data, emissions_data){
            source_name == "earth_c") %>%
     # How much earth_c is in atmos_c? 
     mutate(source_quantity = pool_value * source_fraction) %>%
-    left_join(emissions_data, by = "year") %>%
-    select(run_number, year, source_quantity, cumulative_emissions) %>%
+    left_join(emissions_data, by = c("year", "ssp")) %>%
+    select(run_number, ssp, year, source_quantity, cumulative_emissions) %>%
     mutate(c_emissions_fraction = source_quantity / cumulative_emissions) %>% 
-    group_by(year) %>%
+    group_by(year, ssp) %>%
     mutate(sdev = sd(c_emissions_fraction),
            med = median(c_emissions_fraction),
            minimum = min(c_emissions_fraction),
@@ -475,17 +479,14 @@ calc_emissions_fraction <- function(data, emissions_data){
 }
 
 # Compute cumulative emissions over time
-emissions <- trk_output_filtered %>% 
-  filter(ssp == MAIN_SCENARIO) %>% 
-  calc_emissions() 
+emissions <- trk_output_filtered %>% calc_emissions() 
 
 # Compute the fraction of fossil fuel emissions residing in the atmosphere
-emissions_fraction <- trk_output_filtered %>% filter(ssp == MAIN_SCENARIO) %>%
-  calc_emissions_fraction(emissions)
+emissions_fraction <- calc_emissions_fraction(trk_output_filtered, emissions)
 
 # Classical definition of AF - find summary stats
 classic_af <- af_results %>%
-  group_by(group, year) %>%
+  group_by(group, year, ssp) %>%
   mutate(sdev = sd(af, na.rm = TRUE),
          minimum = min(af),
          maximum = max(af),
@@ -496,7 +497,7 @@ classic_af <- af_results %>%
 
 # Isolate relevant parameters and plot
 plot_data <- bind_rows(emissions_fraction, classic_af) %>%
-  select(run_number, year, minimum, maximum, med, sdev, def)
+  select(run_number, year, ssp, minimum, maximum, med, sdev, def)
 
 ggplot(plot_data, aes(x = year, fill = def)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), 
@@ -506,6 +507,7 @@ ggplot(plot_data, aes(x = year, fill = def)) +
   geom_line(aes(y = med, color = def)) +
   scale_color_viridis_d(begin = 0.5) +
   scale_fill_viridis_d(begin = 0.5) +
+  facet_wrap(~ssp, scales = "free") +
    labs(x = "Year",
         y = "Airborne fraction")
 
