@@ -104,8 +104,7 @@ cmip_bounds <- cmip_scenarios %>%
 
 hector_temp <- model_output %>%
   filter(variable == "Tgav",
-         year >= 2015 & year <= 2100,
-         run_number <= 100) %>%
+         year >= 2015 & year <= 2100) %>%
   select(run_number, ssp, year, value) %>%
   left_join(cmip_bounds, by = c("year", "ssp")) %>% 
   mutate(fail = value < minimum | value > maximum)
@@ -138,13 +137,13 @@ hector_temp %>%
 ``` {r filtered, fig.cap = "Global temperature anomaly from CMIP6 and filtered Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
 # Filter out 'unrealistic' runs (identified above)
 model_output_filtered <- model_output %>%
-  left_join(run_fail_summary, by = "run_number") %>% 
+  left_join(run_fail_summary, by = c("ssp", "run_number")) %>% 
   filter(fraction_fail < 0.5)
 
 # Note that the tracking output needs to be filtered as well
-good_runs <- unique(model_output_filtered$run_number)
 trk_output_filtered <- trk_output %>%
-  filter(run_number %in% good_runs)
+  left_join(run_fail_summary, by = c("ssp", "run_number")) %>% 
+  filter(fraction_fail < 0.5)
   
 # Plot temperature spreads for the filtered runs
 model_output_filtered %>%
