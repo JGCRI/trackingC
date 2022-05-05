@@ -341,7 +341,7 @@ ggplot(dest_plot, aes(year, destination_fraction, fill = pool_name)) +
 ```{r relative-importance, message=FALSE, warning=FALSE, fig.cap = " Relative importance of parameters over time in controlling atmosphere as a destination of fossil fuel and industrial (FFI) emissions."}
 # Filter to just atmosphere pool, and remove unneeded columns
 dest_e2a <- filter(ffi_destinations, pool_name == "atmos_c")
-dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", names(name_vector))]
+dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", "ssp", names(name_vector))]
 
 # Function to calculate relative importance of parameters in
 # explaining how much destination_fraction varies for a given
@@ -351,6 +351,8 @@ dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", names(name_vector
 calc_relimp <- function(x) {
   yr <- x$year[1] # record year...
   x$year <- NULL # and drop year column
+  sce <- x$ssp[1]
+  x$ssp <- NULL
   # Fit model. The formula notation means "destination fraction as a
   # function of all other terms" (which is why we dropped year)
   m <- lm(destination_fraction ~ ., data = x)
@@ -363,12 +365,12 @@ calc_relimp <- function(x) {
     return(NULL)
   }
   # Return a data frame: year, parameter, relative importance
-  tibble(year = yr, param = names(relimp), value = relimp)
+  tibble(ssp = sce, year = yr, param = names(relimp), value = relimp)
   
 }
 
 # Run calc_relimp() above on each year's data
-dest_split <- split(dest_e2a_minimal, dest_e2a_minimal$year)
+dest_split <- split(dest_e2a_minimal, list(dest_e2a_minimal$year, dest_e2a_minimal$ssp))
 relimp_out <- lapply(dest_split, FUN = calc_relimp) %>% 
   bind_rows()
 
@@ -377,6 +379,7 @@ ggplot(relimp_out, aes(year, value, fill = param)) +
   geom_area() +
   coord_cartesian(expand = FALSE) +
   scale_fill_viridis_d(direction = -1) +
+  facet_wrap(~ssp) +
   labs(x = "Year",
        y = expression(Relative~importance~"for"~FFI[atm]))
 ```
