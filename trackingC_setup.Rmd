@@ -188,7 +188,7 @@ runlist_scenario <- left_join(runlist_sce, param_sce, by = "run_number")
 
 # Next, create a dataframe for just the main scenario, SSP
 # This will include the first 100 runs from the scenario runlist, above
-N_RUNS_MAIN <- 200
+N_RUNS_MAIN <- 500
 runlist_ma <- tibble(
   # Creates a sequence from one above the number of scenario runs to the
   # number of main runs, eg 101 to 1000
@@ -279,7 +279,7 @@ tibble(lognorm = ecs_vals_lognorm, transformed = just_ECS$ECS) %>%
 Run the model and store outputs and tracking data.
 
 ```{r functions, cache=TRUE, message=FALSE}
-run_hector <- function(pdata, c) {
+run_hector <- function(pdata, c, sce) {
   
   # Function to set multiple parameter values for Hector, run a core, and retrieve tracking data
   # pdata will be the runlist specified above
@@ -307,6 +307,9 @@ run_hector <- function(pdata, c) {
            # to keep file size down
            source_name == "earth_c" | pool_name == "atmos_c")
   out$results <- fetchvars(c, OUTPUT_YEARS, c("Ca", "Ftot", "FCO2", "Tgav", "luc_emissions"))
+  
+  out$results$ssp <- sce
+  out$tdata$ssp <- sce
   return(out)
 }
 
@@ -323,22 +326,35 @@ errors <- list()
 
 # Record start time 
 start_time <- Sys.time()
+
 for(s in names(SSP_files)) {
   # Filter runlist by scenario
   s_runlist <- runlist %>% filter(ssp == s)
-  core <- newcore(SSP_files[s])
-  # Extract and LUC emissions data for later multiplication by LUC_SCALE
+  # Initiate new core, by scenario
+  core <- newcore(SSP_files[[s]])
+  # Run core, extract LUC emissions data for later multiplication by LUC_SCALE
   run(core)
-  # luc <- fetchvars(core, core$strtdate:core$enddate, LUC_EMISSIONS())
+  luc <- fetchvars(core, core$strtdate:core$enddate, LUC_EMISSIONS())
+  
   for(row in seq_len(nrow(s_runlist))) {
     message(row, "/", nrow(s_runlist))
-    outp <- try(run_hector(s_runlist[row,][-c(1,2)], core))
+    outp <- try(run_hector(s_runlist[row,][-c(1,2)], core, s))
     if(class(outp) == "try-error") { 
       # if there is an error, record row numbers that error
       errors[[row]] <- s_runlist$run_number[[row]]
     } else {
-      out[[s_runlist$run_number[row]]] <- outp
-    }}  
+      # Create unique ssp + run_number identifier for each row so that data 
+      # does not get overwritten
+      id <- paste0(s, "_", row)
+      # Save output by id
+      out[[id]] <- outp
+      # Add in run_number column - can no longer bind_rows() by run_number
+      # because data is grouped by id
+      out[[id]]$results$run_number <- s_runlist$run_number[[row]]
+      out[[id]]$tdata$run_number <- s_runlist$run_number[[row]]
+    }
+  }
+  shutdown(core)
 }
 
 # Compute difference in time between start and after loop is run
@@ -364,24 +380,24 @@ tdata <- list()
 for(n in seq_len(length(out))){
   tdata[[n]] <- out[[n]]$tdata
 }
-trk_output <- bind_rows(tdata, .id = "run_number") %>% as_tibble
+trk_output <- bind_rows(tdata, .id = "delete_me") %>% as_tibble
 
 # Then, access model output data
 results <- list()
 for(n in seq_len(length(out))){
   results[[n]] <- out[[n]]$results
 }
-model_output <- bind_rows(results, .id = "run_number") %>% as_tibble()
+model_output <- bind_rows(results, .id = "delete_me") %>% as_tibble()
 
 # Can left join with runlist to get param values
 # Make sure data is same class
 trk_output$run_number <- as.integer(trk_output$run_number)
-trk_output <- left_join(trk_output, runlist, by = "run_number") %>%
-  arrange(ssp, run_number)
+trk_output <- left_join(trk_output, runlist, by = c("run_number", "ssp")) %>%
+  select(-delete_me)
 
 model_output$run_number <- as.integer(model_output$run_number)
-model_output <- left_join(model_output, runlist, by = "run_number") %>%
-  arrange(ssp, run_number)
+model_output <- left_join(model_output, runlist, by = c("run_number", "ssp")) %>%
+  select(-delete_me)
 
 ```
 
