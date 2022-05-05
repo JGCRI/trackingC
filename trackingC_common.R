@@ -15,6 +15,9 @@ SSP_files <- c("ssp119" = system.file("input/hector_ssp119.ini", package = "hect
 
 MAIN_SCENARIO <- "ssp245"
 
+N_RUNS_SCE <- 100
+N_RUNS_MAIN <- 500
+
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
 if(Sys.getenv("CI") == "true") {
