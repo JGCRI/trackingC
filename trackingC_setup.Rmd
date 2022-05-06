@@ -241,7 +241,7 @@ jv %>%
 
 # Down sort to the first 100 runs and bind to the scenario runlist
 small_runlist <- runlist_main %>%
-  filter(run_number %in% 1:100) %>%
+  filter(run_number %in% 1:N_RUNS_SCE) %>%
   select(run_number, ECS, DIFFUSIVITY)
 
 runlist_scenario <- left_join(runlist_scenario, small_runlist, by = "run_number")

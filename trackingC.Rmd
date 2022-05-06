@@ -226,7 +226,7 @@ plot_data_co2 %>%
 
 ## Atmosphere sources - ƒATM~ffi~
 
-``` {r atmosphere-by-source, fig.cap = " Fraction of CO2 in the atmosphere by source pool from 100 random runs. Dark line shows the median."}
+``` {r atmosphere-by-source, fig.cap = paste0(" Fraction of CO2 in the atmosphere by source pool from 100 random runs in ", MAIN_SCENARIO, ". Dark line shows the median.")}
 # Isolate the atmosphere pool to better understand its composition 
 atmosphere_pool <- trk_output_filtered %>%
   filter(ssp == MAIN_SCENARIO,
@@ -249,7 +249,7 @@ atmosphere_pool %>%
                size = 0.7)
 ```
 
-``` {r earthc-in-atmos, fig.cap = " Fraction of atmospheric CO2 from fossil fuel and industrial (FFI) emissions over time. Line shows median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
+``` {r earthc-in-atmos, fig.cap = paste0(" Fraction of atmospheric CO2 from fossil fuel and industrial (FFI) emissions over time in ", MAIN_SCENARIO, ". Line shows median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter).")}
 # This chunk looks at the atmosphere pool with just one source (earth_c) 
 # and plots source fraction over time with a confidence interval
 
@@ -323,7 +323,7 @@ ffi_destinations <- trk_output_filtered %>%
   ungroup()
 
 # Just looking at 16 random runs
-dest_runs <- slice_sample(ffi_destinations, n = 10)
+dest_runs <- slice_sample(ffi_destinations, n = 5)
 dest_plot <- filter(ffi_destinations, 
                     run_number %in% dest_runs$run_number & run_number < N_RUNS_SCE)
 
@@ -338,7 +338,7 @@ ggplot(dest_plot, aes(year, destination_fraction, fill = pool_name)) +
        y = "Fraction of FFI emissions")
 ```
 
-```{r relative-importance, message=FALSE, warning=FALSE, fig.cap = " Relative importance of parameters over time in controlling atmosphere as a destination of fossil fuel and industrial (FFI) emissions."}
+```{r relative-importance, message=FALSE, echo=FALSE, warning=FALSE, fig.cap = " Relative importance of parameters over time in controlling atmosphere as a destination of fossil fuel and industrial (FFI) emissions."}
 # Filter to just atmosphere pool, and remove unneeded columns
 dest_e2a <- filter(ffi_destinations, pool_name == "atmos_c")
 dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", "ssp", names(name_vector))]
