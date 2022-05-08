@@ -171,7 +171,9 @@ generate_params <- function(run_numbers){
 }
 
 # Create a runlist for each SSP
-# First, create scenario identifier and run_number columns
+# First, create scenario identifier and run_number columns using lapply
+# (across the scenarios) and rep() to generate as many rows as 
+# called for by the corresponding entry in SSP_runs
 runlist_list <- lapply(seq_along(SSP_runs), 
                        function(x) tibble(ssp = rep(names(SSP_runs)[x],
                                                     SSP_runs[x])))
