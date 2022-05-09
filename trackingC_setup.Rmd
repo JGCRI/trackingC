@@ -110,8 +110,9 @@ set.seed(10)
 
 ### Create runlist of parameter draws
 
-Currently, we are looking at six Hector parameters: `BETA(), Q10_RH(), ECS(),
-NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY()`. We created a runlist with `r N_RUNS` random
+Currently, we are looking at seven Hector parameters: `BETA(), Q10_RH(), ECS(),
+NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY(), and a LUC emissions scalar`. 
+We created a runlist with `r N_RUNS` random
 draws in a normal (or lognormal, where applicable) distribution.
 
 ECS (equilibrium climate sensitivity) and ocean heat diffusivity are 
@@ -137,9 +138,10 @@ lognorm <- function(m, sd){
 }
 
 # Function to create a tibble of random draws given a specified number to produce
-params <- function(runs){
+generate_params <- function(run_numbers){
+  runs <- length(run_numbers)
   tibble(
-    run_number = 1:runs,
+    run_number = run_numbers,
     # Keenan et al. (2021) (0.54, 0.03)
     "BETA" = rnorm(runs, mean = 0.5, sd = 0.1),
     
@@ -168,51 +170,27 @@ params <- function(runs){
   )
 }
 
-# Create a runlist of 100 runs for each SSP
-# First, create run_number and scenario identifier columns
-run <- list()
-for(s in names(SSP_files)){
- run[[s]] <- data.frame(
-   run_number = 1:N_RUNS_SCE,
-   ssp = rep(s, times = N_RUNS_SCE)
- )}
-runlist_sce <- bind_rows(run)
+# Create a single runlist for all SSPs
+# First create scenario identifier column (across all scenarios) using 
+# mapply, and then generate the run numbers 
+scenarios <- mapply(rep, names(SSP_runs), SSP_runs) %>% unlist()
+runlist <- tibble(run_number = seq_along(scenarios), ssp = scenarios)
 
-# Next, create a parameter dataframe using the params() function, above
-param_sce <- params(N_RUNS_SCE)
-
-# Join the data
-runlist_scenario <- left_join(runlist_sce, param_sce, by = "run_number")
-
-# Next, create a dataframe for just the main scenario, SSP
-# This will include the first 100 runs from the scenario runlist, above
-runlist_ma <- tibble(
-  # Creates a sequence from one above the number of scenario runs to the
-  # number of main runs, eg 101 to 1000
-  run_number = (1 + N_RUNS_SCE:(N_RUNS_MAIN-1)),
-  ssp = rep("ssp245", times = length(run_number))
-)
-
-# Create parameter dataset and combine with run number and scenario
-param_main <- params(nrow(runlist_ma))
-param_main$run_number <- param_main$run_number + N_RUNS_SCE
-runlist_mai <- left_join(runlist_ma, param_main, by = "run_number")
-
-# Now, combine the first 100 runs from runlist_scenario to get a final, main scenario runlist
-runlist_main <- runlist_scenario %>%
-  filter(ssp == "ssp245") %>%
-  bind_rows(runlist_mai)
-
+# Next, create and join a parameter dataframe
+param_sce <- generate_params(runlist$run_number)
+runlist <- left_join(runlist, param_sce, by = "run_number")
 ```
 
 ``` {r joint-params, fig.cap = " The final joint distribution of ECS and diffusivity. The individual parameter distributions are shown on the x and y axes."}
 # Joint PDF for ECS and diffusivity
 # Use N_RUNS_MAIN and down sort later
 # Sherwood et al (2020)
-ecs_vals_lognorm <- rlnorm(N_RUNS_MAIN, lognorm(3.25, 0.65)[1], lognorm(3.25, 0.65)[2])
+ecs_vals_lognorm <- rlnorm(nrow(runlist), 
+                           lognorm(3.25, 0.65)[1], 
+                           lognorm(3.25, 0.65)[2])
 # Transform ECS distribution to log(distribution)
 ecs_vals_to_norm <- log(ecs_vals_lognorm)
-diffusion_vals <- rnorm(N_RUNS_MAIN, mean = 2.3, sd = 0.23)
+diffusion_vals <- rnorm(nrow(runlist), mean = 2.3, sd = 0.23)
 
 DESIRED_PCOR <- -0.75  # ECS and diffusivity should be negatively correlated
 # https://en.wikipedia.org/wiki/Covariance_and_correlation
@@ -227,7 +205,9 @@ Sigma <- matrix(c(var(ecs_vals_to_norm),
                 2, 2)
 # ...and generate values--twice as many as needed because we toss out
 # negative ECS values below (see note above)
-joint_vals <- MASS::mvrnorm(n = N_RUNS_MAIN * 2, c(mean(ecs_vals_to_norm), mean(diffusion_vals)), Sigma)
+joint_vals <- MASS::mvrnorm(n = nrow(runlist) * 2,
+                            c(mean(ecs_vals_to_norm),
+                              mean(diffusion_vals)), Sigma)
 jv <- as_tibble(joint_vals)
 colnames(jv) <- c("ECS", "DIFFUSIVITY")
 
@@ -235,21 +215,9 @@ colnames(jv) <- c("ECS", "DIFFUSIVITY")
 jv %>% 
   mutate(ECS = exp(ECS)) %>%
   filter(ECS > 0) %>% 
-  sample_n(N_RUNS_MAIN) %>%
-  bind_cols(runlist_main, .) ->
-  runlist_main
-
-# Down sort to the first 100 runs and bind to the scenario runlist
-small_runlist <- runlist_main %>%
-  filter(run_number %in% 1:N_RUNS_SCE) %>%
-  select(run_number, ECS, DIFFUSIVITY)
-
-runlist_scenario <- left_join(runlist_scenario, small_runlist, by = "run_number")
-
-# Combine runlists
-runlist <- runlist_scenario %>%
-  filter(ssp != MAIN_SCENARIO) %>%
-  bind_rows(runlist_main)
+  sample_n(nrow(runlist)) %>%
+  bind_cols(runlist, .) ->
+  runlist
 
 # Visualize the final joint distribution of ECS and DIFFUSIVITY
 p <- ggplot(runlist, aes(ECS, DIFFUSIVITY)) + 
@@ -263,12 +231,10 @@ ggExtra::ggMarginal(p, type = "histogram", alpha = 0.2)
 ``` {r log-dist, fig.cap = " Comparing the original, random, lognormal distribution for ECS with the final transformed version, the exponential of the log of ECS."}
 
 # Visualize proper lognormal versus transformed distributions for ECS
-just_ECS <- filter(runlist, ssp == MAIN_SCENARIO)
-tibble(lognorm = ecs_vals_lognorm, transformed = just_ECS$ECS) %>% 
+tibble(lognorm = ecs_vals_lognorm, transformed = runlist$ECS) %>% 
   pivot_longer(everything()) %>% 
   ggplot(aes(value, fill = name)) + geom_density(alpha = 0.5) +
   ggtitle("Comparison of (proper) lognormal with transformed distribution for ECS")
-
 ```
 
 ## Run the model
@@ -283,7 +249,7 @@ run_hector <- function(pdata, c, sce) {
   # c is a Hector newcore environment
   
   # For each parameter within each run, set its value and units
-    message("\tSetting", appendLF = FALSE)
+  message("\tSetting", appendLF = FALSE)
   for(p in colnames(pdata)) {
     message(" ", p, appendLF = FALSE)
     # If the parameter is a scaling constant, multiply and set scaled values
@@ -334,7 +300,7 @@ for(s in names(SSP_files)) {
   luc <- fetchvars(core, core$strtdate:core$enddate, LUC_EMISSIONS())
   
   for(row in seq_len(nrow(s_runlist))) {
-    message(row, "/", nrow(s_runlist))
+    message(s, " ", row, "/", nrow(s_runlist))
     outp <- try(run_hector(s_runlist[row,][-c(1,2)], core, s))
     if(class(outp) == "try-error") { 
       # if there is an error, record row numbers that error
