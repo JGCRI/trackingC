@@ -112,7 +112,7 @@ set.seed(10)
 
 Currently, we are looking at seven Hector parameters: `BETA(), Q10_RH(), ECS(),
 NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY(), and a LUC emissions scalar`. 
-We created a runlist with `r N_RUNS` random
+We created a runlist with `r SSP_runs[[MAIN_SCENARIO]]` random
 draws in a normal (or lognormal, where applicable) distribution.
 
 ECS (equilibrium climate sensitivity) and ocean heat diffusivity are 
@@ -183,7 +183,6 @@ runlist <- left_join(runlist, param_sce, by = "run_number")
 
 ``` {r joint-params, fig.cap = " The final joint distribution of ECS and diffusivity. The individual parameter distributions are shown on the x and y axes."}
 # Joint PDF for ECS and diffusivity
-# Use N_RUNS_MAIN and down sort later
 # Sherwood et al (2020)
 ecs_vals_lognorm <- rlnorm(nrow(runlist), 
                            lognorm(3.25, 0.65)[1], 
@@ -327,7 +326,7 @@ tm <- difftime(Sys.time(), start_time, units = "secs") %>% round(1)
 errors <- unlist(errors)
 ```
 
-Doing `r ((N_RUNS_SCE * 2) + N_RUNS_MAIN)` runs took `r tm` seconds or `r tm/((N_RUNS_SCE * 2) + N_RUNS_MAIN)` s/job.
+Doing `r nrow(runlist)` runs took `r tm` seconds or `r tm/((N_RUNS_SCE * 2) + N_RUNS_MAIN)` s/job.
 
 `r length(errors)` runs had errors.
 
