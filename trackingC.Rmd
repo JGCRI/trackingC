@@ -122,8 +122,9 @@ run_fail_summary %>%
 
 # ...and a figure 
 hector_temp %>% 
-  left_join(run_fail_summary, by = c("run_number", "ssp")) %>% 
-  filter(run_number <= 100) %>% # this is a debugging figure; plot just 100 runs for clarity
+  left_join(run_fail_summary, by = c("run_number", "ssp")) %>%
+  ### THIS NO LONGER WORKS
+  # filter(run_number <= 100) # this is a debugging figure; plot just 100 runs for clarity
   ggplot(aes(year, value, color = fraction_fail, group = run_number)) + 
   geom_line() + 
   geom_point(aes(y = minimum), color = "black") + 
@@ -322,7 +323,8 @@ ffi_destinations <- trk_output_filtered %>%
   mutate(destination_fraction = source_quantity / sum(source_quantity)) %>% 
   ungroup()
 
-# Just looking at 16 random runs
+# Just looking at 5 random runs across scenarios
+### THIS NO LONGER WORKS
 dest_runs <- slice_sample(ffi_destinations, n = 5)
 dest_plot <- filter(ffi_destinations, 
                     run_number %in% dest_runs$run_number & run_number < N_RUNS_SCE)
@@ -441,6 +443,7 @@ af_results %>%
 # if ever using a scenario with fossil fuel sequestration (atmosphere -> earth)
 
 # This function computes annual cumulative earth_c emissions for a given tracking dataset
+### THIS NO LONGER WORKS
 calc_emissions <- function(data){
   data %>% 
     filter(pool_name == "earth_c",
