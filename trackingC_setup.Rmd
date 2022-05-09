@@ -170,15 +170,11 @@ generate_params <- function(run_numbers){
   )
 }
 
-# Create a runlist for each SSP
-# First, create scenario identifier and run_number columns using lapply
-# (across the scenarios) and rep() to generate as many rows as 
-# called for by the corresponding entry in SSP_runs
-runlist_list <- lapply(seq_along(SSP_runs), 
-                       function(x) tibble(ssp = rep(names(SSP_runs)[x],
-                                                    SSP_runs[x])))
-runlist <- bind_rows(runlist_list)
-runlist$run_number = seq_len(nrow(runlist))
+# Create a single runlist for all SSPs
+# First create scenario identifier column (across all scenarios) using 
+# mapply, and then generate the run numbers 
+scenarios <- mapply(rep, names(SSP_runs), SSP_runs) %>% unlist()
+runlist <- tibble(run_number = seq_along(scenarios), ssp = scenarios)
 
 # Next, create and join a parameter dataframe
 param_sce <- generate_params(runlist$run_number)
