@@ -45,6 +45,7 @@ trk_output <- fread("./output_files/trk_output.csv")
 # individual runs, we use slice_sample() to randomly select 100 rows.
 
 # Pull random run numbers from the runlist and filter output by random runs
+### This is not going to give even numbers across scenarios
 max_display <- slice_sample(runlist, n = 100)
 trk_output_slice <- filter(trk_output, run_number %in% max_display$run_number)
 model_output_slice <- filter(model_output, run_number %in% max_display$run_number)
@@ -58,7 +59,7 @@ in a manuscript.
 
 ## Realized parameter PDFs
 
-``` {r params-PDFs, fig.cap = paste0(" Probability densities of each parameter (N=", N_RUNS_MAIN, " draws).")}
+``` {r params-PDFs, fig.cap = paste0(" Probability densities of each parameter (N=", SSP_runs[[MAIN_SCENARIO]], " draws).")}
 # Density plots to visualize parameter distributions
 runlist %>% 
   filter(ssp == MAIN_SCENARIO) %>%
@@ -121,10 +122,18 @@ run_fail_summary %>%
   knitr::kable()
 
 # ...and a figure 
-hector_temp %>% 
-  left_join(run_fail_summary, by = c("run_number", "ssp")) %>%
-  ### THIS NO LONGER WORKS
-  # filter(run_number <= 100) # this is a debugging figure; plot just 100 runs for clarity
+hector_temp_runs <- hector_temp %>% 
+  group_by(ssp) %>%
+  filter(year == min(year)) %>%
+  slice_sample(n = 100) %>% # this is a debugging figure; plot just 100 runs for clarity
+  arrange(ssp, run_number) %>%
+  summarize(run_number)
+
+# Filter out data for just the 100 rusn per senario identified above
+hector_temp_slice <- left_join(hector_temp_runs, hector_temp, by = c("run_number", "ssp"))
+  
+# Plot
+left_join(hector_temp_slice, run_fail_summary, by = c("run_number", "ssp")) %>%
   ggplot(aes(year, value, color = fraction_fail, group = run_number)) + 
   geom_line() + 
   geom_point(aes(y = minimum), color = "black") + 
@@ -325,11 +334,18 @@ ffi_destinations <- trk_output_filtered %>%
 
 # Just looking at 5 random runs across scenarios
 ### THIS NO LONGER WORKS
-dest_runs <- slice_sample(ffi_destinations, n = 5)
+dest_runs <- ffi_destinations %>%
+  group_by(ssp) %>%
+  filter(year == min(year)) %>%
+  slice_sample(n = 5) %>% 
+  summarize(run_number)
+  
 dest_plot <- filter(ffi_destinations, 
-                    run_number %in% dest_runs$run_number & run_number < N_RUNS_SCE)
+                    run_number %in% dest_runs$run_number) 
 
-ggplot(dest_plot, aes(year, destination_fraction, fill = pool_name)) +
+
+dest_plot %>%
+  ggplot(aes(year, destination_fraction, fill = pool_name)) +
   geom_area() +
   scale_fill_viridis_d() +
   facet_grid(ssp~run_number) +
@@ -444,11 +460,15 @@ af_results %>%
 
 # This function computes annual cumulative earth_c emissions for a given tracking dataset
 ### THIS NO LONGER WORKS
+min_runs <- trk_output_filtered %>%
+  group_by(ssp) %>%
+  summarize(mrun = min(run_number))
+
 calc_emissions <- function(data){
   data %>% 
     filter(pool_name == "earth_c",
          source_name == "earth_c",
-         run_number == min(run_number)) %>%
+         run_number %in% min_runs$mrun) %>%
     arrange(year) %>%
     group_by(ssp) %>%
     # the NA at the end here is so that cumulative emissions 'line up' correctly
