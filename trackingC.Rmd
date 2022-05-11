@@ -41,15 +41,6 @@ runlist <- fread("./output_files/runlist.csv")
 model_output <- fread("./output_files/model_output.csv")
 trk_output <- fread("./output_files/trk_output.csv")
 
-# If there are over 100 observations per time point and we want to plot
-# individual runs, we use slice_sample() to randomly select 100 rows.
-
-# Pull random run numbers from the runlist and filter output by random runs
-### This is not going to give even numbers across scenarios
-max_display <- slice_sample(runlist, n = 100)
-trk_output_slice <- filter(trk_output, run_number %in% max_display$run_number)
-model_output_slice <- filter(model_output, run_number %in% max_display$run_number)
-
 ```
 
 # Results
@@ -243,6 +234,10 @@ atmosphere_pool <- trk_output_filtered %>%
          pool_name == "atmos_c")
 
 # This plot looks at source fraction by source pool in the atmosphere and the median run.
+max_display <- runlist %>%
+  filter(ssp == MAIN_SCENARIO) %>%
+  slice_sample(n = 100)
+
 atmosphere_pool %>%
   filter(run_number %in% max_display$run_number) %>%
   ggplot(aes(year, source_fraction, 
