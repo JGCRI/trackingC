@@ -3,11 +3,11 @@
 library(hector)
 
 # Number of runs for each SSP scenario
-SSP_runs <- c("ssp119" = 300,
-              "ssp370" = 300,
-              "ssp245" = 500,
-              "ssp460" = 300,
-              "ssp585" = 300)
+SSP_runs <- c("ssp119" = 500,
+              "ssp370" = 500,
+              "ssp245" = 700,
+              "ssp460" = 500,
+              "ssp585" = 500)
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
@@ -21,7 +21,7 @@ names(SSP_files) <- names(SSP_runs)
 MAIN_SCENARIO <- "ssp245"
 
 # Set range of years for output data
-OUTPUT_YEARS <- 1950:2200
+OUTPUT_YEARS <- 1750:2300
 
 # Define name and units of all parameters
 name_vector <- c("BETA" = BETA(),

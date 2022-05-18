@@ -258,7 +258,7 @@ run_hector <- function(pdata, c, sce) {
   }
   message("  ")
   # Set a tracking date, reset and run core
-  setvar(c, NA, TRACKING_DATE(), 1950, NA)
+  setvar(c, NA, TRACKING_DATE(), 1750, NA)
   reset(c)
   run(c)
   # Access and save tracking data, model outputs
