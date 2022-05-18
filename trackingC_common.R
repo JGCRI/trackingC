@@ -12,7 +12,7 @@ SSP_runs <- c("ssp119" = 500,
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
 if(Sys.getenv("CI") == "true") {
-  SSP_runs <- rep(20, length(SSP_runs))
+  SSP_runs[SSP_runs > 20] <- 20  # set to a maximum of 20 runs per scenario
 }
 
 SSP_files <- system.file(paste0("input/hector_", names(SSP_runs), ".ini"), package = "hector")

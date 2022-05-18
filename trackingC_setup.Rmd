@@ -112,7 +112,7 @@ set.seed(10)
 
 Currently, we are looking at seven Hector parameters: `BETA(), Q10_RH(), ECS(),
 NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY(), and a LUC emissions scalar`. 
-We created a runlist with `r # SSP_runs[[MAIN_SCENARIO]]` random
+We created a runlist with `r SSP_runs[MAIN_SCENARIO]` random
 draws in a normal (or lognormal, where applicable) distribution.
 
 ECS (equilibrium climate sensitivity) and ocean heat diffusivity are 
@@ -173,7 +173,7 @@ generate_params <- function(run_numbers){
 # Create a single runlist for all SSPs
 # First create scenario identifier column (across all scenarios) using 
 # mapply, and then generate the run numbers 
-scenarios <- mapply(rep, names(SSP_runs), SSP_runs) %>% unlist()
+scenarios <- mapply(rep, names(SSP_runs), SSP_runs) %>% as.vector()
 runlist <- tibble(run_number = seq_along(scenarios), ssp = scenarios)
 
 # Next, create and join a parameter dataframe
