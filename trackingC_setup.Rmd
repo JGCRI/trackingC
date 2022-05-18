@@ -112,7 +112,7 @@ set.seed(10)
 
 Currently, we are looking at seven Hector parameters: `BETA(), Q10_RH(), ECS(),
 NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY(), and a LUC emissions scalar`. 
-We created a runlist with `r SSP_runs[[MAIN_SCENARIO]]` random
+We created a runlist with `r # SSP_runs[[MAIN_SCENARIO]]` random
 draws in a normal (or lognormal, where applicable) distribution.
 
 ECS (equilibrium climate sensitivity) and ocean heat diffusivity are 
@@ -326,7 +326,7 @@ tm <- difftime(Sys.time(), start_time, units = "secs") %>% round(1)
 errors <- unlist(errors)
 ```
 
-Doing `r nrow(runlist)` runs took `r tm` seconds or `r tm/((N_RUNS_SCE * 2) + N_RUNS_MAIN)` s/job.
+Doing `r nrow(runlist)` runs took `r tm` seconds or `r tm/(sum(SSP_runs[1:5]))` s/job.
 
 `r length(errors)` runs had errors.
 
