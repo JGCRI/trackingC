@@ -60,7 +60,7 @@ in a manuscript.
 
 ## Hector temperature vs. CMIP6 
 
-``` {r filtered, warning = FALSE, fig.cap = "Global temperature anomaly from CMIP6 and filtered Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
+``` {r filtered, warning = FALSE, message = FALSE, fig.cap = "Global temperature anomaly from CMIP6 and filtered Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
 # Read in CMIP6 comparison data
 cmip_raw <- read.csv("./data_files/CMIP6_annual_tas_global.csv")
 
@@ -209,12 +209,11 @@ atmosphere_pool <- trk_output_filtered %>%
   filter(pool_name == "atmos_c")
 
 # Create facet labels
-### FIX THIS
-var_labels_s <- c("atmos_c", "deep", "detritus_c", "earth_c", "HL", "intermediate",
-                               "LL", "soil_c", "veg_c")
-names(var_labels_s) <- c("Atmosphere", "Deep ocean", "Detritus", "Anthropogenic emissions",
+pool_labels <- c("Atmosphere", "Deep ocean", "Detritus", "Anthropogenic emissions",
                                "High-lat ocean", "Intermed. ocean",
                                "Low-lat ocean", "Soil", "Vegetation")
+names(pool_labels) <- c("atmos_c", "deep", "detritus_c", "earth_c", "HL", "intermediate",
+                               "LL", "soil_c", "veg_c")
 
 # This plot looks at source fraction by source pool in the atmosphere and the median run.
 atmosphere_pool %>%
@@ -224,7 +223,7 @@ atmosphere_pool %>%
              color = as.factor(run_number), group = run_number)) +
   geom_line(size = 0.5, show.legend = FALSE) +
   facet_wrap(~source_name, scales = "free",
-             labeller = labeller(source_name = var_labels_s)) +
+             labeller = labeller(source_name = pool_labels)) +
   labs(x = "Year",
        y = "Source fraction") +
   scale_color_grey(start = 0.7, end = 0.7) +
@@ -276,18 +275,17 @@ ffi_destinations <- trk_output_filtered %>%
   ungroup()
 
 # Just looking at 5 random runs across scenarios
-### THIS NO LONGER WORKS
-dest_runs <- ffi_destinations %>%
-  group_by(ssp) %>%
-  filter(year == min(year)) %>%
-  slice_sample(n = 5) %>%
-  summarize(run_number)
+# dest_runs <- ffi_destinations %>%
+#   group_by(ssp) %>%
+#   filter(year == min(year)) %>%
+#   slice_sample(n = 5) %>%
+#   summarize(run_number)
 
-dest_plot <- filter(ffi_destinations, 
-                    run_number %in% dest_runs$run_number) 
+# dest_plot <- filter(ffi_destinations, 
+#                     run_number %in% dest_runs$run_number) 
 
 # Just looking at the mean of all runs in SSP245
-dest_plot %>%
+ffi_destinations %>%
   filter(ssp == MAIN_SCENARIO) %>%
   group_by(ssp, year, pool_name) %>%
   mutate(dest_avg = mean(destination_fraction)) %>%
@@ -557,19 +555,25 @@ ggplot(plot_data, aes(x = year, fill = def)) +
 
 ``` {r s-params-PDFs, fig.cap = paste0(" Probability densities of each parameter (N=", SSP_runs[[MAIN_SCENARIO]], " draws).")}
 # Density plots to visualize parameter distributions
+param_labels <- c("Aerosol forcing", "CO2 fertilization", "Ocean diffusivity", 
+                  "ECS", "LUC emissions", "Pre-industrial NPP", "Q10")
+names(param_labels) <- c("AERO_SCALE", "BETA", "DIFFUSIVITY", "ECS", "LUC_SCALE", 
+                         "NPP_FLUX0", "Q10_RH")
+
 runlist %>% 
   filter(ssp == MAIN_SCENARIO) %>%
   select(-c(run_number, ssp)) %>%
   pivot_longer(everything()) %>% 
   ggplot(aes(value)) +
   geom_density() + 
-  facet_wrap(~name, scales = "free") +
+  facet_wrap(~name, scales = "free",
+             labeller = labeller(name = param_labels)) +
   labs(x = NULL, y = NULL)
 ```
 
 ## Hector temperature vs CMIP6 diagnostic
 
-``` {r s-cmip, message = FALSE, fig.cap = " Visualization of sample model runs. The black dots represent the CMIP6 minimums and maximums for global temperature anomaly, and the runs that pass must fall within these bounds more than 50% of the time."}
+``` {r s-cmip, message = FALSE, warning = FALSE, fig.cap = " Visualization of sample model runs. The black dots represent the CMIP6 minimums and maximums for global temperature anomaly, and the runs that pass must fall within these bounds more than 50% of the time."}
 # Visualize the run fail summary calculated above
 # Make a table of failure rates
 run_fail_summary %>% 
@@ -605,7 +609,7 @@ left_join(hector_temp_slice, run_fail_summary, by = c("run_number", "ssp")) %>%
 
 ## Source coefficients of variability
 
-``` {r s-coeff-var, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
+``` {r s-coeff-var, warning = FALSE, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
 # Compute coefficient of variability for each source in the atmosphere pool
 atmos_cv <- atmosphere_pool %>%
   filter(ssp == MAIN_SCENARIO) %>%
@@ -647,7 +651,8 @@ ggpairs(ffi_atm_2100,
         aes(color = sf), 
         diag = list(mapping = aes(alpha = 0.5)),
         upper = list(continuous = "blank"),
-        legend = c(6,5)) + 
+        legend = c(6,5),
+        #columnLabels = param_labels) + 
   scale_color_viridis_d() + 
   scale_fill_viridis_d() +
   labs(color = "Source Fraction")
@@ -668,13 +673,13 @@ af_results %>%
   scale_color_viridis_c() +
   labs(x = "Year",
        y = "Airborne fraction",
-       color = "Window size") 
+       color = "Window size")
 
 ```
 
 ## Tracking year plus one (work in progress)
 
-``` {r s-tracking-af}
+``` {r s-tracking-af, echo = FALSE, eval = FALSE}
 # We want to calculate airborne fraction in the year immediately following the 
 # tracking date. 
 date_plus_one <- dates + 1
