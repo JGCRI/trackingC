@@ -207,8 +207,8 @@ Sigma <- matrix(c(var(ecs_vals_to_norm),
 joint_vals <- MASS::mvrnorm(n = nrow(runlist) * 2,
                             c(mean(ecs_vals_to_norm),
                               mean(diffusion_vals)), Sigma)
+colnames(joint_vals) <- c("ECS", "DIFFUSIVITY")
 jv <- as_tibble(joint_vals)
-colnames(jv) <- c("ECS", "DIFFUSIVITY")
 
 # Filter and bind to the runlist
 jv %>% 
@@ -336,6 +336,10 @@ Doing `r nrow(runlist)` runs took `r tm` seconds or `r tm/(sum(SSP_runs[1:5]))` 
 Get lists from above into nice dataframes.
 
 ``` {r data}
+if(!length(out)) {
+  stop("No output data; probably no model runs were done because cache=TRUE")  
+}
+
 # Get output data frames
 # First, access tracking data
 tdata <- list()
