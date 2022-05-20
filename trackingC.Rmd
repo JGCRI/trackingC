@@ -589,7 +589,7 @@ hector_temp_runs <- hector_temp %>%
   arrange(ssp, run_number) %>%
   summarize(run_number)
 
-# Filter out data for just the 100 rusn per senario identified above
+# Filter out data for just the 100 runs per scenario identified above
 hector_temp_slice <- left_join(hector_temp_runs, hector_temp, by = c("run_number", "ssp"))
   
 # Plot
