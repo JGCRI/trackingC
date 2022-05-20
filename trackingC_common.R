@@ -5,13 +5,13 @@ library(hector)
 # Number of runs for each SSP scenario
 SSP_runs <- c("ssp119" = 500,
               "ssp370" = 500,
-              "ssp245" = 700,
+              "ssp245" = 1000,
               "ssp460" = 500,
               "ssp585" = 500)
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
-# Set to a maximum of 100 runs per scenario - some code chunks needs at least 100 runs
+# Set to a maximum of 100 runs per scenario - some code chunks need at least 100 runs
 if(Sys.getenv("CI") == "true") {
   SSP_runs[SSP_runs > 100] <- 100  
 }
