@@ -110,8 +110,9 @@ set.seed(10)
 
 ### Create runlist of parameter draws
 
-Currently, we are looking at six Hector parameters: `BETA(), Q10_RH(), ECS(),
-NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY()`. We created a runlist with `r N_RUNS` random
+Currently, we are looking at seven Hector parameters: `BETA(), Q10_RH(), ECS(),
+NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY(), and a LUC emissions scalar`. 
+We created a runlist with `r SSP_runs[MAIN_SCENARIO]` random
 draws in a normal (or lognormal, where applicable) distribution.
 
 ECS (equilibrium climate sensitivity) and ocean heat diffusivity are 
@@ -136,46 +137,59 @@ lognorm <- function(m, sd){
   v <- c(mn, stdev)
 }
 
-# Runlist contains run number, parameter, and a random distribution
-runlist <- tibble(
-  run_number = 1:N_RUNS,
-  # Keenan et al. (2021) (0.54, 0.03)
-  "BETA" = rnorm(N_RUNS, mean = 0.5, sd = 0.1),
-  
-  # Davidson and Janssens (2006)
-  "Q10_RH" = rlnorm(N_RUNS, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
-  
-  # Ito (2011)
-  "NPP_FLUX0" = rnorm(N_RUNS, mean = 56.2, sd = 14.3),
-  
-  # Hector default
-  "AERO_SCALE" = rnorm(N_RUNS, mean = 1.0, sd = 0.1),
-  
-  # Land use change emissions scaling parameter, to account for uncertainties in values for LUC
-  # Friedlingstein et al 2021 state: 
-  # Cumulative CO2 emissions from land-use changes (ELUC) for 1850-2020 were 200 ± 65 GtC...
-  # ...large spread among individual estimates of 140 GtC (updated H&N2017), 270 GtC (BLUE),
-  # and 195 GtC (OSCAR) for the three bookkeeping models and a similar wide estimate of 190 ± 60 GtC for the DGVMs
-  # Cumulative LUC_EMISSIONS() in Hector from 1850 to 2020 total 168 GtC
-  # We want to create a random distribution to scale our Hector emissions
-  # to account for the large uncertainties
-  # Our bounds for a reasonable scalar therefore are (270/168) and (140/168)
-  # Or, 0.83 < x < 1.61 
-  # The following distribution roughly aligns with the above criteria
-  # Using a lognormal distribution because we do not want negative or near-zero values
-  "LUC_SCALAR" = rlnorm(N_RUNS, lognorm(1.3, 0.2)[1], lognorm(1.3, 0.2)[2])
-)
+# Function to create a tibble of random draws given a specified number to produce
+generate_params <- function(run_numbers){
+  runs <- length(run_numbers)
+  tibble(
+    run_number = run_numbers,
+    # Keenan et al. (2021) (0.54, 0.03)
+    "BETA" = rnorm(runs, mean = 0.5, sd = 0.1),
+    
+    # Davidson and Janssens (2006)
+    "Q10_RH" = rlnorm(runs, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
+    
+    # Ito (2011)
+    "NPP_FLUX0" = rnorm(runs, mean = 56.2, sd = 14.3),
+    
+    # Hector default
+    "AERO_SCALE" = rnorm(runs, mean = 1.0, sd = 0.1),
+    
+    # Land use change emissions scaling parameter, to account for uncertainties in values for LUC
+    # Friedlingstein et al 2021 state: 
+    # Cumulative CO2 emissions from land-use changes (ELUC) for 1850-2020 were 200 ± 65 GtC...
+    # ...large spread among individual estimates of 140 GtC (updated H&N2017), 270 GtC (BLUE),
+    # and 195 GtC (OSCAR) for the three bookkeeping models and a similar wide estimate of 190 ± 60 GtC for the DGVMs
+    # Cumulative LUC_EMISSIONS() in Hector from 1850 to 2020 total 168 GtC
+    # We want to create a random distribution to scale our Hector emissions
+    # to account for the large uncertainties
+    # Our bounds for a reasonable scalar therefore are (270/168) and (140/168)
+    # Or, 0.83 < x < 1.61 
+    # The following distribution roughly aligns with the above criteria
+    # Using a lognormal distribution because we do not want negative or near-zero values
+    "LUC_SCALE" = rlnorm(runs, lognorm(1.3, 0.2)[1], lognorm(1.3, 0.2)[2])
+  )
+}
 
+# Create a single runlist for all SSPs
+# First create scenario identifier column (across all scenarios) using 
+# mapply, and then generate the run numbers 
+scenarios <- mapply(rep, names(SSP_runs), SSP_runs) %>% as.vector()
+runlist <- tibble(run_number = seq_along(scenarios), ssp = scenarios)
 
+# Next, create and join a parameter dataframe
+param_sce <- generate_params(runlist$run_number)
+runlist <- left_join(runlist, param_sce, by = "run_number")
 ```
 
 ``` {r joint-params, fig.cap = " The final joint distribution of ECS and diffusivity. The individual parameter distributions are shown on the x and y axes."}
 # Joint PDF for ECS and diffusivity
 # Sherwood et al (2020)
-ecs_vals_lognorm <- rlnorm(N_RUNS, lognorm(3.25, 0.65)[1], lognorm(3.25, 0.65)[2])
+ecs_vals_lognorm <- rlnorm(nrow(runlist), 
+                           lognorm(3.25, 0.65)[1], 
+                           lognorm(3.25, 0.65)[2])
 # Transform ECS distribution to log(distribution)
 ecs_vals_to_norm <- log(ecs_vals_lognorm)
-diffusion_vals <- rnorm(N_RUNS, mean = 2.3, sd = 0.23)
+diffusion_vals <- rnorm(nrow(runlist), mean = 2.3, sd = 0.23)
 
 DESIRED_PCOR <- -0.75  # ECS and diffusivity should be negatively correlated
 # https://en.wikipedia.org/wiki/Covariance_and_correlation
@@ -190,15 +204,17 @@ Sigma <- matrix(c(var(ecs_vals_to_norm),
                 2, 2)
 # ...and generate values--twice as many as needed because we toss out
 # negative ECS values below (see note above)
-joint_vals <- MASS::mvrnorm(n = N_RUNS * 2, c(mean(ecs_vals_to_norm), mean(diffusion_vals)), Sigma)
+joint_vals <- MASS::mvrnorm(n = nrow(runlist) * 2,
+                            c(mean(ecs_vals_to_norm),
+                              mean(diffusion_vals)), Sigma)
+colnames(joint_vals) <- c("ECS", "DIFFUSIVITY")
 jv <- as_tibble(joint_vals)
-colnames(jv) <- c("ECS", "DIFFUSIVITY")
 
 # Filter and bind to the runlist
 jv %>% 
   mutate(ECS = exp(ECS)) %>%
   filter(ECS > 0) %>% 
-  sample_n(N_RUNS) %>%
+  sample_n(nrow(runlist)) %>%
   bind_cols(runlist, .) ->
   runlist
 
@@ -218,7 +234,6 @@ tibble(lognorm = ecs_vals_lognorm, transformed = runlist$ECS) %>%
   pivot_longer(everything()) %>% 
   ggplot(aes(value, fill = name)) + geom_density(alpha = 0.5) +
   ggtitle("Comparison of (proper) lognormal with transformed distribution for ECS")
-
 ```
 
 ## Run the model
@@ -226,14 +241,14 @@ tibble(lognorm = ecs_vals_lognorm, transformed = runlist$ECS) %>%
 Run the model and store outputs and tracking data.
 
 ```{r functions, cache=TRUE, message=FALSE}
-run_hector <- function(pdata, c) {
+run_hector <- function(pdata, c, sce) {
   
   # Function to set multiple parameter values for Hector, run a core, and retrieve tracking data
   # pdata will be the runlist specified above
   # c is a Hector newcore environment
   
   # For each parameter within each run, set its value and units
-    message("\tSetting", appendLF = FALSE)
+  message("\tSetting", appendLF = FALSE)
   for(p in colnames(pdata)) {
     message(" ", p, appendLF = FALSE)
     # If the parameter is a scaling constant, multiply and set scaled values
@@ -243,7 +258,7 @@ run_hector <- function(pdata, c) {
   }
   message("  ")
   # Set a tracking date, reset and run core
-  setvar(c, NA, TRACKING_DATE(), 1950, NA)
+  setvar(c, NA, TRACKING_DATE(), 1750, NA)
   reset(c)
   run(c)
   # Access and save tracking data, model outputs
@@ -254,6 +269,9 @@ run_hector <- function(pdata, c) {
            # to keep file size down
            source_name == "earth_c" | pool_name == "atmos_c")
   out$results <- fetchvars(c, OUTPUT_YEARS, c("Ca", "Ftot", "FCO2", "Tgav", "luc_emissions"))
+  
+  out$results$ssp <- sce
+  out$tdata$ssp <- sce
   return(out)
 }
 
@@ -271,15 +289,35 @@ errors <- list()
 # Record start time 
 start_time <- Sys.time()
 
-for(row in seq_len(nrow(runlist))) {
-  message(row, "/", nrow(runlist))
-  outp <- try(run_hector(runlist[row,][-1], core))
-  if(class(outp) == "try-error") { 
-    # if there is an error, record row numbers that error
-    errors[[row]] <- runlist$run_number[[row]]
-  } else {
-    out[[runlist$run_number[row]]] <- outp
-  }}  
+for(s in names(SSP_files)) {
+  # Filter runlist by scenario
+  s_runlist <- runlist %>% filter(ssp == s)
+  # Initiate new core, by scenario
+  core <- newcore(SSP_files[[s]])
+  # Run core, extract LUC emissions data for later multiplication by LUC_SCALE
+  run(core)
+  luc <- fetchvars(core, core$strtdate:core$enddate, LUC_EMISSIONS())
+  
+  for(row in seq_len(nrow(s_runlist))) {
+    message(s, " ", row, "/", nrow(s_runlist))
+    outp <- try(run_hector(s_runlist[row,][-c(1,2)], core, s))
+    if(class(outp) == "try-error") { 
+      # if there is an error, record row numbers that error
+      errors[[row]] <- s_runlist$run_number[[row]]
+    } else {
+      # Create unique ssp + run_number identifier for each row so that data 
+      # does not get overwritten
+      id <- paste0(s, "_", row)
+      # Save output by id
+      out[[id]] <- outp
+      # Add in run_number column - can no longer bind_rows() by run_number
+      # because data is grouped by id
+      out[[id]]$results$run_number <- s_runlist$run_number[[row]]
+      out[[id]]$tdata$run_number <- s_runlist$run_number[[row]]
+    }
+  }
+  shutdown(core)
+}
 
 # Compute difference in time between start and after loop is run
 tm <- difftime(Sys.time(), start_time, units = "secs") %>% round(1)
@@ -288,7 +326,7 @@ tm <- difftime(Sys.time(), start_time, units = "secs") %>% round(1)
 errors <- unlist(errors)
 ```
 
-Doing `r N_RUNS` runs took `r tm` seconds or `r tm/N_RUNS` s/job.
+Doing `r nrow(runlist)` runs took `r tm` seconds or `r tm/(sum(SSP_runs[1:5]))` s/job.
 
 `r length(errors)` runs had errors.
 
@@ -298,28 +336,34 @@ Doing `r N_RUNS` runs took `r tm` seconds or `r tm/N_RUNS` s/job.
 Get lists from above into nice dataframes.
 
 ``` {r data}
+if(!length(out)) {
+  stop("No output data; probably no model runs were done because cache=TRUE")  
+}
+
 # Get output data frames
 # First, access tracking data
 tdata <- list()
 for(n in seq_len(length(out))){
   tdata[[n]] <- out[[n]]$tdata
 }
-trk_output <- bind_rows(tdata, .id = "run_number") %>% as_tibble
+trk_output <- bind_rows(tdata, .id = "delete_me") %>% as_tibble
 
 # Then, access model output data
 results <- list()
 for(n in seq_len(length(out))){
   results[[n]] <- out[[n]]$results
 }
-model_output <- bind_rows(results, .id = "run_number") %>% as_tibble()
+model_output <- bind_rows(results, .id = "delete_me") %>% as_tibble()
 
 # Can left join with runlist to get param values
 # Make sure data is same class
 trk_output$run_number <- as.integer(trk_output$run_number)
-trk_output <- left_join(trk_output, runlist, by = "run_number")
+trk_output <- left_join(trk_output, runlist, by = c("run_number", "ssp")) %>%
+  select(-delete_me)
 
 model_output$run_number <- as.integer(model_output$run_number)
-model_output <- left_join(model_output, runlist, by = "run_number")
+model_output <- left_join(model_output, runlist, by = c("run_number", "ssp")) %>%
+  select(-delete_me)
 
 ```
 
