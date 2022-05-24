@@ -267,8 +267,8 @@ run_hector <- function(pdata, c, sce) {
     filter(year %in% OUTPUT_YEARS, 
            # Save only emissions and their destinations or the atmosphere and its sources
            # to keep file size down
-           source_name == "earth_c" | pool_name == "atmos_c")
-  out$results <- fetchvars(c, OUTPUT_YEARS, c("Ca", "Ftot", "FCO2", "Tgav", "luc_emissions"))
+           source_name == "earth_c" | pool_name == "atmos_co2")
+  out$results <- fetchvars(c, OUTPUT_YEARS, c("atmos_co2", "RF_tot", "RF_CO2", "global_tas", "luc_emissions"))
   
   out$results$ssp <- sce
   out$tdata$ssp <- sce

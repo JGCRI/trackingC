@@ -3,11 +3,14 @@
 library(hector)
 
 # Number of runs for each SSP scenario
-SSP_runs <- c("ssp119" = 500,
-              "ssp370" = 500,
-              "ssp245" = 1000,
-              "ssp460" = 500,
-              "ssp585" = 500)
+SSP_runs <- c("ssp119" = 300,
+              "ssp126" = 300,
+              "ssp245" = 500,
+              "ssp370" = 300,
+              "ssp434" = 300,
+              "ssp460" = 300,
+              "ssp534-over" = 300,
+              "ssp585" = 300)
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
