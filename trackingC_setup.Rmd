@@ -252,9 +252,12 @@ run_hector <- function(pdata, c, sce) {
   for(p in colnames(pdata)) {
     message(" ", p, appendLF = FALSE)
     # If the parameter is a scaling constant, multiply and set scaled values
-    if(p %in% scalar_vector) setvar(c, luc$year, LUC_EMISSIONS(), (luc$value * pdata[p][[1]]), "Pg C/yr")
-    # Otherwise, simply set the value of the parameter itself
-    else setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
+    if(p %in% scalar_vector) {
+      setvar(c, luc$year, LUC_EMISSIONS(), (luc$value * pdata[p][[1]]), "Pg C/yr")
+    } else {
+      # Otherwise, simply set the value of the parameter itself
+      setvar(c, NA, do.call(p, list()), pdata[p][[1]], units_vector[p])
+    }
   }
   message("  ")
   # Set a tracking date, reset and run core
@@ -300,14 +303,15 @@ for(s in names(SSP_files)) {
   
   for(row in seq_len(nrow(s_runlist))) {
     message(s, " ", row, "/", nrow(s_runlist))
+    # Create unique ssp + run_number identifier for each row so that data 
+    # does not get overwritten
+    id <- paste0(s, "_", row)
+
     outp <- try(run_hector(s_runlist[row,][-c(1,2)], core, s))
     if(class(outp) == "try-error") { 
       # if there is an error, record row numbers that error
-      errors[[row]] <- s_runlist$run_number[[row]]
+      errors[[id]] <- s_runlist$run_number[[row]]
     } else {
-      # Create unique ssp + run_number identifier for each row so that data 
-      # does not get overwritten
-      id <- paste0(s, "_", row)
       # Save output by id
       out[[id]] <- outp
       # Add in run_number column - can no longer bind_rows() by run_number
@@ -337,7 +341,7 @@ Get lists from above into nice dataframes.
 
 ``` {r data}
 if(!length(out)) {
-  stop("No output data; probably no model runs were done because cache=TRUE")  
+  stop("No output data; probably no model runs were done because cache=TRUE?")  
 }
 
 # Get output data frames
