@@ -265,7 +265,7 @@ ggplot(ff, aes(year, color = ssp, fill = ssp)) +
 
 ## Destination of FFI emissions - ƒFFI~atm~
 
-```{r destination, warning = FALSE, fig.cap = paste0(" Final destination pools of fossil fuel and industrial (FFI) emissions averaged over ", SSP_runs[[MAIN_SCENARIO]], " runs in ", MAIN_SCENARIO, ".")}
+```{r destination, warning = FALSE, fig.cap = paste0(" Final destination pools of fossil fuel and industrial (FFI) emissions averaged over ", SSP_runs[MAIN_SCENARIO], " runs in ", MAIN_SCENARIO, ".")}
 # Where does CO2 end up?
 # Step 1: compute source_quantity = pool_value * source_fraction
 # Step 2: for each year and source_name, compute destination_fraction
