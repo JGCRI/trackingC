@@ -45,7 +45,8 @@ trk_output <- fread("./output_files/trk_output.csv")
 # individual runs, we use slice_sample() to randomly select 100 rows.
 
 # Pull random run numbers from the runlist and filter output by random runs
-max_display <- slice_sample(runlist, n = 100)
+# We do replace=TRUE in case there's fewer than 100 runs available
+max_display <- slice_sample(runlist, n = 100, replace = TRUE)
 
 ```
 
@@ -356,9 +357,7 @@ relimp_out <- lapply(dest_split, FUN = calc_relimp) %>%
     
 # ...and plot!
 relimp_out %>%
-  mutate(param = factor(param, levels = rev(c("NPP_FLUX0", "Q10_RH", "BETA", "ECS", 
-                                       "DIFFUSIVITY", "AERO_SCALE",
-                                       "LUC_SCALE")))) %>%
+  mutate(param = factor(param, levels = rev(names(name_vector)))) %>%
   ggplot(aes(year, value, fill = param)) + 
   geom_area() +
   coord_cartesian(expand = FALSE) +
@@ -369,14 +368,14 @@ relimp_out %>%
                        labels = c("LUC emissions", "Aerosol forcing",
                                   "Ocean diffusivity", "ECS",
                                   "CO2 fertilization", "Q10",
-                                   "Pre-industrial NPP")) +
+                                  "Pre-industrial NPP")) +
   facet_wrap(~ssp,
              labeller = labeller(ssp = ssp_labels),
              ncol = 4) +
   labs(x = "Year",
        y = "Relative importance",
        fill = "Parameter") +
-  theme(axis.text.x = element_text(angle = 90))
+  theme(axis.text.x = element_text(angle = 90)) 
 ```
 
 ## Does time affect destination?
@@ -604,7 +603,7 @@ run_fail_summary %>%
 hector_temp_runs <- hector_temp %>% 
   group_by(ssp) %>%
   filter(year == min(year)) %>%
-  slice_sample(n = 100) %>% # this is a debugging figure; plot just 100 runs for clarity
+  slice_sample(n = 100, replace = TRUE) %>% # this is a debugging figure; plot just 100 runs for clarity
   arrange(ssp, run_number) %>%
   summarize(run_number)
 

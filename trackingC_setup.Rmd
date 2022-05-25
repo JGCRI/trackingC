@@ -287,7 +287,7 @@ out <- list()
 errors <- list()
 
 # For each row of the runlist, apply the run_hector() function
-# If there is an error, record which row triggers the error, and skip to the next row
+# If there is an error, record which row triggers the error, and skip to the next
 
 # Record start time 
 start_time <- Sys.time()
