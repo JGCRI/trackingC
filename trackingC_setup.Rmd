@@ -307,9 +307,10 @@ for(s in names(SSP_files)) {
     # does not get overwritten
     id <- paste0(s, "_", row)
 
-    outp <- try(run_hector(s_runlist[row,][-c(1,2)], core, s))
+    outp <- try(run_hector(s_runlist[row,][-c(1, 2)], core, s))
     if(class(outp) == "try-error") { 
       # if there is an error, record row numbers that error
+      message("\tError!")
       errors[[id]] <- s_runlist$run_number[[row]]
     } else {
       # Save output by id
@@ -330,7 +331,8 @@ tm <- difftime(Sys.time(), start_time, units = "secs") %>% round(1)
 errors <- unlist(errors)
 ```
 
-Doing `r nrow(runlist)` runs took `r tm` seconds or `r tm/(sum(SSP_runs[1:5]))` s/job.
+Doing `r nrow(runlist)` runs took `r tm` seconds 
+or `r round(tm / (sum(SSP_runs)), 1)` s/job.
 
 `r length(errors)` runs had errors.
 
@@ -339,41 +341,32 @@ Doing `r nrow(runlist)` runs took `r tm` seconds or `r tm/(sum(SSP_runs[1:5]))` 
 
 Get lists from above into nice dataframes.
 
-``` {r data}
-# if(!length(out)) {
-#   stop("No output data; probably no model runs were done because cache=TRUE?")  
-# }
+```{r data}
+if(!length(out)) {
+  stop("No output data; probably no model runs were done because cache=TRUE?")
+}
 
 # Get output data frames
 # First, access tracking data
-tdata <- list()
-for(n in seq_len(length(out))){
-  tdata[[n]] <- out[[n]]$tdata
-}
-trk_output <- bind_rows(tdata, .id = "delete_me") %>% as_tibble
+tdata <- lapply(out, function(x) x$tdata)
+trk_output <- bind_rows(tdata) %>% as_tibble
 
 # Then, access model output data
-results <- list()
-for(n in seq_len(length(out))){
-  results[[n]] <- out[[n]]$results
-}
-model_output <- bind_rows(results, .id = "delete_me") %>% as_tibble()
+results <- lapply(out, function(x) x$results)
+model_output <- bind_rows(results) %>% as_tibble()
 
 # Can left join with runlist to get param values
 # Make sure data is same class
 trk_output$run_number <- as.integer(trk_output$run_number)
-trk_output <- left_join(trk_output, runlist, by = c("run_number", "ssp")) %>%
-  select(-delete_me)
+trk_output <- left_join(trk_output, runlist, by = c("run_number", "ssp"))
 
 model_output$run_number <- as.integer(model_output$run_number)
-model_output <- left_join(model_output, runlist, by = c("run_number", "ssp")) %>%
-  select(-delete_me)
-
+model_output <- left_join(model_output, runlist, by = c("run_number", "ssp"))
 ```
 
 # Save outputs
 
-``` {r output-files}
+```{r output-files}
 fwrite(runlist, "./output_files/runlist.csv", row.names = FALSE)
 fwrite(model_output, "./output_files/model_output.csv", row.names = FALSE)
 fwrite(trk_output, "./output_files/trk_output.csv", row.names = FALSE)

@@ -40,7 +40,8 @@ if(Sys.getenv("CI") == "true") {
   SSP_runs[SSP_runs > MIN_RUNS] <- MIN_RUNS 
 }
 
-SSP_files <- system.file(paste0("input/hector_", names(SSP_runs), ".ini"), package = "hector")
+SSP_files <- system.file(paste0("input/hector_", names(SSP_runs), ".ini"), 
+                         package = "hector")
 names(SSP_files) <- names(SSP_runs)
 
 MAIN_SCENARIO <- "ssp245"
