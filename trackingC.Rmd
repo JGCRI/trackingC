@@ -113,7 +113,7 @@ trk_output_filtered <- trk_output %>%
 
 # Create facet labels
 ssp_labels <- c("SSP119", "SSP126", "SSP245", "SSP370", "SSP434", "SSP460", "SSP534-over", "SSP585")
-names(ssp_labels) <- c("ssp119", "ssp126", "ssp245", "ssp370", "ssp434", "ssp460", "ssp534-over", "ssp585")
+names(ssp_labels) <- c(names(SSP_runs))
 
 # Plot temperature spreads for the filtered runs
 model_output_filtered %>%
@@ -357,7 +357,9 @@ relimp_out <- lapply(dest_split, FUN = calc_relimp) %>%
     
 # ...and plot!
 relimp_out %>%
-  mutate(param = factor(param, levels = rev(names(name_vector)))) %>%
+  mutate(param = factor(param, levels = rev(c("NPP_FLUX0", "Q10_RH", "BETA", "ECS", 
+                                       "DIFFUSIVITY", "AERO_SCALE",
+                                       "LUC_SCALE")))) %>%
   ggplot(aes(year, value, fill = param)) + 
   geom_area() +
   coord_cartesian(expand = FALSE) +
