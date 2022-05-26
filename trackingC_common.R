@@ -2,31 +2,6 @@
 
 library(hector)
 
-# Number of runs for each SSP scenario
-SSP_runs <- c("ssp119" = 300,
-              "ssp126" = 300,
-              "ssp245" = 500,
-              "ssp370" = 300,
-              "ssp434" = 300,
-              "ssp460" = 300,
-              "ssp534-over" = 300,
-              "ssp585" = 300)
-
-# We use GitHub Actions to make sure this RMarkdown knits successfully
-# But if running there, only do a small number of Hector simulations
-# Set to a maximum of 100 runs per scenario - some code chunks need at least 100 runs
-if(Sys.getenv("CI") == "true") {
-  SSP_runs[SSP_runs > 100] <- 100  
-}
-
-SSP_files <- system.file(paste0("input/hector_", names(SSP_runs), ".ini"), package = "hector")
-names(SSP_files) <- names(SSP_runs)
-
-MAIN_SCENARIO <- "ssp245"
-
-# Set range of years for output data
-OUTPUT_YEARS <- 1750:2300
-
 # Define name and units of all parameters
 name_vector <- c("BETA" = BETA(),
                  "Q10_RH" = Q10_RH(), 
@@ -45,3 +20,31 @@ units_vector <- c("BETA" = "(unitless)",
                   "LUC_SCALE" = "(unitless)")
 
 scalar_vector <- "LUC_SCALE"
+
+# Number of runs for each SSP scenario
+SSP_runs <- c("ssp119" = 300,
+              "ssp126" = 300,
+              "ssp245" = 500,
+              "ssp370" = 300,
+              "ssp434" = 300,
+              "ssp460" = 300,
+              "ssp534-over" = 300,
+              "ssp585" = 300)
+
+# We use GitHub Actions to make sure this RMarkdown knits successfully
+# But if running there, only do a small number of Hector simulations
+# We need at least twice as many runs as the number of parameters,
+# so that calc.relimp() can do its thing later
+MIN_RUNS <- length(name_vector) * 2
+if(Sys.getenv("CI") == "true") {
+  SSP_runs[SSP_runs > MIN_RUNS] <- MIN_RUNS 
+}
+
+SSP_files <- system.file(paste0("input/hector_", names(SSP_runs), ".ini"), 
+                         package = "hector")
+names(SSP_files) <- names(SSP_runs)
+
+MAIN_SCENARIO <- "ssp245"
+
+# Set range of years for output data
+OUTPUT_YEARS <- 1750:2300

@@ -45,7 +45,8 @@ trk_output <- fread("./output_files/trk_output.csv")
 # individual runs, we use slice_sample() to randomly select 100 rows.
 
 # Pull random run numbers from the runlist and filter output by random runs
-max_display <- slice_sample(runlist, n = 100)
+# We do replace=TRUE in case there's fewer than 100 runs available
+max_display <- slice_sample(runlist, n = 100, replace = TRUE)
 
 ```
 
@@ -112,7 +113,7 @@ trk_output_filtered <- trk_output %>%
 
 # Create facet labels
 ssp_labels <- c("SSP119", "SSP126", "SSP245", "SSP370", "SSP434", "SSP460", "SSP534-over", "SSP585")
-names(ssp_labels) <- c("ssp119", "ssp126", "ssp245", "ssp370", "ssp434", "ssp460", "ssp534-over", "ssp585")
+names(ssp_labels) <- c(names(SSP_runs))
 
 # Plot temperature spreads for the filtered runs
 model_output_filtered %>%
@@ -265,7 +266,7 @@ ggplot(ff, aes(year, color = ssp, fill = ssp)) +
 
 ## Destination of FFI emissions - ƒFFI~atm~
 
-```{r destination, warning = FALSE, fig.cap = paste0(" Final destination pools of fossil fuel and industrial (FFI) emissions averaged over ", SSP_runs[[MAIN_SCENARIO]], " runs in ", MAIN_SCENARIO, ".")}
+```{r destination, warning = FALSE, fig.cap = paste0(" Final destination pools of fossil fuel and industrial (FFI) emissions averaged over ", SSP_runs[MAIN_SCENARIO], " runs in ", MAIN_SCENARIO, ".")}
 # Where does CO2 end up?
 # Step 1: compute source_quantity = pool_value * source_fraction
 # Step 2: for each year and source_name, compute destination_fraction
@@ -369,14 +370,14 @@ relimp_out %>%
                        labels = c("LUC emissions", "Aerosol forcing",
                                   "Ocean diffusivity", "ECS",
                                   "CO2 fertilization", "Q10",
-                                   "Pre-industrial NPP")) +
+                                  "Pre-industrial NPP")) +
   facet_wrap(~ssp,
              labeller = labeller(ssp = ssp_labels),
              ncol = 4) +
   labs(x = "Year",
        y = "Relative importance",
        fill = "Parameter") +
-  theme(axis.text.x = element_text(angle = 90))
+  theme(axis.text.x = element_text(angle = 90)) 
 ```
 
 ## Does time affect destination?
@@ -604,7 +605,7 @@ run_fail_summary %>%
 hector_temp_runs <- hector_temp %>% 
   group_by(ssp) %>%
   filter(year == min(year)) %>%
-  slice_sample(n = 100) %>% # this is a debugging figure; plot just 100 runs for clarity
+  slice_sample(n = 100, replace = TRUE) %>% # this is a debugging figure; plot just 100 runs for clarity
   arrange(ssp, run_number) %>%
   summarize(run_number)
 
