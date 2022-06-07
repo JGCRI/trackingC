@@ -173,7 +173,7 @@ cmip_co2 <- cmip_c %>%
 
 # Read in Hector data, compute summary statistics 
 hector_co2 <- model_output_filtered %>%
-  filter(variable == "atmos_co2",
+  filter(variable == "CO2_concentration",
          year %in% 1959:2021,
          ssp == MAIN_SCENARIO) %>%
   select(run_number, year, value) %>%
