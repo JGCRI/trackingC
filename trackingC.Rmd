@@ -579,9 +579,13 @@ af_trend <-  trend %>%
             broom::tidy(mod)) %>%
   filter(term == "year") %>%
   mutate(decade = estimate * 10,
-         error_decade = std.error * 10) %>%
-  arrange(def)
+         error = std.error * 10)
 
+clean_trend <- af_trend %>%
+  arrange(def) %>%
+  select(ssp, def, decade, error, p.value) %>%
+  rename("computation" = def, 
+         "trend" = decade)
 
 ```
 
