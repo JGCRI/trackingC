@@ -112,7 +112,7 @@ trk_output_filtered <- trk_output %>%
   filter(fraction_fail < 0.5)
 
 # Create facet labels
-ssp_labels <- c("SSP119", "SSP126", "SSP245", "SSP370", "SSP434", "SSP460", "SSP534-over", "SSP585")
+ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP460", "SSP585")
 names(ssp_labels) <- c(names(SSP_runs))
 
 # Plot temperature spreads for the filtered runs
@@ -567,6 +567,24 @@ ggplot(plot_data, aes(x = year, fill = def)) +
 
 ```
 
+``` {r af-trend, eval=FALSE}
+trend <- plot_data %>%
+  filter(year %in% 1960:2020)
+
+af_trend <-  trend %>%
+  group_by(ssp, def) %>%
+  do(mod = lm(med ~ year, data = .)) %>%
+  summarize(ssp = ssp,
+            def = def,
+            broom::tidy(mod)) %>%
+  filter(term == "year") %>%
+  mutate(decade = estimate * 10,
+         error_decade = std.error * 10) %>%
+  arrange(def)
+
+
+```
+
 
 # Supplementary figures
 
@@ -686,7 +704,7 @@ ggpairs(ffi_atm_2100,
 
 # Airborne fraction window size
 
-```{r s-af-window, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating how much of the atmosphere is composed of anthropogenic CO2 in the year 2100."}
+```{r s-af-window, fig.cap = " Airborne fraction mathematically computed over varying time window sizes."}
 # Plot airborne fraction window size plot
 af_results %>% 
   group_by(year, ssp, window_size) %>% 
