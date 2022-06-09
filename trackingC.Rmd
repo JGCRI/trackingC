@@ -517,7 +517,7 @@ calc_emissions_fraction <- function(data, emissions_data){
            med = median(c_emissions_fraction),
            minimum = min(c_emissions_fraction),
            maximum = max(c_emissions_fraction),
-           def = "EmissFraction")
+           def = "Carbon tracking")
 }
 
 # Compute cumulative emissions over time
@@ -533,7 +533,7 @@ classic_af <- af_results %>%
          minimum = min(af),
          maximum = max(af),
          med = median(af),
-         def = "ClassicAF") %>% 
+         def = "Airborne fraction") %>% 
   filter(window_size == 1,
          run_number %in% emissions_fraction$run_number)
 
@@ -548,14 +548,8 @@ ggplot(plot_data, aes(x = year, fill = def)) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), 
               alpha = 0.4) +
   geom_line(aes(y = med, color = def)) +
-  scale_color_viridis_d(begin = 0.5,
-                        breaks = c("ClassicAF", "EmissFraction"),
-                        labels = c("Traditional",
-                                   "Carbon tracking")) +
-  scale_fill_viridis_d(begin = 0.5,
-                        breaks = c("ClassicAF", "EmissFraction"),
-                        labels = c("Traditional",
-                                   "Carbon tracking")) +
+  scale_color_viridis_d(begin = 0.5) +
+  scale_fill_viridis_d(begin = 0.5) +
   facet_wrap(~ssp, scales = "free_y", 
              labeller = labeller(ssp = ssp_labels),
              ncol = 4) +
@@ -568,24 +562,57 @@ ggplot(plot_data, aes(x = year, fill = def)) +
 ```
 
 ``` {r af-trend, eval=FALSE}
-trend <- plot_data %>%
-  filter(year %in% 1960:2020)
-
-af_trend <-  trend %>%
+# Calculate airborne fraction trend from 1960-2020 by decade, as in van Marle et al. (2022)
+af_trend <- plot_data %>%
+  filter(year %in% 1960:2020) %>%
   group_by(ssp, def) %>%
   do(mod = lm(med ~ year, data = .)) %>%
   summarize(ssp = ssp,
             def = def,
             broom::tidy(mod)) %>%
+  # Extract only the slope, not the intercept term
   filter(term == "year") %>%
+  # Multiply annual trend by 10 for decadal average
   mutate(decade = estimate * 10,
          error = std.error * 10)
 
-clean_trend <- af_trend %>%
+# Organize data, make table
+af_trend %>%
   arrange(def) %>%
   select(ssp, def, decade, error, p.value) %>%
   rename("computation" = def, 
-         "trend" = decade)
+         "trend" = decade) %>%
+  knitr::kable(digits = 4)
+
+# LUC comparison
+luc <- model_output_filtered %>%
+  select(2:7) %>%
+  filter(year %in% 1960:2020,
+         variable == "luc_emissions")
+
+# Compute average LUC emissions by scenario  
+luc_avg <-  luc %>%
+  group_by(ssp) %>%
+  summarize(avg = median(value))
+
+# Compute LUC emissions trend, join with luc_avg
+luc_trend <- luc %>%
+  group_by(ssp) %>%
+  do(mod = lm(value ~ year, data = .)) %>%
+  summarize(ssp = ssp,
+            broom::tidy(mod)) %>%
+  # Extract only the slope, not the intercept term
+  filter(term == "year") %>%
+  # Multiply annual trend by 10 for decadal average
+  mutate(decade = estimate * 10,
+         error = std.error * 10) %>%
+  left_join(luc_avg, by = "ssp")
+
+# Organize data, make table
+luc_trend %>%
+  select(ssp, decade, error) %>%
+  rename("trend" = decade)
+  knitr::kable()
 
 ```
 
