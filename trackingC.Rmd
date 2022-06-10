@@ -603,15 +603,14 @@ luc_trend <- luc %>%
             broom::tidy(mod)) %>%
   # Extract only the slope, not the intercept term
   filter(term == "year") %>%
-  # Multiply annual trend by 10 for decadal average
-  mutate(decade = estimate * 10,
-         error = std.error * 10) %>%
   left_join(luc_avg, by = "ssp")
 
 # Organize data, make table
 luc_trend %>%
-  select(ssp, decade, error) %>%
-  rename("trend" = decade)
+  select(ssp, 
+         trend = estimate, 
+         error = std.error,
+         avg) %>%
   knitr::kable()
 
 ```
