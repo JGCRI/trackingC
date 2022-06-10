@@ -579,9 +579,9 @@ af_trend <- plot_data %>%
 # Organize data, make table
 af_trend %>%
   arrange(def) %>%
-  select(ssp, def, decade, error, p.value) %>%
-  rename("computation" = def, 
-         "trend" = decade) %>%
+  select(ssp, 
+         computation = def, 
+         af_trend = decade, error, p.value) %>%
   knitr::kable(digits = 4)
 
 # LUC comparison
@@ -608,7 +608,7 @@ luc_trend <- luc %>%
 # Organize data, make table
 luc_trend %>%
   select(ssp, 
-         trend = estimate, 
+         luc_trend = estimate, 
          error = std.error,
          avg) %>%
   knitr::kable()
