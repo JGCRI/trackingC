@@ -31,6 +31,7 @@ library(ggExtra)
 library(GGally)
 library(bookdown)
 library(data.table)
+library(gridExtra)
 
 theme_set(theme_light())
 
@@ -52,14 +53,13 @@ max_display <- slice_sample(runlist, n = 100, replace = TRUE)
 
 ### Results
 
-The following sections contain tentative figures in the order they would appear
-in a manuscript. 
+The following sections contain tentative figures in the order they would appear in a manuscript.
 
 # Primary figures
 
-## Hector temperature vs. CMIP6 
+## Hector temperature vs. CMIP6
 
-``` {r filtered, warning = FALSE, message = FALSE, fig.cap = "Global temperature anomaly from CMIP6 and filtered Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
+```{r filtered, warning = FALSE, message = FALSE, fig.cap = "Global temperature anomaly from CMIP6 and filtered Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
 # Read in CMIP6 comparison data
 cmip_raw <- read.csv("./data_files/CMIP6_annual_tas_global.csv")
 
@@ -116,7 +116,7 @@ ssp_labels <- c("SSP119", "SSP126", "SSP245", "SSP370", "SSP434", "SSP460", "SSP
 names(ssp_labels) <- c(names(SSP_runs))
 
 # Plot temperature spreads for the filtered runs
-model_output_filtered %>%
+temp_plot <- model_output_filtered %>%
   filter(variable == "global_tas",
          year >= 2015 & year <= 2100) %>% 
   # compute median, min, max, etc. for all remaining runs
@@ -142,13 +142,12 @@ model_output_filtered %>%
   labs(x = "Year",
        y = expression(degree*C),
        color = "Source",
-       fill = "Source")
+       fill = "Source") ; temp_plot
 ```
-
 
 ## Hector atmospheric CO~2~ vs observed data
 
-``` {r ca-comp, fig.cap = " Historical CO2 data from Hector runs, NOAA observations, and CMIP6 models."}
+```{r ca-comp, fig.cap = " Historical CO2 data from Hector runs, NOAA observations, and CMIP6 models."}
 # Comparing outputs to NOAA CO2 data from Mauna Loa observatory
 # https://gml.noaa.gov/ccgg/trends/data.html
 noaa <- read.csv("./data_files/noaa_co2_data.csv")
@@ -189,7 +188,7 @@ hector_co2 <- model_output_filtered %>%
 plot_data_co2 <- bind_rows(cmip_co2, hector_co2)
 
 # Plot
-plot_data_co2 %>% 
+co2_plot <- plot_data_co2 %>% 
   filter(year < 2015) %>%
   ggplot(aes(year, fill = source, color = source)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
@@ -201,13 +200,16 @@ plot_data_co2 %>%
   labs(x = "Year",
        y = "CO2 (ppm)",
        color = "Source",
-       fill = "Source")
+       fill = "Source") ; co2_plot
+
+cmip_plots <- grid.arrange(temp_plot, co2_plot)
+ggsave(plot = cmip_plots, "./figures/fig1.png", height = 6, width = 9, units = "in")
 
 ```
 
 ## Atmosphere sources - ƒATM~ffi~
 
-``` {r atmosphere-by-source, fig.cap = paste0(" Fraction of CO2 in the atmosphere by source pool from 100 random runs in ", MAIN_SCENARIO, ". Dark line shows the median.")}
+```{r atmosphere-by-source, fig.cap = paste0(" Fraction of CO2 in the atmosphere by source pool from 100 random runs in ", MAIN_SCENARIO, ". Dark line shows the median.")}
 # Isolate the atmosphere pool to better understand its composition 
 atmosphere_pool <- trk_output_filtered %>%
   filter(pool_name == "atmos_co2")
@@ -220,7 +222,7 @@ names(pool_labels) <- c("atmos_co2", "deep", "detritus_c", "earth_c", "HL", "int
                                "LL", "soil_c", "veg_c")
 
 # This plot looks at source fraction by source pool in the atmosphere and the median run.
-atmosphere_pool %>%
+source_pool_plot <- atmosphere_pool %>%
   filter(ssp == MAIN_SCENARIO,
          run_number %in% max_display$run_number) %>%
   ggplot(aes(year, source_fraction, 
@@ -235,10 +237,12 @@ atmosphere_pool %>%
                fun = median,
                geom = "line",
                group = "run_number",
-               size = 0.7)
+               size = 0.7) ; source_pool_plot
+
+ggsave(plot = source_pool_plot, "./figures/fig2.png", height = 6, width = 9, units = "in")
 ```
 
-``` {r earthc-in-atmos, fig.cap = paste0(" Fraction of atmospheric CO2 from fossil fuel and industrial (FFI) emissions over time across scenarios. Line shows median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter).")}
+```{r earthc-in-atmos, fig.cap = paste0(" Fraction of atmospheric CO2 from fossil fuel and industrial (FFI) emissions over time across scenarios. Line shows median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter).")}
 # This chunk looks at the atmosphere pool with just one source (earth_c) 
 # and plots source fraction over time with a confidence interval
 
@@ -250,7 +254,7 @@ ff <- atmosphere_pool %>%
             sf_max = max(source_fraction),
             sf_median = median(source_fraction))
 
-ggplot(ff, aes(year, color = ssp, fill = ssp)) +
+source_fraction_plot <- ggplot(ff, aes(year, color = ssp, fill = ssp)) +
   geom_line(aes(y = sf_median), size = 2) +
   geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
@@ -261,7 +265,10 @@ ggplot(ff, aes(year, color = ssp, fill = ssp)) +
   labs(x = "Year",
        y = "Fraction of atmospheric CO2",
        color = "Scenario",
-       fill = "Scenario")
+       fill = "Scenario") ; source_fraction_plot
+
+ggsave(plot = source_fraction_plot, "./figures/fig3.png", height = 6, width = 9, units = "in")
+
 ```
 
 ## Destination of FFI emissions - ƒFFI~atm~
@@ -296,7 +303,7 @@ names(o_pool_labels) <- c("atmos_co2", "soil_c", "veg_c",  "detritus_c",
                                   "HL", "LL", "intermediate", "deep")
 
 # Just looking at the mean of all runs in SSP245
-ffi_destinations %>%
+destination_plot <- ffi_destinations %>%
   filter(ssp == MAIN_SCENARIO) %>%
   group_by(ssp, year, pool_name) %>%
   mutate(dest_avg = mean(destination_fraction),
@@ -310,12 +317,15 @@ ffi_destinations %>%
                        labels = o_pool_labels) +
   labs(x = "Year",
        y = "Fraction of FFI emissions",
-       fill = "Destination")
+       fill = "Destination") ; destination_plot
+
 # These lines are to look at multiple scenarios
 # facet_wrap(~ssp) +
 #theme(#strip.background = element_blank(),
 #strip.text.x = element_blank(),
 #axis.text.x = element_text(angle = 90))
+
+ggsave(plot = destination_plot, "./figures/fig4.png", height = 6, width = 9, units = "in")
 
 ```
 
@@ -356,7 +366,7 @@ relimp_out <- lapply(dest_split, FUN = calc_relimp) %>%
   bind_rows()
     
 # ...and plot!
-relimp_out %>%
+relaimpo_plot <-relimp_out %>%
   mutate(param = factor(param, levels = rev(c("NPP_FLUX0", "Q10_RH", "BETA", "ECS", 
                                        "DIFFUSIVITY", "AERO_SCALE",
                                        "LUC_SCALE")))) %>%
@@ -377,7 +387,10 @@ relimp_out %>%
   labs(x = "Year",
        y = "Relative importance",
        fill = "Parameter") +
-  theme(axis.text.x = element_text(angle = 90)) 
+  theme(axis.text.x = element_text(angle = 90)) ; relaimpo_plot
+
+ggsave(plot = relaimpo_plot, "./figures/fig5.png", height = 6, width = 9, units = "in")
+
 ```
 
 ## Does time affect destination?
@@ -418,7 +431,7 @@ all_years_tracking <- bind_rows(tracking_output)
 
   
 # Plot the destination of earth_c emissions
-all_years_tracking %>%
+tracking_years_plot <- all_years_tracking %>%
   filter(source_name == "earth_c", pool_name != "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
   group_by(year) %>%
@@ -433,7 +446,10 @@ all_years_tracking %>%
        y = "Destination fraction",
        fill = "Parameter") +
   scale_fill_viridis_d(breaks = names(o_pool_labels),
-                       labels = o_pool_labels)
+                       labels = o_pool_labels) ; tracking_years_plot
+
+ggsave(plot = tracking_years_plot, "./figures/fig6.png", height = 6, width = 9, units = "in")
+
 ```
 
 ## Airborne fraction
@@ -542,7 +558,7 @@ plot_data <- bind_rows(emissions_fraction, classic_af) %>%
   select(run_number, year, ssp, minimum, maximum, med, sdev, def) %>%
   filter(year %in% 1910:2200) # past 2200, data gets weird
 
-ggplot(plot_data, aes(x = year, fill = def)) +
+af_plot <- ggplot(plot_data, aes(x = year, fill = def)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), 
               alpha = 0.2) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), 
@@ -563,16 +579,17 @@ ggplot(plot_data, aes(x = year, fill = def)) +
       y = "Airborne fraction",
       color = "Computation",
       fill = "Computation") +
-  theme(axis.text.x = element_text(angle = 90))
+  theme(axis.text.x = element_text(angle = 90)) ; af_plot
+
+ggsave(plot = af_plot, "./figures/fig7.png", height = 6, width = 9, units = "in")
 
 ```
-
 
 # Supplementary figures
 
 ## Realized parameter PDFs
 
-``` {r s-params-PDFs, fig.cap = paste0(" Probability densities of each parameter (N=", SSP_runs[[MAIN_SCENARIO]], " draws).")}
+```{r s-params-PDFs, fig.cap = paste0(" Probability densities of each parameter (N=", SSP_runs[[MAIN_SCENARIO]], " draws).")}
 # Density plots to visualize parameter distributions
 # Create facet labels
 param_labels <- c("Aerosol forcing", "CO2 fertilization", "Ocean diffusivity", 
@@ -580,7 +597,7 @@ param_labels <- c("Aerosol forcing", "CO2 fertilization", "Ocean diffusivity",
 names(param_labels) <- c("AERO_SCALE", "BETA", "DIFFUSIVITY", "ECS", "LUC_SCALE", 
                          "NPP_FLUX0", "Q10_RH")
 
-runlist %>% 
+distribution_plot <- runlist %>% 
   filter(ssp == MAIN_SCENARIO) %>%
   select(-c(run_number, ssp)) %>%
   pivot_longer(everything()) %>% 
@@ -588,12 +605,15 @@ runlist %>%
   geom_density() + 
   facet_wrap(~name, scales = "free",
              labeller = labeller(name = param_labels)) +
-  labs(x = NULL, y = NULL)
+  labs(x = NULL, y = NULL) ; distribution_plot
+
+ggsave(plot = distribution_plot, "./figures/figs1.png", height = 6, width = 9, units = "in")
+
 ```
 
 ## Hector temperature vs CMIP6 diagnostic
 
-``` {r s-cmip, message = FALSE, warning = FALSE, fig.cap = " Visualization of sample model runs. The black dots represent the CMIP6 minimums and maximums for global temperature anomaly, and the runs that pass must fall within these bounds more than 50% of the time."}
+```{r s-cmip, message = FALSE, warning = FALSE, fig.cap = " Visualization of sample model runs. The black dots represent the CMIP6 minimums and maximums for global temperature anomaly, and the runs that pass must fall within these bounds more than 50% of the time."}
 # Visualize the run fail summary calculated above
 # Make a table of failure rates
 run_fail_summary %>% 
@@ -613,7 +633,7 @@ hector_temp_runs <- hector_temp %>%
 hector_temp_slice <- left_join(hector_temp_runs, hector_temp, by = c("run_number", "ssp"))
   
 # Plot
-left_join(hector_temp_slice, run_fail_summary, by = c("run_number", "ssp")) %>%
+diagnostic_plot <- left_join(hector_temp_slice, run_fail_summary, by = c("run_number", "ssp")) %>%
   ggplot(aes(year, value, color = fraction_fail, group = run_number)) + 
   geom_line() + 
   geom_point(aes(y = minimum), color = "black") + 
@@ -624,13 +644,15 @@ left_join(hector_temp_slice, run_fail_summary, by = c("run_number", "ssp")) %>%
   scale_color_viridis_c() +
   labs(x = "Year",
        y = expression(degree*C),
-       color = "Fraction of failed runs")
+       color = "Fraction of failed runs") ; diagnostic_plot
+
+ggsave(plot = diagnostic_plot, "./figures/figs3.png", height = 6, width = 9, units = "in")
 
 ```
 
 ## Source coefficients of variability
 
-``` {r s-coeff-var, warning = FALSE, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
+```{r s-coeff-var, warning = FALSE, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
 # Compute coefficient of variability for each source in the atmosphere pool
 atmos_cv <- atmosphere_pool %>%
   filter(ssp == MAIN_SCENARIO) %>%
@@ -671,7 +693,8 @@ ffi_atm_2100 <- atmosphere_pool %>%
          year == 2100) %>% 
   mutate(sf = cut(source_fraction, 3))
 n <- length(name_vector)
-ggpairs(ffi_atm_2100,
+
+ggpairs_plot <- ggpairs(ffi_atm_2100,
         columns = 10:(10 + (n-1)),
         # Color by magnitude of source_fraction - how much earth_c is in the atmosphere
         aes(color = sf), 
@@ -681,7 +704,10 @@ ggpairs(ffi_atm_2100,
         columnLabels = pairs_labels) + 
   scale_color_viridis_d() + 
   scale_fill_viridis_d() +
-  labs(color = "Source Fraction")
+  labs(color = "Source Fraction") ; ggpairs_plot
+
+ggsave(plot = ggpairs_plot, "./figures/figs4.png", height = 6, width = 9, units = "in")
+
 ```
 
 # Airborne fraction window size
@@ -705,7 +731,7 @@ af_results %>%
 
 ## Tracking year plus one (work in progress)
 
-``` {r s-tracking-af, echo = FALSE, eval = FALSE}
+```{r s-tracking-af, echo = FALSE, eval = FALSE}
 # We want to calculate airborne fraction in the year immediately following the 
 # tracking date. 
 date_plus_one <- dates + 1

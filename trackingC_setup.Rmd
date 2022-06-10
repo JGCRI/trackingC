@@ -223,7 +223,10 @@ p <- ggplot(runlist, aes(ECS, DIFFUSIVITY)) +
   geom_point(alpha = 0.2) + 
   geom_density_2d() +
   ggtitle("Joint distribution of ECS and DIFFUSIVITY")
-ggExtra::ggMarginal(p, type = "histogram", alpha = 0.2)
+
+joint_pdf_plot <- ggExtra::ggMarginal(p, type = "histogram", alpha = 0.2) ; joint_pdf_plot
+
+ggsave(plot = joint_pdf_plot, "./figures/figs2.png", height = 6, width = 9, units = "in")
 
 ```
 
