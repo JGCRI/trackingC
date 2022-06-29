@@ -224,7 +224,7 @@ names(pool_labels) <- c("atmos_co2", "deep", "detritus_c", "earth_c", "HL", "int
                                "LL", "soil_c", "veg_c")
 
 # This plot looks at source fraction by source pool in the atmosphere and the median run.
-test <- atmosphere_pool %>%
+atm_summary <- atmosphere_pool %>%
   filter(ssp == MAIN_SCENARIO) %>%
   group_by(year, source_name) %>%
   summarize(sf_sd = sd(source_fraction), 
@@ -232,8 +232,7 @@ test <- atmosphere_pool %>%
             sf_max = max(source_fraction),
             sf_median = median(source_fraction))
   
-  
-test %>%
+atm_summary %>%
   ggplot(aes(year)) +
   geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
@@ -384,6 +383,7 @@ relimp_out %>%
   mutate(param = factor(param, levels = rev(c("NPP_FLUX0", "Q10_RH", "BETA", "ECS", 
                                        "DIFFUSIVITY", "AERO_SCALE",
                                        "LUC_SCALE")))) %>%
+  filter(year > 1999) %>%
   ggplot(aes(year, value, fill = param)) + 
   geom_area() +
   coord_cartesian(expand = FALSE) +
@@ -401,7 +401,8 @@ relimp_out %>%
   labs(x = "Year",
        y = "Relative importance",
        fill = "Parameter") +
-  theme(axis.text.x = element_text(angle = 90)) 
+  theme(axis.text.x = element_text(angle = 90))
+
 ```
 
 ## Does time affect destination?
@@ -589,9 +590,9 @@ ggplot(plot_data, aes(x = year, fill = def)) +
 # Calculate airborne fraction trend from 1960-2020 by decade, as in van Marle et al. (2022)
 af_trend <- plot_data %>%
   filter(year %in% 1960:2020) %>%
-  group_by(ssp, def) %>%
+  group_by(run_number, def) %>%
   do(mod = lm(med ~ year, data = .)) %>%
-  summarize(ssp = ssp,
+  summarize(run_number = run_number,
             def = def,
             broom::tidy(mod)) %>%
   # Extract only the slope, not the intercept term
@@ -601,12 +602,12 @@ af_trend <- plot_data %>%
          error = std.error * 10)
 
 # Organize data, make table
-af_trend %>%
+a <- af_trend %>%
   arrange(def) %>%
-  select(ssp, 
+  select(run_number, 
          computation = def, 
-         af_trend = decade, error, p.value) %>%
-  knitr::kable(digits = 4)
+         af_trend = decade, error, p.value) 
+a %>% knitr::kable(digits = 4)
 
 # LUC comparison
 luc <- model_output_filtered %>%
