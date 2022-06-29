@@ -588,10 +588,19 @@ ggplot(plot_data, aes(x = year, fill = def)) +
 
 ``` {r af-trend}
 # Calculate airborne fraction trend from 1960-2020 by decade, as in van Marle et al. (2022)
-af_trend <- plot_data %>%
+# Extract results from above
+af <- af_results %>%
+  group_by(group, year, ssp) %>%
+  mutate(def = "Airborne fraction") %>% 
+  filter(window_size == 1,
+         run_number %in% emissions_fraction$run_number,
+         year %in% 1910:2200) %>%
+  select(run_number, year, ssp, af, def)
+
+af_trend <- af %>%
   filter(year %in% 1960:2020) %>%
   group_by(run_number, def) %>%
-  do(mod = lm(med ~ year, data = .)) %>%
+  do(mod = lm(af ~ year, data = .)) %>%
   summarize(run_number = run_number,
             def = def,
             broom::tidy(mod)) %>%
@@ -601,13 +610,26 @@ af_trend <- plot_data %>%
   mutate(decade = estimate * 10,
          error = std.error * 10)
 
-# Organize data, make table
+# Organize data, make table and graph
 a <- af_trend %>%
   arrange(def) %>%
   select(run_number, 
          computation = def, 
          af_trend = decade, error, p.value) 
-a %>% knitr::kable(digits = 4)
+a %>% 
+  ggplot(aes(af_trend)) + 
+  geom_histogram(bins = 40) +
+  labs(x = "Airborne fraction trend",
+       y = "Count")
+
+# Summary stats
+a_stats <- a %>%
+  summarize(sdev = sd(af_trend),
+         minimum = min(af_trend),
+         maximum = max(af_trend),
+         mean = mean(af_trend))
+
+a_stats %>% knitr::kable(digits = 4)
 
 # LUC comparison
 luc <- model_output_filtered %>%
@@ -616,7 +638,7 @@ luc <- model_output_filtered %>%
          variable == "luc_emissions")
 
 # Compute average LUC emissions by scenario  
-luc_avg <-  luc %>%
+luc_avg <- luc %>%
   group_by(ssp) %>%
   summarize(avg = mean(value))
 
@@ -631,12 +653,12 @@ luc_trend <- luc %>%
   left_join(luc_avg, by = "ssp")
 
 # Organize data, make table
-luc_trend %>%
-  select(ssp, 
-         luc_trend = estimate, 
-         error = std.error,
-         avg) %>%
-  knitr::kable()
+# luc_trend %>%
+#   select(ssp, 
+#          luc_trend = estimate, 
+#          error = std.error,
+#          avg) %>%
+#   knitr::kable()
 
 ```
 
