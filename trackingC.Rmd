@@ -193,7 +193,7 @@ hector_co2 <- model_output_filtered %>%
 plot_data_co2 <- bind_rows(cmip_co2, hector_co2)
 
 # Plot
-plot_data_co2 %>% 
+hector_co2 %>% 
   filter(year < 2015) %>%
   ggplot(aes(year, fill = source, color = source)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
