@@ -106,10 +106,14 @@ model_output_filtered <- model_output %>%
   left_join(run_fail_summary, by = c("ssp", "run_number")) %>% 
   filter(fraction_fail < 0.5)
 
+rm(model_output)
+
 # Note that the tracking output needs to be filtered as well
 trk_output_filtered <- trk_output %>%
   left_join(run_fail_summary, by = c("ssp", "run_number")) %>% 
   filter(fraction_fail < 0.5)
+
+rm(trk_output)
 
 # Create facet labels
 ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP460", "SSP585")
@@ -137,7 +141,7 @@ model_output_filtered %>%
   scale_fill_viridis_d(begin = 0.5) +
   facet_wrap(~ssp, scales = "free",
              labeller = labeller(ssp = ssp_labels),
-             ncol = 4) +
+             ncol = 3) +
   #theme(legend.title = element_blank()) +
   labs(x = "Year",
        y = expression(degree*C),
@@ -250,12 +254,12 @@ ff <- atmosphere_pool %>%
             sf_max = max(source_fraction),
             sf_median = median(source_fraction))
 
-ggplot(ff, aes(year, color = ssp, fill = ssp)) +
-  geom_line(aes(y = sf_median), size = 2) +
-  geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
+ggplot(ff, aes(year,  fill = ssp)) +
+  geom_line(aes(y = sf_median, color = ssp)) +
+  #geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
   scale_color_viridis_d(breaks = names(ssp_labels),
-                        labels = ssp_labels) + 
+                        labels = ssp_labels) +
   scale_fill_viridis_d(breaks = names(ssp_labels),
                         labels = ssp_labels) +
   labs(x = "Year",
@@ -373,7 +377,7 @@ relimp_out %>%
                                   "Pre-industrial NPP")) +
   facet_wrap(~ssp,
              labeller = labeller(ssp = ssp_labels),
-             ncol = 4) +
+             ncol = 3) +
   labs(x = "Year",
        y = "Relative importance",
        fill = "Parameter") +
@@ -552,7 +556,7 @@ ggplot(plot_data, aes(x = year, fill = def)) +
   scale_fill_viridis_d(begin = 0.5) +
   facet_wrap(~ssp, scales = "free_y", 
              labeller = labeller(ssp = ssp_labels),
-             ncol = 4) +
+             ncol = 3) +
   labs(x = "Year",
       y = "Airborne fraction",
       color = "Computation",
@@ -561,7 +565,7 @@ ggplot(plot_data, aes(x = year, fill = def)) +
 
 ```
 
-``` {r af-trend, eval=FALSE}
+``` {r af-trend}
 # Calculate airborne fraction trend from 1960-2020 by decade, as in van Marle et al. (2022)
 af_trend <- plot_data %>%
   filter(year %in% 1960:2020) %>%
@@ -593,7 +597,7 @@ luc <- model_output_filtered %>%
 # Compute average LUC emissions by scenario  
 luc_avg <-  luc %>%
   group_by(ssp) %>%
-  summarize(avg = median(value))
+  summarize(avg = mean(value))
 
 # Compute LUC emissions trend, join with luc_avg
 luc_trend <- luc %>%
@@ -668,7 +672,7 @@ left_join(hector_temp_slice, run_fail_summary, by = c("run_number", "ssp")) %>%
   geom_point(aes(y = maximum), color = "black") +
   facet_wrap(~ssp,
              labeller = labeller(ssp = ssp_labels),
-             ncol = 4) +
+             ncol = 3) +
   scale_color_viridis_c() +
   labs(x = "Year",
        y = expression(degree*C),
@@ -678,7 +682,7 @@ left_join(hector_temp_slice, run_fail_summary, by = c("run_number", "ssp")) %>%
 
 ## Source coefficients of variability
 
-``` {r s-coeff-var, warning = FALSE, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
+``` {r s-coeff-var, echo = FALSE, eval = FALSE, warning = FALSE, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
 # Compute coefficient of variability for each source in the atmosphere pool
 atmos_cv <- atmosphere_pool %>%
   filter(ssp == MAIN_SCENARIO) %>%
