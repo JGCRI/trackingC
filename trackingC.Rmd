@@ -45,7 +45,7 @@ trk_output <- fread("./output_files/trk_output.csv")
 # individual runs, we use slice_sample() to randomly select 100 rows.
 
 # Pull random run numbers from the runlist and filter output by random runs
-# We do replace=TRUE in case there's fewer than 100 runs available
+# We do replace=TRUE in case there are fewer than 100 runs available
 max_display <- slice_sample(runlist, n = 100, replace = TRUE)
 
 ```
@@ -224,22 +224,42 @@ names(pool_labels) <- c("atmos_co2", "deep", "detritus_c", "earth_c", "HL", "int
                                "LL", "soil_c", "veg_c")
 
 # This plot looks at source fraction by source pool in the atmosphere and the median run.
-atmosphere_pool %>%
-  filter(ssp == MAIN_SCENARIO,
-         run_number %in% max_display$run_number) %>%
-  ggplot(aes(year, source_fraction, 
-             color = as.factor(run_number), group = run_number)) +
-  geom_line(size = 0.5, show.legend = FALSE) +
+test <- atmosphere_pool %>%
+  filter(ssp == MAIN_SCENARIO) %>%
+  group_by(year, source_name) %>%
+  summarize(sf_sd = sd(source_fraction), 
+            sf_min = min(source_fraction),
+            sf_max = max(source_fraction),
+            sf_median = median(source_fraction))
+  
+  
+test %>%
+  ggplot(aes(year)) +
+  geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
+  geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
+  geom_line(aes(y = sf_median)) +
   facet_wrap(~source_name, scales = "free",
              labeller = labeller(source_name = pool_labels)) +
   labs(x = "Year",
-       y = "Source fraction") +
-  scale_color_grey(start = 0.7, end = 0.7) +
-  stat_summary(color = "black",
-               fun = median,
-               geom = "line",
-               group = "run_number",
-               size = 0.7)
+       y = "Source fraction of CO2 in atmosphere")
+ 
+  
+# atmosphere_pool %>%
+# filter(ssp == MAIN_SCENARIO,
+#        run_number %in% max_display$run_number) %>%
+# ggplot(aes(year, source_fraction, 
+#              color = as.factor(run_number), group = run_number)) +
+#   geom_line(size = 0.5, show.legend = FALSE) +
+#   facet_wrap(~source_name, scales = "free",
+#              labeller = labeller(source_name = pool_labels)) +
+#   labs(x = "Year",
+#        y = "Source fraction") +
+#   scale_color_grey(start = 0.7, end = 0.7) +
+#   stat_summary(color = "black",
+#                fun = median,
+#                geom = "line",
+#                group = "run_number",
+#                size = 0.7)
 ```
 
 ``` {r earthc-in-atmos, fig.cap = paste0(" Fraction of atmospheric CO2 from fossil fuel and industrial (FFI) emissions over time across scenarios. Line shows median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter).")}
