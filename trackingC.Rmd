@@ -30,7 +30,7 @@ library(gridExtra)
 library(ggExtra)
 library(GGally)
 library(bookdown)
-library(data.table)
+library(data.table) # for the speed of fread()
 
 theme_set(theme_light())
 
@@ -410,7 +410,7 @@ relimp_out %>%
 ```{r tracking-multiple-years, warning = FALSE, fig.cap = paste0(" Final destination pools of anthropogenic emissions in ", MAIN_SCENARIO, " for ten 50-year periods between 1750 and 2250. Note that turning on carbon tracking at the beginning of each period does not have a dramatic effect on the destination of emissions.")}
 # Prepare data: reset the core, set start dates every 50 years
 tcore <- newcore(SSP_files[[MAIN_SCENARIO]])
-dates <- seq(from = 1750, to = 2250, 50)
+dates <- seq(from = TRACKING_START, to = 2250, 50)
 tracking_output <- list()
 
 # Function to set a tracking date, run the core for a 50 year period, and retrieve tracking data
@@ -622,7 +622,7 @@ a <- af_trend %>%
 a %>% 
   ggplot(aes(af_trend)) + 
   geom_histogram(bins = 40) +
-  labs(x = "Airborne fraction trend",
+  labs(x = expression(Airborne~fraction~trend~(decade^-1)),
        y = "Count")
 
 # Summary stats
@@ -633,6 +633,8 @@ a_stats <- a %>%
          mean = mean(af_trend))
 
 a_stats %>% knitr::kable(digits = 4)
+
+af_negative <- round(sum(a$af_trend < 0) / nrow(a) * 100, 1)
 
 # LUC comparison
 luc <- model_output_filtered %>%
@@ -665,6 +667,7 @@ luc_trend <- luc %>%
 
 ```
 
+`r af_negative`% of the runs had a negative AF trend.
 
 # Supplementary figures
 
