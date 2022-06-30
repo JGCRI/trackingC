@@ -152,7 +152,7 @@ model_output_filtered %>%
 
 ## Hector atmospheric CO~2~ vs observed data
 
-``` {r ca-comp, fig.cap = " Historical CO2 data from Hector runs, NOAA observations, and CMIP6 models."}
+``` {r ca-comp, fig.cap = " Historical CO2 data from Hector runs and NOAA observations."}
 # Comparing outputs to NOAA CO2 data from Mauna Loa observatory
 # https://gml.noaa.gov/ccgg/trends/data.html
 noaa <- read.csv("./data_files/noaa_co2_data.csv")
@@ -209,9 +209,9 @@ hector_co2 %>%
 
 ```
 
-## Atmosphere sources - ƒATM~ffi~
+## Sources of atmospheric CO~2~
 
-``` {r atmosphere-by-source, fig.cap = paste0(" Fraction of CO2 in the atmosphere by source pool from 100 random runs in ", MAIN_SCENARIO, ". Dark line shows the median.")}
+``` {r atmosphere-by-source, message = FALSE, fig.cap = paste0(" Fraction of CO2 in the atmosphere by source pool in ", MAIN_SCENARIO, ". Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter).")}
 # Isolate the atmosphere pool to better understand its composition 
 atmosphere_pool <- trk_output_filtered %>%
   filter(pool_name == "atmos_co2")
@@ -261,7 +261,7 @@ atm_summary %>%
 #                size = 0.7)
 ```
 
-``` {r earthc-in-atmos, fig.cap = paste0(" Fraction of atmospheric CO2 from fossil fuel and industrial (FFI) emissions over time across scenarios. Line shows median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter).")}
+``` {r earthc-in-atmos, fig.cap = paste0(" Fraction of atmospheric CO2 from anthropogenic emissions over time across scenarios. Line shows median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter).")}
 # This chunk looks at the atmosphere pool with just one source (earth_c) 
 # and plots source fraction over time with a confidence interval
 
@@ -287,9 +287,9 @@ ggplot(ff, aes(year,  fill = ssp)) +
        fill = "Scenario")
 ```
 
-## Destination of FFI emissions - ƒFFI~atm~
+## Destination of anthropogenic emissions
 
-```{r destination, warning = FALSE, fig.cap = paste0(" Final destination pools of fossil fuel and industrial (FFI) emissions averaged over ", SSP_runs[MAIN_SCENARIO], " runs in ", MAIN_SCENARIO, ".")}
+```{r destination, warning = FALSE, fig.cap = paste0(" Final destination pools of anthropogenic emissions averaged over ", SSP_runs[MAIN_SCENARIO], " runs in ", MAIN_SCENARIO, ".")}
 # Where does CO2 end up?
 # Step 1: compute source_quantity = pool_value * source_fraction
 # Step 2: for each year and source_name, compute destination_fraction
@@ -342,7 +342,7 @@ ffi_destinations %>%
 
 ```
 
-```{r relative-importance, message=FALSE, echo=FALSE, warning=FALSE, fig.cap = " Relative importance of parameters over time in controlling atmosphere as a destination of fossil fuel and industrial (FFI) emissions."}
+```{r relative-importance, message=FALSE, echo=FALSE, warning=FALSE, fig.cap = " Relative importance of parameters over time in controlling the atmosphere as a destination of anthropogenic emissions. Relative importance is the R^2 contribution averaged over orderings among regressors; here, we normalize the values so that they sum to one."}
 # Filter to just atmosphere pool, and remove unneeded columns
 dest_e2a <- filter(ffi_destinations, pool_name == "atmos_co2")
 dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", "ssp", names(name_vector))]
@@ -399,7 +399,7 @@ relimp_out %>%
              labeller = labeller(ssp = ssp_labels),
              ncol = 3) +
   labs(x = "Year",
-       y = "Relative importance",
+       y = "Relative importance for anthropogenic CO2 in the atmosphere",
        fill = "Parameter") +
   theme(axis.text.x = element_text(angle = 90))
 
@@ -407,7 +407,7 @@ relimp_out %>%
 
 ## Does time affect destination?
 
-```{r tracking-multiple-years, warning = FALSE, fig.cap = paste0(" Final destination pools of human emissions in ", MAIN_SCENARIO, ". Note that turning on tracking in different years does not have a dramatic effect on the destination of emissions.")}
+```{r tracking-multiple-years, warning = FALSE, fig.cap = paste0(" Final destination pools of anthropogenic emissions in ", MAIN_SCENARIO, " for ten 50-year periods between 1750 and 2250. Note that turning on carbon tracking at the beginning of each period does not have a dramatic effect on the destination of emissions.")}
 # Prepare data: reset the core, set start dates every 50 years
 tcore <- newcore(SSP_files[[MAIN_SCENARIO]])
 dates <- seq(from = 1750, to = 2250, 50)
@@ -463,7 +463,7 @@ all_years_tracking %>%
 
 ## Airborne fraction
 
-```{r airborne, warning = FALSE, fig.cap = " Year-by-year mathematically defined airborne fraction. The yellow line and band shows the actual amount of human emissions remaining in the atmosphere from the model's carbon-tracking mechanism."}
+```{r airborne, warning = FALSE, fig.cap = " Airborne fraction over time, by scenario. The yellow line and band shows the actual amount of anthropogenic emissions remaining in the atmosphere from the model's carbon-tracking mechanism, whereas the blue line shows the actual airborne fraction."}
 # Prep the data
 atm_earth_diffs <- trk_output_filtered %>%
   # Isolate atmosphere and earth total pool values
@@ -586,7 +586,9 @@ ggplot(plot_data, aes(x = year, fill = def)) +
 
 ```
 
-``` {r af-trend}
+## Airborne fraction trend
+
+``` {r af-trend, message = FALSE, fig.cap = " The spread of airborne fraction decadal trend values from 1960-2020 across all runs and scenarios. See the table below for summary statistics."}
 # Calculate airborne fraction trend from 1960-2020 by decade, as in van Marle et al. (2022)
 # Extract results from above
 af <- af_results %>%
@@ -597,6 +599,7 @@ af <- af_results %>%
          year %in% 1910:2200) %>%
   select(run_number, year, ssp, af, def)
 
+# Calculate AF trend over time from 1960-2020
 af_trend <- af %>%
   filter(year %in% 1960:2020) %>%
   group_by(run_number, def) %>%
