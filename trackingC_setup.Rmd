@@ -25,7 +25,7 @@ Many studies have looked at the current dynamics of the C cycle, and/or
 long-term ultimate fate of anthropogenic CO~2~.
 
 * There are many uncertainties surrounding the trend of airborne fraction
-(thought of as how much anthropogenic remains in the atmosphere, though
+(thought of as how much anthropogenic CO~2~ remain in the atmosphere, though
 see below), and more generally surrounding feedbacks and processes in the
 earth system controlling the growth of atmospheric CO~2~ 
 and thus radiative forcing.
@@ -92,20 +92,6 @@ source("trackingC_common.R")
 # Set random number generator to allow for reproducibility 
 set.seed(10)
 ```
-
-1. Create random parameter draws from a priori PDFs from literature (note that 
-we have not yet implemented joint PDFs).
-2. Parameterize Hector.
-3. Run Hector `r sum(SSP_runs)` times (note that we are working on parallelizing this script
-to be run on pic, and the number of runs will scale up - at least 100,000?). 
-4. Note that we currently turn tracking on at `r TRACKING_START`--i.e., at this date
-everything is assumed to be "pure" (atmosphere is 100% atmosphere, etc.) 
-and things move and mix from there.
-4. Extract standard output (pools and fluxes) and carbon tracking data. 
-5. Visualize data in four parts: sanity checks, graphs focusing on ƒATM~ffi~ 
-(i.e., patterns and dynamics of the origin of atmospheric CO~2~),
-graphs focusing on ƒFFI~atm~ (i.e., controls on the destination of FFI CO~2~), 
-and graphs of airborne fraction.  
 
 ### Create runlist of parameter draws
 
