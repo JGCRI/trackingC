@@ -25,7 +25,7 @@ jobs:
         run: |
           install.packages(c("rmarkdown", "readr", "dplyr", "tidyr", "remotes"))
           install.packages(c("kableExtra", "relaimpo", "bookdown", "data.table"))
-          install.packages(c("ggplot2", "ggExtra", "gridExtra", "GGally"))
+          install.packages(c("ggplot2", "ggExtra", "gridExtra", "GGally", "broom"))
           remotes::install_github("jgcri/hector@v3_dev")
         shell: Rscript {0}
       - name: Render Rmarkdown files

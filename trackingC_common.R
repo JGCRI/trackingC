@@ -22,14 +22,14 @@ units_vector <- c("BETA" = "(unitless)",
 scalar_vector <- "LUC_SCALE"
 
 # Number of runs for each SSP scenario
-SSP_runs <- c("ssp119" = 300,
-              "ssp126" = 300,
+SSP_runs <- c(#"ssp119" = 100,
+              "ssp126" = 500,
               "ssp245" = 500,
-              "ssp370" = 300,
-              "ssp434" = 300,
-              "ssp460" = 300,
-              "ssp534-over" = 300,
-              "ssp585" = 300)
+              "ssp370" = 500,
+              #"ssp434" = 100,
+              "ssp460" = 500,
+              #"ssp534-over" = 100,
+              "ssp585" = 500)
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
@@ -48,3 +48,5 @@ MAIN_SCENARIO <- "ssp245"
 
 # Set range of years for output data
 OUTPUT_YEARS <- 1750:2300
+
+TRACKING_START <- 1750
