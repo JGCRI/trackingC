@@ -48,3 +48,5 @@ MAIN_SCENARIO <- "ssp245"
 
 # Set range of years for output data
 OUTPUT_YEARS <- 1750:2300
+
+TRACKING_START <- 1750

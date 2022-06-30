@@ -25,7 +25,7 @@ Many studies have looked at the current dynamics of the C cycle, and/or
 long-term ultimate fate of anthropogenic CO~2~.
 
 * There are many uncertainties surrounding the trend of airborne fraction
-(thought of as how much anthropogenic remains in the atmosphere, though
+(thought of as how much anthropogenic CO~2~ remain in the atmosphere, though
 see below), and more generally surrounding feedbacks and processes in the
 earth system controlling the growth of atmospheric CO~2~ 
 and thus radiative forcing.
@@ -51,6 +51,7 @@ its controls.
 a metric for understanding how anthropogenic emissions influence the Earth system,
 and how Earth system feedbacks influence airborne fraction.
 
+* Quantify the likely distribution of the AF trend.
 
 # Methods
 
@@ -58,31 +59,15 @@ and how Earth system feedbacks influence airborne fraction.
 
 * ƒATM~ffi~: the fraction of atmospheric CO~2~ derived from fossil fuel industrial emissions
 * ƒFFI~atm~: the fraction of fossil fuel CO~2~ emissions residing in the atmosphere
-* AF: airborne fraction, conventionally computed as $\Delta$ATM / $\Sigma$FFI over some time period
+* AF: airborne fraction, computed as $\Delta$ATM / $\Sigma$FFI over some time period
 
 Note that while AF is commonly described as "the fraction of anthropogenic 
 emissions which remain in the atmosphere" 
 ([source](https://gml.noaa.gov/co2conference/posters_pdf/jones1_poster.pdf)), 
 the ratio above will not exactly be that, because in some circumstances earth 
-system feedbacks will add to atmospheric CO~2~ as well. In addition, the 
-formula above produces negative numbers if $\Delta$ATM < 0.
+system feedbacks will add to (or remove from) atmospheric CO~2~ as well. 
+In addition, note that the formula above produces negative numbers if $\Delta$ATM < 0.
 
-
-## Setup
-
-1. Create random parameter draws from a priori PDFs from literature (note that 
-we have not yet implemented joint PDFs).
-2. Parameterize Hector.
-3. Run Hector 1000 times (note that we are working on parallelizing this script
-to be run on pic, and the number of runs will scale up - at least 100,000?). 
-4. Note that we currently turn tracking on at 1950--i.e., at this date
-everything is assumed to be "pure" (atmosphere is 100% atmosphere, etc.) 
-and things move and mix from there.
-4. Extract standard output (pools and fluxes) and carbon tracking data. 
-5. Visualize data in four parts: sanity checks, graphs focusing on ƒATM~ffi~ 
-(i.e., patterns and dynamics of the origin of atmospheric CO~2~),
-graphs focusing on ƒFFI~atm~ (i.e., controls on the destination of FFI CO~2~), 
-and graphs of airborne fraction.  
 
 ### R setup
 
@@ -98,7 +83,7 @@ library(gridExtra)
 library(ggExtra)
 library(GGally)
 library(bookdown)
-library(data.table)
+library(data.table) # for the speed of fwrite()
 
 theme_set(theme_light())
 
@@ -261,7 +246,7 @@ run_hector <- function(pdata, c, sce) {
   }
   message("  ")
   # Set a tracking date, reset and run core
-  setvar(c, NA, TRACKING_DATE(), 1750, NA)
+  setvar(c, NA, TRACKING_DATE(), TRACKING_START, NA)
   reset(c)
   run(c)
   # Access and save tracking data, model outputs
