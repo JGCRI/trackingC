@@ -30,7 +30,7 @@ library(gridExtra)
 library(ggExtra)
 library(GGally)
 library(bookdown)
-library(data.table) # for the speed of fread()
+library(data.table) 
 
 theme_set(theme_light())
 
@@ -69,7 +69,7 @@ cmip_raw <- read.csv("./data_files/CMIP6_annual_tas_global.csv")
 cmip_sce <- list()
 for(n in names(SSP_files)){
   cmip_sce[[n]] <- cmip_raw %>% 
-    filter(experiment == n)
+    filter(experiment == n | experiment == "historical")
 }  
 cmip_sce <- bind_rows(cmip_sce) 
 
@@ -88,18 +88,44 @@ cmip_scenarios <- cmip_sce %>%
 
 # Identify unrealistic runs - for each run, if more than 50% of values are
 # outside of the min/max of the CMIP data, the run is nixed
-cmip_bounds <- cmip_scenarios %>% 
+cmip_minmax_bounds <- cmip_scenarios %>% 
   group_by(ssp) %>%
-  select(year, minimum, maximum)
+  select(year, minimum, maximum) %>%
+  ungroup()
 
+hist <- cmip_minmax_bounds %>%
+  filter(ssp == "historical") %>%
+  select(-ssp)
+
+cmip_bounds <- cmip_minmax_bounds %>% filter(ssp != "historical", year > 2016)
+
+# hector_hist <- model_output %>%
+#   filter(variable == "global_tas",
+#          year >= 1850 & year <= 2015) %>%
+#   select(run_number, ssp, year, value) %>%
+#   mutate(ssp = "historical") %>%
+#   left_join(cmip_bounds, by = c("year", "ssp")) %>%
+#   mutate(fail = value < minimum | value > maximum)
+  
 hector_temp <- model_output %>%
   filter(variable == "global_tas",
-         year >= 2015 & year <= 2100) %>%
+         year > 2016 & year <= 2100) %>%
   select(run_number, ssp, year, value) %>%
-  left_join(cmip_bounds, by = c("year", "ssp")) %>% 
+  left_join(cmip_bounds, by = c("year", "ssp")) %>%
+  mutate(fail = value < minimum | value > maximum)
+  
+hist_temp <- model_output %>%
+  filter(variable == "global_tas",
+         year >= 1850 & year <= 2016) %>%
+  select(run_number, ssp, year, value) %>%
+  left_join(hist, by = "year") %>%
   mutate(fail = value < minimum | value > maximum)
 
-run_fail_summary <- hector_temp %>%
+temperature <- bind_rows(hector_temp, hist_temp) %>% arrange(ssp, year)
+
+# hector_test <- bind_rows(hector_hist, hector_temp)
+
+run_fail_summary <- temperature %>%
   group_by(ssp, run_number) %>%
   summarise(fraction_fail = sum(fail) / n())
 
@@ -122,9 +148,16 @@ ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP460", "SSP585")
 names(ssp_labels) <- c(names(SSP_runs))
 
 # Plot temperature spreads for the filtered runs
+# hist <- model_output_filtered %>%
+#   filter(variable == "global_tas",
+#          year >= 1850 & year <= 2015) %>%
+#   mutate(ssp = "historical")
+
+cmip_plot <- cmip_scenarios %>% filter(ssp != "historical")
+
 model_output_filtered %>%
   filter(variable == "global_tas",
-         year >= 2015 & year <= 2100) %>% 
+         year >= 1850 & year <= 2100) %>%
   # compute median, min, max, etc. for all remaining runs
   group_by(year, ssp) %>%
   summarize(sdev = sd(value),
@@ -132,17 +165,17 @@ model_output_filtered %>%
             maximum = max(value),
             med = median(value), .groups = "drop") %>% 
   # combine with CMIP6 data
-  mutate(source = "Hector") %>% 
+  mutate(source = "Hector") %>%
   bind_rows(cmip_scenarios) %>%
   # ...and plot
   ggplot(aes(year, fill = source, color = source)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
-  geom_line(aes(y = med), size = 2) +
+  geom_line(aes(y = med), size = 1) +
   scale_color_viridis_d(begin = 0.5) +
   scale_fill_viridis_d(begin = 0.5) +
   facet_wrap(~ssp, scales = "free",
-             labeller = labeller(ssp = ssp_labels),
+             #labeller = labeller(ssp = c("Historical", ssp_labels)),
              ncol = 3) +
   #theme(legend.title = element_blank()) +
   labs(x = "Year",
@@ -201,7 +234,7 @@ hector_co2 %>%
   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
   geom_line(aes(y = med), size = 2) +
-  geom_line(data = noaa_co2, aes(year, mean, color = source), size = 2) +
+  geom_line(data = noaa_co2, aes(year, mean, color = source), size = 1) +
   scale_color_viridis_d(begin = 0.5) +
   scale_fill_viridis_d(begin = 0.5) +
   labs(x = "Year",
@@ -406,12 +439,15 @@ all_years_tracking %>%
   filter(ty != "2250") %>%
   ggplot(aes(year, destination_fraction, fill = pool_name), group = ty) +
   geom_area() +
-  facet_wrap(~ty, scales = "free_x") +
+  facet_wrap(~ty, 
+             scales = "free_x",
+             nrow = 2) +
   labs(x = "Year",
        y = "Fraction of anthropogenic emissions",
        fill = "Destination") +
   scale_fill_viridis_d(breaks = names(o_pool_labels),
-                       labels = o_pool_labels)
+                       labels = o_pool_labels) +
+  theme(axis.text.x = element_text(angle = 90))
 ```
 
 ### What controls how much anthropogenic CO2 ends up in the atmosphere?
