@@ -69,9 +69,20 @@ cmip_raw <- read.csv("./data_files/CMIP6_annual_tas_global.csv")
 cmip_sce <- list()
 for(n in names(SSP_files)){
   cmip_sce[[n]] <- cmip_raw %>% 
-    filter(experiment == n | experiment == "historical")
+    filter(experiment == n)
 }  
-cmip_sce <- bind_rows(cmip_sce) 
+cmip_sce <- bind_rows(cmip_sce)
+
+cmip_hist <- cmip_raw %>% 
+  filter(experiment == "historical",
+         variable == "Tgav",
+         year <= 2100) %>%
+  group_by(year) %>%
+  summarize(sdev = sd(value),
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value)) %>%
+  mutate(source = "CMIP6") 
 
 # Filter for Tgav and calculate summary metrics
 cmip_scenarios <- cmip_sce %>%
@@ -86,18 +97,21 @@ cmip_scenarios <- cmip_sce %>%
   mutate(source = "CMIP6") %>%
   arrange(ssp, year)
 
+cmip <- list()
+for(n in names(SSP_files)){
+  cmip[[n]] <- cmip_hist %>% 
+    mutate(ssp = n)
+}
+cmip <- bind_rows(cmip)
+
+cmip_final <- bind_rows(cmip, cmip_scenarios) %>% arrange(ssp, year)
+
 # Identify unrealistic runs - for each run, if more than 50% of values are
 # outside of the min/max of the CMIP data, the run is nixed
-cmip_minmax_bounds <- cmip_scenarios %>% 
+cmip_bounds <- cmip_final %>% 
   group_by(ssp) %>%
   select(year, minimum, maximum) %>%
   ungroup()
-
-hist <- cmip_minmax_bounds %>%
-  filter(ssp == "historical") %>%
-  select(-ssp)
-
-cmip_bounds <- cmip_minmax_bounds %>% filter(ssp != "historical", year > 2016)
 
 # hector_hist <- model_output %>%
 #   filter(variable == "global_tas",
@@ -107,23 +121,12 @@ cmip_bounds <- cmip_minmax_bounds %>% filter(ssp != "historical", year > 2016)
 #   left_join(cmip_bounds, by = c("year", "ssp")) %>%
 #   mutate(fail = value < minimum | value > maximum)
   
-hector_temp <- model_output %>%
+temperature <- model_output %>%
   filter(variable == "global_tas",
-         year > 2016 & year <= 2100) %>%
+         year >= 1850 & year <= 2100) %>%
   select(run_number, ssp, year, value) %>%
   left_join(cmip_bounds, by = c("year", "ssp")) %>%
   mutate(fail = value < minimum | value > maximum)
-  
-hist_temp <- model_output %>%
-  filter(variable == "global_tas",
-         year >= 1850 & year <= 2016) %>%
-  select(run_number, ssp, year, value) %>%
-  left_join(hist, by = "year") %>%
-  mutate(fail = value < minimum | value > maximum)
-
-temperature <- bind_rows(hector_temp, hist_temp) %>% arrange(ssp, year)
-
-# hector_test <- bind_rows(hector_hist, hector_temp)
 
 run_fail_summary <- temperature %>%
   group_by(ssp, run_number) %>%
@@ -153,8 +156,6 @@ names(ssp_labels) <- c(names(SSP_runs))
 #          year >= 1850 & year <= 2015) %>%
 #   mutate(ssp = "historical")
 
-cmip_plot <- cmip_scenarios %>% filter(ssp != "historical")
-
 model_output_filtered %>%
   filter(variable == "global_tas",
          year >= 1850 & year <= 2100) %>%
@@ -166,7 +167,7 @@ model_output_filtered %>%
             med = median(value), .groups = "drop") %>% 
   # combine with CMIP6 data
   mutate(source = "Hector") %>%
-  bind_rows(cmip_scenarios) %>%
+  bind_rows(cmip_final) %>%
   # ...and plot
   ggplot(aes(year, fill = source, color = source)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
@@ -175,7 +176,7 @@ model_output_filtered %>%
   scale_color_viridis_d(begin = 0.5) +
   scale_fill_viridis_d(begin = 0.5) +
   facet_wrap(~ssp, scales = "free",
-             #labeller = labeller(ssp = c("Historical", ssp_labels)),
+             labeller = labeller(ssp = ssp_labels),
              ncol = 3) +
   #theme(legend.title = element_blank()) +
   labs(x = "Year",
@@ -760,7 +761,7 @@ run_fail_summary %>%
   knitr::kable()
 
 # ...and a figure 
-hector_temp_runs <- hector_temp %>% 
+hector_temp_runs <- temperature %>% 
   group_by(ssp) %>%
   filter(year == min(year)) %>%
   slice_sample(n = 100, replace = TRUE) %>% # this is a debugging figure; plot just 100 runs for clarity
@@ -768,7 +769,7 @@ hector_temp_runs <- hector_temp %>%
   summarize(run_number)
 
 # Filter out data for just the 100 runs per scenario identified above
-hector_temp_slice <- left_join(hector_temp_runs, hector_temp, by = c("run_number", "ssp"))
+hector_temp_slice <- left_join(hector_temp_runs, temperature, by = c("run_number", "ssp"))
   
 # Plot
 left_join(hector_temp_slice, run_fail_summary, by = c("run_number", "ssp")) %>%
