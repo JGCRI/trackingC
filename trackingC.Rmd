@@ -40,6 +40,7 @@ source("trackingC_common.R")
 runlist <- fread("./output_files/runlist.csv")
 model_output <- fread("./output_files/model_output.csv")
 trk_output <- fread("./output_files/trk_output.csv")
+dest_output <- fread("./output_files/dest_output.csv")
 
 # If there are over 100 observations per time point and we want to plot
 # individual runs, we use slice_sample() to randomly select 100 rows.
@@ -198,7 +199,7 @@ noaa_co2 <- noaa %>%
 
 # Read in CMIP CO2 data, compute summary statistics
 cmip_c <- read.csv("./data_files/CMIP6_annual_co2.csv")
-cmip_co2 <- cmip_c %>%
+cmip_co2_hist <- cmip_c %>%
   filter(year %in% 1959:2021,
          experiment == "historical") %>%
   mutate(value = value * 1e6,
@@ -229,13 +230,13 @@ hector_co2 <- model_output_filtered %>%
 plot_data_co2 <- bind_rows(cmip_co2, hector_co2)
 
 # Plot
-hector_co2 %>% 
+plot_data_co2 %>% 
   filter(year < 2015) %>%
   ggplot(aes(year, fill = source, color = source)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
   geom_line(aes(y = med), size = 2) +
-  geom_line(data = noaa_co2, aes(year, mean, color = source), size = 1) +
+ # geom_line(data = noaa_co2, aes(year, mean, color = source), size = 1) +
   scale_color_viridis_d(begin = 0.5) +
   scale_fill_viridis_d(begin = 0.5) +
   labs(x = "Year",
@@ -338,15 +339,6 @@ ggplot(ff, aes(year,  fill = ssp)) +
 
 ```{r destination, warning = FALSE, fig.cap = paste0(" Final destination pools of anthropogenic emissions averaged over ", SSP_runs[MAIN_SCENARIO], " runs in ", MAIN_SCENARIO, ".")}
 # Where does CO2 end up?
-# Step 1: compute source_quantity = pool_value * source_fraction
-# Step 2: for each year and source_name, compute destination_fraction
-
-ffi_destinations <- trk_output_filtered %>%
-  filter(source_name == "earth_c", pool_name != "earth_c") %>%
-  mutate(source_quantity = pool_value * source_fraction) %>%
-  group_by(year, ssp, run_number) %>%
-  mutate(destination_fraction = source_quantity / sum(source_quantity)) %>% 
-  ungroup()
 
 # Just looking at 5 random runs across scenarios
 # dest_runs <- ffi_destinations %>%
@@ -366,7 +358,7 @@ names(o_pool_labels) <- c("atmos_co2", "soil_c", "veg_c",  "detritus_c",
                                   "HL", "LL", "intermediate", "deep")
 
 # Just looking at the mean of all runs in SSP245
-ffi_destinations %>%
+dest_output %>%
   filter(ssp == MAIN_SCENARIO) %>%
   group_by(ssp, year, pool_name) %>%
   mutate(dest_avg = mean(destination_fraction),
@@ -688,7 +680,8 @@ a_stats <- a %>%
   summarize(sdev = sd(af_trend),
          minimum = min(af_trend),
          maximum = max(af_trend),
-         mean = mean(af_trend))
+         mean = mean(af_trend),
+         median = med(af_trend))
 
 a_stats %>% knitr::kable(digits = 4)
 
