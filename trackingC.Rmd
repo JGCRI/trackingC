@@ -74,6 +74,7 @@ for(n in names(SSP_files)){
 }  
 cmip_sce <- bind_rows(cmip_sce)
 
+# Isolate historical data
 cmip_hist <- cmip_raw %>% 
   filter(experiment == "historical",
          variable == "Tgav",
@@ -98,14 +99,16 @@ cmip_scenarios <- cmip_sce %>%
   mutate(source = "CMIP6") %>%
   arrange(ssp, year)
 
-cmip <- list()
+# Need to append the historical values to each SSP
+# Add SSP column to historical data, repeat for all scenarios
+cmip_hist_repeat <- list()
 for(n in names(SSP_files)){
-  cmip[[n]] <- cmip_hist %>% 
+  cmip_hist_repeat[[n]] <- cmip_hist %>% 
     mutate(ssp = n)
 }
-cmip <- bind_rows(cmip)
+cmip_hist_repeat  <- bind_rows(cmip_hist_repeat)
 
-cmip_final <- bind_rows(cmip, cmip_scenarios) %>% arrange(ssp, year)
+cmip_final <- bind_rows(cmip_hist_repeat, cmip_scenarios) %>% arrange(ssp, year)
 
 # Identify unrealistic runs - for each run, if more than 50% of values are
 # outside of the min/max of the CMIP data, the run is nixed
@@ -121,7 +124,9 @@ cmip_bounds <- cmip_final %>%
 #   mutate(ssp = "historical") %>%
 #   left_join(cmip_bounds, by = c("year", "ssp")) %>%
 #   mutate(fail = value < minimum | value > maximum)
-  
+
+# Get temperature data from Hector, add "fail" column if values are outside the
+# min or max of CMIP
 temperature <- model_output %>%
   filter(variable == "global_tas",
          year >= 1850 & year <= 2100) %>%
@@ -129,9 +134,10 @@ temperature <- model_output %>%
   left_join(cmip_bounds, by = c("year", "ssp")) %>%
   mutate(fail = value < minimum | value > maximum)
 
+# Summarize
 run_fail_summary <- temperature %>%
   group_by(ssp, run_number) %>%
-  summarise(fraction_fail = sum(fail) / n())
+  summarize(fraction_fail = sum(fail) / n())
 
 # Filter out 'unrealistic' runs (identified above)
 model_output_filtered <- model_output %>%
@@ -157,6 +163,7 @@ names(ssp_labels) <- c(names(SSP_runs))
 #          year >= 1850 & year <= 2015) %>%
 #   mutate(ssp = "historical")
 
+# Plot temperature spreads for each scenario, Hector vs CMIP
 model_output_filtered %>%
   filter(variable == "global_tas",
          year >= 1850 & year <= 2100) %>%
@@ -198,9 +205,33 @@ noaa_co2 <- noaa %>%
   filter(year < 2015)
 
 # Read in CMIP CO2 data, compute summary statistics
-cmip_c <- read.csv("./data_files/CMIP6_annual_co2.csv")
-cmip_co2_hist <- cmip_c %>%
-  filter(year %in% 1959:2021,
+cmip_co2 <- read.csv("./data_files/CMIP6_annual_co2.csv")
+
+# Isolate desired scenarios
+cmip_sce <- list()
+for(n in names(SSP_files)){
+  cmip_sce[[n]] <- cmip_co2 %>% 
+    filter(experiment == n)
+}  
+cmip_sce <- bind_rows(cmip_sce)
+
+# Filter for co2 and calculate summary metrics
+cmip_scenarios <- cmip_sce %>%
+  rename(ssp = experiment) %>% 
+  filter(variable == "co2",
+         year <= 2100) %>%
+  group_by(year, ssp) %>%
+  summarize(ssp = ssp,
+            sdev = sd(value),
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value)) %>%
+  mutate(source = "CMIP6") %>%
+  arrange(ssp, year)
+
+# Historical data
+cmip_co2_hist <- cmip_co2 %>%
+  filter(year %in% 1850:2014,
          experiment == "historical") %>%
   mutate(value = value * 1e6,
          units = "ppm") %>%
@@ -211,6 +242,57 @@ cmip_co2_hist <- cmip_c %>%
             med = median(value),
             source = "CMIP6",
             .groups = "drop")
+
+# Need to append the historical values to each SSP
+# Add SSP column to historical data, repeat for all scenarios
+cmip_hist_repeat <- list()
+for(n in names(SSP_files)){
+  cmip_hist_repeat[[n]] <- cmip_co2_hist %>% 
+    mutate(ssp = n)
+}
+cmip_hist_repeat <- bind_rows(cmip_hist_repeat)
+
+cmip_final <- bind_rows(cmip_hist_repeat, cmip_scenarios) %>% arrange(ssp, year)
+
+# Identify unrealistic runs - for each run, if more than 50% of values are
+# outside of the min/max of the CMIP data, the run is nixed
+cmip_bounds <- cmip_final %>% 
+  group_by(ssp) %>%
+  select(year, minimum, maximum) %>%
+  ungroup()
+
+# Get temperature data from Hector, add "fail" column if values are outside the
+# min or max of CMIP
+carbon <- model_output %>%
+  filter(variable == "CO2_concentration",
+         year >= 1850 & year <= 2100) %>%
+  select(run_number, ssp, year, value) %>%
+  left_join(cmip_bounds, by = c("year", "ssp")) %>%
+  mutate(fail = value < minimum | value > maximum)
+
+```
+
+``` {r filtering}
+# Extract historical data
+c_hist <- carbon %>% filter(year < 2015)
+
+# Summarize
+run_fail_summary <- c_hist %>%
+  group_by(ssp, run_number) %>%
+  summarize(fraction_fail = sum(fail) / n(),
+            .groups = "keep")
+
+# Tighter constraint for historical data
+carbon_filter_h <- carbon %>%
+  left_join(run_fail_summary, by = c("ssp", "run_number")) %>% 
+  filter(fraction_fail < 0.3) %>%
+  summarize(pass = unique(run_number))
+
+# Now, filter CO2 data only for the runs that pass
+carbon_pass_h <- carbon %>%
+  filter(run_number %in% carbon_filter_h$pass)
+
+
 
 # Read in Hector data, compute summary statistics 
 hector_co2 <- model_output_filtered %>%
