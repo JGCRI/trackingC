@@ -197,13 +197,14 @@ model_output_filtered %>%
 ### Hector atmospheric CO~2~ vs observed data
 
 ``` {r ca-comp, fig.cap = " Historical CO2 data from Hector runs and NOAA observations."}
-# Comparing outputs to NOAA CO2 data from Mauna Loa observatory
-# https://gml.noaa.gov/ccgg/trends/data.html
-noaa <- read.csv("./data_files/noaa_co2_data.csv")
-noaa_co2 <- noaa %>% 
-  mutate(source = "NOAA") %>%
-  filter(year < 2015)
+# # Comparing outputs to NOAA CO2 data from Mauna Loa observatory
+# # https://gml.noaa.gov/ccgg/trends/data.html
+# noaa <- read.csv("./data_files/noaa_co2_data.csv")
+# noaa_co2 <- noaa %>% 
+#   mutate(source = "NOAA") %>%
+#   filter(year < 2015)
 
+## First, we need to read in the CMIP6 data and organize
 # Read in CMIP CO2 data, compute summary statistics
 cmip_co2 <- read.csv("./data_files/CMIP6_annual_co2.csv")
 
@@ -254,21 +255,86 @@ cmip_hist_repeat <- bind_rows(cmip_hist_repeat)
 
 cmip_final <- bind_rows(cmip_hist_repeat, cmip_scenarios) %>% arrange(ssp, year)
 
+### Now that we have all the data we'll need in one place, we want to filter out run numbers twice.
+# First, we just want to look at the historical data. Then we'll look at each SSP
+
 # Identify unrealistic runs - for each run, if more than 50% of values are
 # outside of the min/max of the CMIP data, the run is nixed
-cmip_bounds <- cmip_final %>% 
+cmip_bounds_h <- cmip_final %>% 
+  filter(year %in% 1850:2014) %>%
   group_by(ssp) %>%
   select(year, minimum, maximum) %>%
   ungroup()
 
 # Get temperature data from Hector, add "fail" column if values are outside the
 # min or max of CMIP
-carbon <- model_output %>%
+carbon_h <- model_output %>%
   filter(variable == "CO2_concentration",
-         year >= 1850 & year <= 2100) %>%
+         year >= 1850 & year <= 2014) %>%
   select(run_number, ssp, year, value) %>%
   left_join(cmip_bounds, by = c("year", "ssp")) %>%
   mutate(fail = value < minimum | value > maximum)
+
+# Summarize
+run_fail_summary_h <- carbon %>%
+  group_by(ssp, run_number) %>%
+  summarize(fraction_fail = sum(fail) / n())
+
+# Filter out 'unrealistic' runs (identified above)
+model_output_filtered_1 <- model_output %>%
+  left_join(run_fail_summary_h, by = c("ssp", "run_number")) %>% 
+  filter(fraction_fail < 0.3)
+
+rm(model_output)
+
+# Note that the tracking output needs to be filtered as well
+trk_output_filtered_1 <- trk_output %>%
+  left_join(run_fail_summary_h, by = c("ssp", "run_number")) %>% 
+  filter(fraction_fail < 0.3)
+
+rm(trk_output)
+
+# Repeat for SSPs
+# Identify unrealistic runs - for each run, if more than 50% of values are
+# outside of the min/max of the CMIP data, the run is nixed
+cmip_bounds_ssp <- cmip_final %>% 
+  filter(year %in% 2015:2100) %>%
+  group_by(ssp) %>%
+  select(year, minimum, maximum) %>%
+  # convert from mol mol-1 to ppmv
+  mutate(minimum = minimum * 1e6,
+         maximum = maximum * 1e6) %>%
+  distinct() %>%
+  ungroup()
+
+# Get temperature data from Hector, add "fail" column if values are outside the
+# min or max of CMIP
+carbon_ssp <- model_output_filtered_1 %>%
+  filter(variable == "CO2_concentration",
+         year >= 2015 & year <= 2100) %>%
+  select(run_number, ssp, year, value) %>%
+  left_join(cmip_bounds, by = c("year", "ssp")) %>%
+  mutate(fail = value < minimum | value > maximum)
+
+# Summarize
+run_fail_summary_ssp <- carbon_ssp %>%
+  group_by(ssp, run_number) %>%
+  summarize(fraction_fail = sum(fail) / n())
+
+# Filter out 'unrealistic' runs (identified above)
+model_output_filtered_2 <- model_output_filtered_1 %>%
+  left_join(run_fail_summary_ssp, by = c("ssp", "run_number")) %>% 
+  filter(fraction_fail < 0.5)
+
+rm(model_output)
+
+# Note that the tracking output needs to be filtered as well
+trk_output_filtered_2 <- trk_output_filtered_1 %>%
+  left_join(run_fail_summary_ssp, by = c("ssp", "run_number")) %>% 
+  filter(fraction_fail < 0.5)
+
+rm(trk_output)
+
 
 ```
 
