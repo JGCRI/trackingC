@@ -60,140 +60,6 @@ in a manuscript.
 
 ## Establishing figures 
 
-### Hector temperature vs. CMIP6 
-
-``` {r filtered, warning = FALSE, message = FALSE, fig.cap = "Global temperature anomaly from CMIP6 and filtered Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
-# Read in CMIP6 comparison data
-cmip_raw <- read.csv("./data_files/CMIP6_annual_tas_global.csv")
-
-# Isolate desired scenarios
-cmip_sce <- list()
-for(n in names(SSP_files)){
-  cmip_sce[[n]] <- cmip_raw %>% 
-    filter(experiment == n)
-}  
-cmip_sce <- bind_rows(cmip_sce)
-
-# Isolate historical data
-cmip_hist <- cmip_raw %>% 
-  filter(experiment == "historical",
-         variable == "Tgav",
-         year <= 2100) %>%
-  group_by(year) %>%
-  summarize(sdev = sd(value),
-            minimum = min(value),
-            maximum = max(value),
-            med = median(value)) %>%
-  mutate(source = "CMIP6") 
-
-# Filter for Tgav and calculate summary metrics
-cmip_scenarios <- cmip_sce %>%
-  rename(ssp = experiment) %>%
-  filter(variable == "Tgav",
-         year <= 2100) %>%
-  group_by(year, ssp) %>%
-  summarize(sdev = sd(value),
-            minimum = min(value),
-            maximum = max(value),
-            med = median(value)) %>%
-  mutate(source = "CMIP6") %>%
-  arrange(ssp, year)
-
-# Need to append the historical values to each SSP
-# Add SSP column to historical data, repeat for all scenarios
-cmip_hist_repeat <- list()
-for(n in names(SSP_files)){
-  cmip_hist_repeat[[n]] <- cmip_hist %>% 
-    mutate(ssp = n)
-}
-cmip_hist_repeat  <- bind_rows(cmip_hist_repeat)
-
-cmip_final <- bind_rows(cmip_hist_repeat, cmip_scenarios) %>% arrange(ssp, year)
-
-# Identify unrealistic runs - for each run, if more than 50% of values are
-# outside of the min/max of the CMIP data, the run is nixed
-cmip_bounds <- cmip_final %>% 
-  group_by(ssp) %>%
-  select(year, minimum, maximum) %>%
-  ungroup()
-
-# hector_hist <- model_output %>%
-#   filter(variable == "global_tas",
-#          year >= 1850 & year <= 2015) %>%
-#   select(run_number, ssp, year, value) %>%
-#   mutate(ssp = "historical") %>%
-#   left_join(cmip_bounds, by = c("year", "ssp")) %>%
-#   mutate(fail = value < minimum | value > maximum)
-
-# Get temperature data from Hector, add "fail" column if values are outside the
-# min or max of CMIP
-temperature <- model_output %>%
-  filter(variable == "global_tas",
-         year >= 1850 & year <= 2100) %>%
-  select(run_number, ssp, year, value) %>%
-  left_join(cmip_bounds, by = c("year", "ssp")) %>%
-  mutate(fail = value < minimum | value > maximum)
-
-# Summarize
-run_fail_summary <- temperature %>%
-  group_by(ssp, run_number) %>%
-  summarize(fraction_fail = sum(fail) / n())
-
-# Filter out 'unrealistic' runs (identified above)
-model_output_filtered <- model_output %>%
-  left_join(run_fail_summary, by = c("ssp", "run_number")) %>% 
-  filter(fraction_fail < 0.5)
-
-rm(model_output)
-
-# Note that the tracking output needs to be filtered as well
-trk_output_filtered <- trk_output %>%
-  left_join(run_fail_summary, by = c("ssp", "run_number")) %>% 
-  filter(fraction_fail < 0.5)
-
-rm(trk_output)
-
-# Create facet labels
-ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP460", "SSP585")
-names(ssp_labels) <- c(names(SSP_runs))
-
-# Plot temperature spreads for the filtered runs
-# hist <- model_output_filtered %>%
-#   filter(variable == "global_tas",
-#          year >= 1850 & year <= 2015) %>%
-#   mutate(ssp = "historical")
-
-# Plot temperature spreads for each scenario, Hector vs CMIP
-model_output_filtered %>%
-  filter(variable == "global_tas",
-         year >= 1850 & year <= 2100) %>%
-  # compute median, min, max, etc. for all remaining runs
-  group_by(year, ssp) %>%
-  summarize(sdev = sd(value),
-            minimum = min(value),
-            maximum = max(value),
-            med = median(value), .groups = "drop") %>% 
-  # combine with CMIP6 data
-  mutate(source = "Hector") %>%
-  bind_rows(cmip_final) %>%
-  # ...and plot
-  ggplot(aes(year, fill = source, color = source)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
-  geom_line(aes(y = med), size = 1) +
-  scale_color_viridis_d(begin = 0.5) +
-  scale_fill_viridis_d(begin = 0.5) +
-  facet_wrap(~ssp, scales = "free",
-             labeller = labeller(ssp = ssp_labels),
-             ncol = 3) +
-  #theme(legend.title = element_blank()) +
-  labs(x = "Year",
-       y = expression(degree*C),
-       color = "Source",
-       fill = "Source")
-```
-
-
 ### Hector atmospheric CO~2~ vs observed data
 
 ``` {r ca-comp, fig.cap = " Historical CO2 data from Hector runs and NOAA observations."}
@@ -266,35 +132,37 @@ cmip_bounds_h <- cmip_final %>%
   select(year, minimum, maximum) %>%
   ungroup()
 
-# Get temperature data from Hector, add "fail" column if values are outside the
+# Get CO2 data from Hector, add "fail" column if values are outside the
 # min or max of CMIP
 carbon_h <- model_output %>%
   filter(variable == "CO2_concentration",
          year >= 1850 & year <= 2014) %>%
   select(run_number, ssp, year, value) %>%
-  left_join(cmip_bounds, by = c("year", "ssp")) %>%
+  left_join(cmip_bounds_h, by = c("year", "ssp")) %>%
   mutate(fail = value < minimum | value > maximum)
 
 # Summarize
-run_fail_summary_h <- carbon %>%
+run_fail_summary_h <- carbon_h %>%
   group_by(ssp, run_number) %>%
   summarize(fraction_fail = sum(fail) / n())
 
 # Filter out 'unrealistic' runs (identified above)
 model_output_filtered_1 <- model_output %>%
   left_join(run_fail_summary_h, by = c("ssp", "run_number")) %>% 
-  filter(fraction_fail < 0.3)
+  filter(fraction_fail < 0.3) %>% 
+  select(-fraction_fail)
 
 rm(model_output)
 
 # Note that the tracking output needs to be filtered as well
 trk_output_filtered_1 <- trk_output %>%
   left_join(run_fail_summary_h, by = c("ssp", "run_number")) %>% 
-  filter(fraction_fail < 0.3)
+  filter(fraction_fail < 0.3) %>% 
+  select(-fraction_fail)
 
 rm(trk_output)
 
-# Repeat for SSPs
+# Repeat for SSPs - future projections
 # Identify unrealistic runs - for each run, if more than 50% of values are
 # outside of the min/max of the CMIP data, the run is nixed
 cmip_bounds_ssp <- cmip_final %>% 
@@ -313,7 +181,7 @@ carbon_ssp <- model_output_filtered_1 %>%
   filter(variable == "CO2_concentration",
          year >= 2015 & year <= 2100) %>%
   select(run_number, ssp, year, value) %>%
-  left_join(cmip_bounds, by = c("year", "ssp")) %>%
+  left_join(cmip_bounds_ssp, by = c("year", "ssp")) %>%
   mutate(fail = value < minimum | value > maximum)
 
 # Summarize
@@ -326,15 +194,22 @@ model_output_filtered_2 <- model_output_filtered_1 %>%
   left_join(run_fail_summary_ssp, by = c("ssp", "run_number")) %>% 
   filter(fraction_fail < 0.5)
 
-rm(model_output)
+rm(model_output_filtered_1)
 
 # Note that the tracking output needs to be filtered as well
 trk_output_filtered_2 <- trk_output_filtered_1 %>%
   left_join(run_fail_summary_ssp, by = c("ssp", "run_number")) %>% 
   filter(fraction_fail < 0.5)
 
-rm(trk_output)
+rm(trk_output_filtered_1)
 
+# What is going on
+carbon_ssp %>% 
+  ggplot(aes(x = year, group = run_number)) + 
+  geom_line(aes(y = value)) + 
+  geom_line(aes(y = minimum, color = "CMIP")) + 
+  geom_line(aes(y = maximum, color = "CMIP")) + 
+  facet_wrap(~ssp)
 
 ```
 
@@ -357,8 +232,6 @@ carbon_filter_h <- carbon %>%
 # Now, filter CO2 data only for the runs that pass
 carbon_pass_h <- carbon %>%
   filter(run_number %in% carbon_filter_h$pass)
-
-
 
 # Read in Hector data, compute summary statistics 
 hector_co2 <- model_output_filtered %>%
@@ -393,6 +266,166 @@ plot_data_co2 %>%
        fill = "Source")
 
 ```
+
+### Hector temperature vs. CMIP6 
+
+``` {r filtered, warning = FALSE, message = FALSE, fig.cap = "Global temperature anomaly from CMIP6 and filtered Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
+# Read in CMIP6 comparison data
+cmip_raw <- read.csv("./data_files/CMIP6_annual_tas_global.csv")
+
+# Isolate historical data
+cmip_tgav_hist <- cmip_raw %>% 
+  filter(experiment == "historical",
+         variable == "Tgav",
+         year <= 2100) %>%
+  group_by(year) %>%
+  summarize(sdev = sd(value),
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value)) %>%
+  mutate(source = "CMIP6") 
+
+# Isolate desired scenarios
+cmip_tgav_sce <- list()
+for(n in names(SSP_files)){
+  cmip_tgav_sce[[n]] <- cmip_raw %>% 
+    filter(experiment == n)
+}  
+cmip_t_sce <- bind_rows(cmip_tgav_sce)
+
+# Filter for Tgav and calculate summary metrics
+cmip_t_scenarios <- cmip_t_sce %>%
+  rename(ssp = experiment) %>%
+  filter(variable == "Tgav",
+         year <= 2100) %>%
+  group_by(year, ssp) %>%
+  summarize(sdev = sd(value),
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value)) %>%
+  mutate(source = "CMIP6") %>%
+  arrange(ssp, year)
+
+# Need to append the historical values to each SSP
+# Add SSP column to historical data, repeat for all scenarios
+cmip_hist_repeat_tgav <- list()
+for(n in names(SSP_files)){
+  cmip_hist_repeat_tgav[[n]] <- cmip_tgav_hist %>% 
+    mutate(ssp = n)
+}
+cmip_hist_repeat_t  <- bind_rows(cmip_hist_repeat_tgav)
+
+cmip_t_final <- bind_rows(cmip_hist_repeat, cmip_t_scenarios) %>% arrange(ssp, year)
+
+### Now that we have all the data we'll need in one place, we want to filter out run numbers twice.
+# First, we just want to look at the historical data. Then we'll look at each SSP
+
+# Identify unrealistic runs - for each run, if more than 50% of values are
+# outside of the min/max of the CMIP data, the run is nixed
+cmip_bounds_t <- cmip_t_final %>% 
+  group_by(ssp) %>%
+  select(year, minimum, maximum) %>%
+  ungroup()
+
+# Get temperature data from Hector, add "fail" column if values are outside the
+# min or max of CMIP
+tgav_h <- model_output_filtered_2 %>%
+  filter(variable == "global_tas",
+         year >= 1850 & year <= 2014) %>%
+  select(run_number, ssp, year, value) %>%
+  left_join(cmip_bounds_t, by = c("year", "ssp")) %>%
+  mutate(fail = value < minimum | value > maximum)
+
+# Summarize
+run_fail_summary_tgav <- tgav_h %>%
+  group_by(ssp, run_number) %>%
+  summarize(fraction_fail = sum(fail) / n())
+
+# Filter out 'unrealistic' runs (identified above)
+model_output_filtered_3 <- model_output_filtered_2 %>%
+  left_join(run_fail_summary_tgav, by = c("ssp", "run_number")) %>% 
+  filter(fraction_fail < 0.5)
+
+rm(model_output_filtered_2)
+
+# Note that the tracking output needs to be filtered as well
+trk_output_filtered_3 <- trk_output_filtered_2 %>%
+  left_join(run_fail_summary, by = c("ssp", "run_number")) %>% 
+  filter(fraction_fail < 0.5)
+
+rm(trk_output_filtered_2)
+
+# Repeat for SSPs - future projections
+# Identify unrealistic runs - for each run, if more than 50% of values are
+# outside of the min/max of the CMIP data, the run is nixed
+# Get temperature data from Hector, add "fail" column if values are outside the
+# min or max of CMIP
+tgav_h_ssp <- model_output_filtered_3 %>%
+  filter(variable == "global_tas",
+         year >= 2015 & year <= 2100) %>%
+  select(run_number, ssp, year, value) %>%
+  left_join(cmip_bounds_t, by = c("year", "ssp")) %>%
+  mutate(fail = value < minimum | value > maximum)
+
+# Summarize
+run_fail_summary_tgav_ssp <- tgav_h_ssp %>%
+  group_by(ssp, run_number) %>%
+  summarize(fraction_fail = sum(fail) / n())
+
+# Filter out 'unrealistic' runs (identified above)
+model_output_final <- model_output_filtered_3 %>%
+  left_join(run_fail_summary_tgav_ssp, by = c("ssp", "run_number")) %>% 
+  filter(fraction_fail < 0.5)
+
+rm(model_output_filtered_3)
+
+# Note that the tracking output needs to be filtered as well
+trk_output_final <- trk_output_filtered_3 %>%
+  left_join(run_fail_summary_ssp, by = c("ssp", "run_number")) %>% 
+  filter(fraction_fail < 0.5)
+
+rm(trk_output_filtered_3)
+
+# Create facet labels
+ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP460", "SSP585")
+names(ssp_labels) <- c(names(SSP_runs))
+
+# Plot temperature spreads for the filtered runs
+# hist <- model_output_filtered %>%
+#   filter(variable == "global_tas",
+#          year >= 1850 & year <= 2015) %>%
+#   mutate(ssp = "historical")
+
+# Plot temperature spreads for each scenario, Hector vs CMIP
+model_output_filtered %>%
+  filter(variable == "global_tas",
+         year >= 1850 & year <= 2100) %>%
+  # compute median, min, max, etc. for all remaining runs
+  group_by(year, ssp) %>%
+  summarize(sdev = sd(value),
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value), .groups = "drop") %>% 
+  # combine with CMIP6 data
+  mutate(source = "Hector") %>%
+  bind_rows(cmip_final) %>%
+  # ...and plot
+  ggplot(aes(year, fill = source, color = source)) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
+  geom_line(aes(y = med), size = 1) +
+  scale_color_viridis_d(begin = 0.5) +
+  scale_fill_viridis_d(begin = 0.5) +
+  facet_wrap(~ssp, scales = "free",
+             labeller = labeller(ssp = ssp_labels),
+             ncol = 3) +
+  #theme(legend.title = element_blank()) +
+  labs(x = "Year",
+       y = expression(degree*C),
+       color = "Source",
+       fill = "Source")
+```
+
 
 ## Sources of atmospheric CO~2~
 
