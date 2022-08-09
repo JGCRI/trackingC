@@ -517,8 +517,14 @@ all_years_tracking %>%
 ### What controls how much anthropogenic CO2 ends up in the atmosphere?
 
 ```{r relative-importance, message=FALSE, echo=FALSE, warning=FALSE, fig.cap = " Relative importance of parameters over time in controlling the atmosphere as a destination of anthropogenic emissions. Relative importance is the R^2 contribution averaged over orderings among regressors; here, we normalize the values so that they sum to one."}
+# Process data
+dest <- dest_output %>% 
+  filter(run_number %in% trk_output_final$run_number) %>%
+  left_join(runlist, by = c("run_number", "ssp")) %>%
+  as.data.frame()
+
 # Filter to just atmosphere pool, and remove unneeded columns
-dest_e2a <- filter(ffi_destinations, pool_name == "atmos_co2")
+dest_e2a <- filter(dest, pool_name == "atmos_co2")
 dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", "ssp", names(name_vector))]
 
 # Function to calculate relative importance of parameters in
@@ -752,7 +758,7 @@ a_stats <- a %>%
          minimum = min(af_trend),
          maximum = max(af_trend),
          mean = mean(af_trend),
-         median = med(af_trend))
+         median = median(af_trend))
 
 a_stats %>% knitr::kable(digits = 4)
 
@@ -830,12 +836,12 @@ run_fail_summary_tgav %>%
   knitr::kable()
 
 run_fail_summary_tgav_ssp %>% 
-  group_by(fraction_fail > 0.5, ssp) %>% 
+  group_by(fraction_fail > 0.5) %>% 
   summarise(n()) %>% 
   knitr::kable()
 
 # ...and a figure 
-hector_temp_runs <- temperature %>% 
+hector_temp_runs <- tgav_h_ssp %>% 
   group_by(ssp) %>%
   filter(year == min(year)) %>%
   slice_sample(n = 100, replace = TRUE) %>% # this is a debugging figure; plot just 100 runs for clarity
@@ -843,10 +849,10 @@ hector_temp_runs <- temperature %>%
   summarize(run_number)
 
 # Filter out data for just the 100 runs per scenario identified above
-hector_temp_slice <- left_join(hector_temp_runs, temperature, by = c("run_number", "ssp"))
+hector_temp_slice <- left_join(hector_temp_runs, tgav_h_ssp, by = c("run_number", "ssp"))
   
 # Plot
-left_join(hector_temp_slice, run_fail_summary, by = c("run_number", "ssp")) %>%
+left_join(hector_temp_slice, run_fail_summary_tgav_ssp, by = c("run_number", "ssp")) %>%
   ggplot(aes(year, value, color = fraction_fail, group = run_number)) + 
   geom_line() + 
   geom_point(aes(y = minimum), color = "black") + 
