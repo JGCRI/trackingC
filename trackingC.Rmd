@@ -41,6 +41,11 @@ runlist <- fread("./output_files/runlist.csv")
 model_output <- fread("./output_files/model_output.csv")
 trk_output <- fread("./output_files/trk_output.csv")
 
+# Add ssp information to the output data
+# Will model_output ever NOT be sorted by run_number?
+model_output$ssp <- runlist$ssp[model_output$run_number]
+trk_output$ssp <- runlist$ssp[trk_output$run_number]
+
 # If there are over 100 observations per time point and we want to plot
 # individual runs, we use slice_sample() to randomly select 100 rows.
 
@@ -344,7 +349,10 @@ ffi_destinations %>%
 
 ```{r relative-importance, message=FALSE, echo=FALSE, warning=FALSE, fig.cap = " Relative importance of parameters over time in controlling the atmosphere as a destination of anthropogenic emissions. Relative importance is the R^2 contribution averaged over orderings among regressors; here, we normalize the values so that they sum to one."}
 # Filter to just atmosphere pool, and remove unneeded columns
-dest_e2a <- filter(ffi_destinations, pool_name == "atmos_co2")
+ffi_destinations %>% 
+  filter(pool_name == "atmos_co2") %>% 
+  left_join(runlist, by = c("run_number", "ssp")) ->
+  dest_e2a 
 dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", "ssp", names(name_vector))]
 
 # Function to calculate relative importance of parameters in
@@ -638,7 +646,6 @@ af_negative <- round(sum(a$af_trend < 0) / nrow(a) * 100, 1)
 
 # LUC comparison
 luc <- model_output_filtered %>%
-  select(2:7) %>%
   filter(year %in% 1960:2020,
          variable == "luc_emissions")
 
@@ -770,10 +777,12 @@ names(pairs_labels) <- c("AERO_SCALE", "BETA", "DIFFUSIVITY", "ECS", "LUC_SCALE"
 ffi_atm_2100 <- atmosphere_pool %>%
   filter(source_name == "earth_c",
          year == 2100) %>% 
-  mutate(sf = cut(source_fraction, 3))
+  mutate(sf = cut(source_fraction, 3)) %>% 
+  left_join(runlist, by = c("run_number", "ssp"))
 n <- length(name_vector)
+which_cols <- which(names(ffi_atm_2100) %in% names(name_vector))
 ggpairs(ffi_atm_2100,
-        columns = 10:(10 + (n-1)),
+        columns = which_cols,
         # Color by magnitude of source_fraction - how much earth_c is in the atmosphere
         aes(color = sf), 
         diag = list(mapping = aes(alpha = 0.5)),
