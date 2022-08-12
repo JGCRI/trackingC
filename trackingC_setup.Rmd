@@ -357,7 +357,7 @@ model_output <- bind_rows(results) %>% as_tibble()
 #model_output <- left_join(model_output, runlist, by = c("run_number", "ssp"))
 ```
 
-``` {r destination-data}
+```{r destination-data}
 # To save memory in our main file, we manipulate the destination fraction code here
 # Step 1: compute source_quantity = pool_value * source_fraction
 # Step 2: for each year and source_name, compute destination_fraction
@@ -365,12 +365,12 @@ model_output <- bind_rows(results) %>% as_tibble()
 dest_output <- trk_output %>%
   filter(source_name == "earth_c", pool_name != "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
-  group_by(year, ssp, run_number) %>%
+  group_by(year, run_number) %>%
   summarize(destination_fraction = source_quantity / sum(source_quantity),
             pool_name = pool_name) %>% 
   ungroup()
-
 ```
+
 # Save outputs
 
 ```{r output-files}
