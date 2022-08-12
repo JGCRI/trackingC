@@ -75,6 +75,7 @@ for(n in names(SSP_files)){
     filter(experiment == n)
 }  
 cmip_sce <- bind_rows(cmip_sce) 
+rm(cmip_raw)
 
 # Filter for Tgav and calculate summary metrics
 cmip_scenarios <- cmip_sce %>%
@@ -354,6 +355,7 @@ ffi_destinations %>%
   left_join(runlist, by = c("run_number", "ssp")) ->
   dest_e2a 
 dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", "ssp", names(name_vector))]
+rm(dest_e2a)
 
 # Function to calculate relative importance of parameters in
 # explaining how much destination_fraction varies for a given year of data. 
