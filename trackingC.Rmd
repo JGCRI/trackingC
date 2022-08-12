@@ -352,7 +352,6 @@ atm_summary <- atmosphere_pool %>%
 atm_summary$source_name <- factor(atm_summary$source_name, levels = rev(c("HL", "LL", "detritus_c",
                                                                           "intermediate", "deep", "veg_c",
                                                                           "soil_c", "earth_c", "atmos_co2")))
-  
 atm_summary %>%
   filter(year > 1800) %>%
   ggplot(aes(year)) +

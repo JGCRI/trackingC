@@ -256,14 +256,13 @@ run_hector <- function(pdata, c, sce) {
     filter(year %in% OUTPUT_YEARS, 
            # Save only emissions and their destinations or the atmosphere 
            # and its sources to keep file size down
-           source_name == "earth_c" | pool_name == "atmos_co2") %>% 
-    # remove unneeded rows to shrink outputs
-    filter(year %% SAVE_EVERY_YEARS == 0)
+           source_name == "earth_c" | pool_name == "atmos_co2",
+           # remove unneeded rows to shrink outputs
+           year %% SAVE_EVERY_YEARS == 0)
+  
   out$results <- fetchvars(c, OUTPUT_YEARS, 
                            c("CO2_concentration", "RF_tot",
-                             "RF_CO2", "global_tas", "luc_emissions")) %>% 
-    # remove unneeded rows to shrink outputs
-    filter(year %% SAVE_EVERY_YEARS == 0)
+                             "RF_CO2", "global_tas", "luc_emissions"))
   
   # Remove unneeded columns to save space
   out$results$scenario <- NULL
@@ -363,7 +362,6 @@ model_output <- bind_rows(results) %>% as_tibble()
 # Step 1: compute source_quantity = pool_value * source_fraction
 # Step 2: for each year and source_name, compute destination_fraction
 
-### Move to setup, write out destination file and tracking file
 dest_output <- trk_output %>%
   filter(source_name == "earth_c", pool_name != "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
