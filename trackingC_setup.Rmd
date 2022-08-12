@@ -128,7 +128,8 @@ generate_params <- function(run_numbers){
   tibble(
     run_number = run_numbers,
     # Keenan et al. (2021) (0.54, 0.03)
-    "BETA" = rnorm(runs, mean = 0.5, sd = 0.1),
+    # Match prior of trendy models
+    "BETA" = rnorm(runs, mean = 0.54, sd = 0.1),
     
     # Davidson and Janssens (2006)
     "Q10_RH" = rlnorm(runs, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
@@ -136,8 +137,8 @@ generate_params <- function(run_numbers){
     # Ito (2011)
     "NPP_FLUX0" = rnorm(runs, mean = 56.2, sd = 14.3),
     
-    # Hector default
-    "AERO_SCALE" = rnorm(runs, mean = 1.0, sd = 0.1),
+    # Smith et al. (2020)
+    "AERO_SCALE" = rnorm(runs, mean = -1.01, sd = 0.23),
     
     # Land use change emissions scaling parameter, to account for uncertainties in values for LUC
     # Friedlingstein et al 2021 state: 
@@ -357,12 +358,28 @@ model_output <- bind_rows(results) %>% as_tibble()
 #model_output <- left_join(model_output, runlist, by = c("run_number", "ssp"))
 ```
 
+``` {r destination-data}
+# To save memory in our main file, we manipulate the destination fraction code here
+# Step 1: compute source_quantity = pool_value * source_fraction
+# Step 2: for each year and source_name, compute destination_fraction
+
+### Move to setup, write out destination file and tracking file
+dest_output <- trk_output %>%
+  filter(source_name == "earth_c", pool_name != "earth_c") %>%
+  mutate(source_quantity = pool_value * source_fraction) %>%
+  group_by(year, ssp, run_number) %>%
+  summarize(destination_fraction = source_quantity / sum(source_quantity),
+            pool_name = pool_name) %>% 
+  ungroup()
+
+```
 # Save outputs
 
 ```{r output-files}
 fwrite(runlist, "./output_files/runlist.csv", row.names = FALSE)
 fwrite(model_output, "./output_files/model_output.csv", row.names = FALSE)
 fwrite(trk_output, "./output_files/trk_output.csv", row.names = FALSE)
+fwrite(dest_output, "./output_files/dest_output.csv", row.names = FALSE)
 ```
 
 `runlist` size = `r format(object.size(runlist), "Mb")`
