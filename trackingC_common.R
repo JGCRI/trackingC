@@ -50,3 +50,7 @@ MAIN_SCENARIO <- "ssp245"
 OUTPUT_YEARS <- 1750:2300
 
 TRACKING_START <- 1750
+
+# To reduce file size and (especially) memory footprint, we can only
+# retain every SAVE_EVERY_YEARS years
+SAVE_EVERY_YEARS <- 5

@@ -255,13 +255,19 @@ run_hector <- function(pdata, c, sce) {
     filter(year %in% OUTPUT_YEARS, 
            # Save only emissions and their destinations or the atmosphere 
            # and its sources to keep file size down
-           source_name == "earth_c" | pool_name == "atmos_co2")
-  out$results <- fetchvars(c, OUTPUT_YEARS, c("CO2_concentration", "RF_tot",
-                                              "RF_CO2", "global_tas", "luc_emissions"))
+           source_name == "earth_c" | pool_name == "atmos_co2") %>% 
+    # remove unneeded rows to shrink outputs
+    filter(year %% SAVE_EVERY_YEARS == 0)
+  out$results <- fetchvars(c, OUTPUT_YEARS, 
+                           c("CO2_concentration", "RF_tot",
+                             "RF_CO2", "global_tas", "luc_emissions")) %>% 
+    # remove unneeded rows to shrink outputs
+    filter(year %% SAVE_EVERY_YEARS == 0)
+  
   # Remove unneeded columns to save space
   out$results$scenario <- NULL
   out$results$units <- NULL
-
+  
   return(out)
 }
 
@@ -293,7 +299,7 @@ for(s in names(SSP_files)) {
     # Create unique ssp + run_number identifier for each row so that data 
     # does not get overwritten
     id <- paste0(s, "_", row)
-
+    
     outp <- try(run_hector(s_runlist[row,][-c(1, 2)], core, s))
     if(class(outp) == "try-error") { 
       # if there is an error, record row numbers that error
