@@ -23,13 +23,13 @@ scalar_vector <- "LUC_SCALE"
 
 # Number of runs for each SSP scenario
 SSP_runs <- c(#"ssp119" = 100,
-              "ssp126" = 500,
-              "ssp245" = 500,
-              "ssp370" = 500,
+              "ssp126" = 1000,
+              "ssp245" = 1000,
+              "ssp370" = 1000,
               #"ssp434" = 100,
-              "ssp460" = 500,
+              "ssp460" = 1000,
               #"ssp534-over" = 100,
-              "ssp585" = 500)
+              "ssp585" = 1000)
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
@@ -51,6 +51,6 @@ OUTPUT_YEARS <- 1750:2300
 
 TRACKING_START <- 1750
 
-# To reduce file size and (especially) memory footprint, we can only
-# retain every SAVE_EVERY_YEARS years
-SAVE_EVERY_YEARS <- 5
+# To reduce file size and memory footprint, we only retain
+# every SAVE_EVERY_YEARS years; this can be 1 to retain all data
+SAVE_EVERY_YEARS <- 10

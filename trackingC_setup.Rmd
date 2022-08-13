@@ -262,7 +262,9 @@ run_hector <- function(pdata, c, sce) {
   
   out$results <- fetchvars(c, OUTPUT_YEARS, 
                            c("CO2_concentration", "RF_tot",
-                             "RF_CO2", "global_tas", "luc_emissions"))
+                             "RF_CO2", "global_tas", "luc_emissions")) %>% 
+    # remove unneeded rows to shrink outputs
+    filter(year %% SAVE_EVERY_YEARS == 0)
   
   # Remove unneeded columns to save space
   out$results$scenario <- NULL
@@ -347,14 +349,6 @@ trk_output <- bind_rows(tdata) %>% as_tibble
 # Then, access model output data
 results <- lapply(out, function(x) x$results)
 model_output <- bind_rows(results) %>% as_tibble()
-
-# Can left join with runlist to get param values
-# Make sure data is same class
-#trk_output$run_number <- as.integer(trk_output$run_number)
-#trk_output <- left_join(trk_output, runlist, by = c("run_number", "ssp"))
-
-#model_output$run_number <- as.integer(model_output$run_number)
-#model_output <- left_join(model_output, runlist, by = c("run_number", "ssp"))
 ```
 
 ```{r destination-data}
@@ -367,7 +361,8 @@ dest_output <- trk_output %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
   group_by(year, run_number) %>%
   summarize(destination_fraction = source_quantity / sum(source_quantity),
-            pool_name = pool_name) %>% 
+            pool_name = pool_name,
+            .groups = "drop") %>% 
   ungroup()
 ```
 

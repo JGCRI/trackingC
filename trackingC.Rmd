@@ -162,7 +162,6 @@ plot_data_co2 %>%
        y = "CO2 (ppm)",
        color = "Source",
        fill = "Source")
-
 ```
 
 
