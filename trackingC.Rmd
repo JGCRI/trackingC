@@ -46,6 +46,7 @@ dest_output <- fread("./output_files/dest_output.csv")
 # Will model_output ever NOT be sorted by run_number?
 model_output$ssp <- runlist$ssp[model_output$run_number]
 trk_output$ssp <- runlist$ssp[trk_output$run_number]
+dest_output$ssp <- runlist$ssp[dest_output$run_number]
 
 # If there are over 100 observations per time point and we want to plot
 # individual runs, we use slice_sample() to randomly select 100 rows.
@@ -529,9 +530,8 @@ dest <- dest_output %>%
   as.data.frame()
 
 # Filter to just atmosphere pool, and remove unneeded columns
-dest_e2a <- ffi_destinations %>% 
-  filter(pool_name == "atmos_co2") %>% 
-  left_join(runlist, by = c("run_number", "ssp"))
+dest_e2a <- dest %>% 
+  filter(pool_name == "atmos_co2")
   
 dest_e2a_minimal <- dest_e2a[c("year", "destination_fraction", "ssp", names(name_vector))]
 rm(dest_e2a)
