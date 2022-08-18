@@ -53,4 +53,4 @@ TRACKING_START <- 1750
 
 # To reduce file size and memory footprint, we only retain
 # every SAVE_EVERY_YEARS years; this can be 1 to retain all data
-SAVE_EVERY_YEARS <- 10
+SAVE_EVERY_YEARS <- 1
