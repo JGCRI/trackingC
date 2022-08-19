@@ -150,7 +150,7 @@ hector_co2 <- model_output_filtered_1 %>%
 plot_data_co2 <- bind_rows(cmip_co2_hist, hector_co2)
 
 # Plot
-plot_data_co2 %>% 
+co2_plot <- plot_data_co2 %>% 
   filter(year < 2015) %>%
   ggplot(aes(year, fill = source, color = source)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
@@ -162,7 +162,8 @@ plot_data_co2 %>%
   labs(x = "Year",
        y = "CO2 (ppm)",
        color = "Source",
-       fill = "Source")
+       fill = "Source") +
+  scale_x_continuous(expand = c(0, 0)) ; co2_plot
 ```
 
 
@@ -294,7 +295,7 @@ ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP460", "SSP585")
 names(ssp_labels) <- c(names(SSP_runs))
 
 # Plot temperature spreads for each scenario, Hector vs CMIP
-model_output_final %>%
+temp_plot <- model_output_final %>%
   filter(variable == "global_tas",
          year >= 1850 & year <= 2100) %>%
   # compute median, min, max, etc. for all remaining runs
@@ -320,7 +321,8 @@ model_output_final %>%
   labs(x = "Year",
        y = expression(degree*C),
        color = "Source",
-       fill = "Source")
+       fill = "Source") +
+  scale_x_continuous(expand = c(0, 0)) ; temp_plot
 ```
 
 
@@ -352,7 +354,7 @@ atm_summary <- atmosphere_pool %>%
 atm_summary$source_name <- factor(atm_summary$source_name, levels = rev(c("HL", "LL", "detritus_c",
                                                                           "intermediate", "deep", "veg_c",
                                                                           "soil_c", "earth_c", "atmos_co2")))
-atm_summary %>%
+atm_plot <- atm_summary %>%
   filter(year > 1800) %>%
   ggplot(aes(year)) +
   geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
@@ -361,8 +363,16 @@ atm_summary %>%
   facet_wrap(~source_name, scales = "free",
              labeller = labeller(source_name = pool_labels)) +
   labs(x = "Year",
-       y = "Source fraction of CO2 in atmosphere")
+       y = "Source fraction of CO2 in atmosphere") +
+  scale_x_continuous(expand = c(0, 0)) ; atm_plot
  
+
+percent_summary <- atmosphere_pool %>%
+  filter(year %in% c(2010, 2050, 2100, 2300),
+         source_name == "earth_c") %>%
+  group_by(ssp, year) %>%
+  summarize(avg = mean(source_fraction),
+            med = median(source_fraction))
   
 # atmosphere_pool %>%
 # filter(ssp == MAIN_SCENARIO,
@@ -396,7 +406,7 @@ ff <- atmosphere_pool %>%
             sf_max = max(source_fraction),
             sf_median = median(source_fraction))
 
-ggplot(ff, aes(year,  fill = ssp)) +
+atm_fraction_plot <- ggplot(ff, aes(year,  fill = ssp)) +
   geom_line(aes(y = sf_median, color = ssp)) +
   #geom_ribbon(aes(ymin = sf_min, ymax = sf_max), alpha = 0.2) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.2) +
@@ -407,7 +417,8 @@ ggplot(ff, aes(year,  fill = ssp)) +
   labs(x = "Year",
        y = "Fraction of atmospheric CO2",
        color = "Scenario",
-       fill = "Scenario")
+       fill = "Scenario") +
+  scale_x_continuous(expand = c(0, 0)) ; atm_fraction_plot
 ```
 
 ## Destination of anthropogenic emissions
@@ -435,8 +446,8 @@ names(o_pool_labels) <- c("atmos_co2", "soil_c", "veg_c",  "detritus_c",
                                   "HL", "LL", "intermediate", "deep")
 
 # Just looking at the mean of all runs in SSP245
-dest_output %>%
-  filter(ssp == MAIN_SCENARIO) %>%
+dest_plot <- dest_output %>%
+ # filter(ssp == MAIN_SCENARIO) %>%
   group_by(ssp, year, pool_name) %>%
   mutate(dest_avg = mean(destination_fraction),
          pool_name = factor(pool_name, levels = rev(c("deep", "intermediate",
@@ -450,12 +461,14 @@ dest_output %>%
                        labels = o_pool_labels) +
   labs(x = "Year",
        y = "Fraction of anthropogenic emissions",
-       fill = "Destination")
-# These lines are to look at multiple scenarios
-# facet_wrap(~ssp) +
-#theme(#strip.background = element_blank(),
-#strip.text.x = element_blank(),
-#axis.text.x = element_text(angle = 90))
+       fill = "Destination") +
+  scale_x_continuous(expand = c(0, 0)) +
+  # These lines are to look at multiple scenarios
+  facet_wrap(~ssp,
+             labeller = labeller(ssp = ssp_labels)) +
+  theme(#strip.background = element_blank(),
+    # strip.text.x = element_blank(),
+    axis.text.x = element_text(angle = 90)) ; dest_plot
 
 ```
 
@@ -568,7 +581,7 @@ relimp_out <- lapply(dest_split, FUN = calc_relimp) %>%
   bind_rows()
     
 # ...and plot!
-relimp_out %>%
+importance_plot <- relimp_out %>%
   mutate(param = factor(param, levels = rev(c("NPP_FLUX0", "Q10_RH", "BETA", "ECS", 
                                        "DIFFUSIVITY", "AERO_SCALE",
                                        "LUC_SCALE")))) %>%
@@ -590,10 +603,10 @@ relimp_out %>%
   labs(x = "Year",
        y = "Relative importance for anthropogenic CO2 in the atmosphere",
        fill = "Parameter") +
-  theme(axis.text.x = element_text(angle = 90))
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_x_continuous(expand = c(0, 0)) ; importance_plot
 
 ```
-
 
 ## Airborne fraction
 
@@ -703,7 +716,7 @@ plot_data <- bind_rows(emissions_fraction, classic_af) %>%
   select(run_number, year, ssp, minimum, maximum, med, sdev, def) %>%
   filter(year %in% 1910:2200) # past 2200, data gets weird
 
-ggplot(plot_data, aes(x = year, fill = def)) +
+af_plot <- ggplot(plot_data, aes(x = year, fill = def)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), 
               alpha = 0.2) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), 
@@ -718,7 +731,15 @@ ggplot(plot_data, aes(x = year, fill = def)) +
       y = "Airborne fraction",
       color = "Computation",
       fill = "Computation") +
-  theme(axis.text.x = element_text(angle = 90))
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_x_continuous(expand = c(0, 0)) ; af_plot
+
+
+test <- classic_af %>%
+  ungroup() %>%
+  filter(year %in% 1960:2020) %>%
+  summarize(avg = mean(af),
+            .groups = "drop")
 
 ```
 
@@ -755,11 +776,13 @@ a <- af_trend %>%
   select(run_number, 
          computation = def, 
          af_trend = decade, error, p.value) 
-a %>% 
+
+af_trend_plot <- a %>% 
   ggplot(aes(af_trend)) + 
   geom_histogram(bins = 40) +
   labs(x = expression(Airborne~fraction~trend~(decade^-1)),
-       y = "Count")
+       y = "Count") +
+  scale_x_continuous(expand = c(0, 0)) ; af_trend_plot
 
 # Summary stats
 a_stats <- a %>%
@@ -774,7 +797,7 @@ a_stats %>% knitr::kable(digits = 4)
 af_negative <- round(sum(a$af_trend < 0) / nrow(a) * 100, 1)
 
 # LUC comparison
-luc <- model_output_filtered %>%
+luc <- model_output_final %>%
   filter(year %in% 1960:2020,
          variable == "luc_emissions")
 
