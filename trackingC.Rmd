@@ -43,7 +43,6 @@ trk_output <- fread("./output_files/trk_output.csv")
 dest_output <- fread("./output_files/dest_output.csv")
 
 # Add ssp information to the output data
-# Will model_output ever NOT be sorted by run_number?
 model_output$ssp <- runlist$ssp[model_output$run_number]
 trk_output$ssp <- runlist$ssp[trk_output$run_number]
 dest_output$ssp <- runlist$ssp[dest_output$run_number]
@@ -473,7 +472,7 @@ atm_fraction_plot <- ggplot(ff, aes(year,  fill = ssp)) +
   scale_x_continuous(expand = c(0, 0)) ; atm_fraction_plot
 ```
 
-``` {r cleanup-source}
+``` {r cleanup-source, echo = FALSE}
 rm(list = c("atmosphere_pool", "ff", "atm_summary", "atm_plot", "percent_summary"))
 ```
 
