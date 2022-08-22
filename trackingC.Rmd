@@ -325,6 +325,58 @@ temp_plot <- model_output_final %>%
   scale_x_continuous(expand = c(0, 0)) ; temp_plot
 ```
 
+## Hector temperature vs CMIP6 diagnostic
+
+``` {r s-cmip, message = FALSE, warning = FALSE, fig.cap = " Visualization of sample model runs. The black dots represent the CMIP6 minimums and maximums for global temperature anomaly, and the runs that pass must fall within these bounds more than 50% of the time."}
+# Visualize the run fail summary calculated above
+# Make a table of failure rates
+run_fail_summary_h %>% 
+  group_by(fraction_fail > 0.33) %>% 
+  summarise(n()) %>% 
+  knitr::kable()
+
+run_fail_summary_tgav %>% 
+  group_by(fraction_fail > 0.33) %>% 
+  summarise(n()) %>% 
+  knitr::kable()
+
+run_fail_summary_tgav_ssp %>% 
+  group_by(fraction_fail > 0.5) %>% 
+  summarise(n()) %>% 
+  knitr::kable()
+
+# ...and a figure 
+hector_temp_runs <- tgav_h_ssp %>% 
+  group_by(ssp) %>%
+  filter(year == min(year)) %>%
+  slice_sample(n = 100, replace = TRUE) %>% # this is a debugging figure; plot just 100 runs for clarity
+  arrange(ssp, run_number) %>%
+  summarize(run_number)
+
+# Filter out data for just the 100 runs per scenario identified above
+hector_temp_slice <- left_join(hector_temp_runs, tgav_h_ssp, by = c("run_number", "ssp"))
+  
+# Plot
+left_join(hector_temp_slice, run_fail_summary_tgav_ssp, by = c("run_number", "ssp")) %>%
+  ggplot(aes(year, value, color = fraction_fail, group = run_number)) + 
+  geom_line() + 
+  geom_point(aes(y = minimum), color = "black") + 
+  geom_point(aes(y = maximum), color = "black") +
+  facet_wrap(~ssp,
+             labeller = labeller(ssp = ssp_labels),
+             ncol = 3) +
+  scale_color_viridis_c() +
+  labs(x = "Year",
+       y = expression(degree*C),
+       color = "Fraction of failed runs")
+
+```
+
+``` {r cleanup-cmip, echo = FALSE}
+rm(list = c("cmip_co2", "cmip_co2_hist", "cmip_bounds_h", "cmip_bounds_t", "cmip_hist_repeat",
+     "cmip_hist_repeat_t", "cmip_sce", "cmip_t_final", "cmip_t_scenarios",
+     "cmip_tgav_hist", "cmip_tgav_sce"))
+```
 
 ## Sources of atmospheric CO~2~
 
@@ -419,6 +471,10 @@ atm_fraction_plot <- ggplot(ff, aes(year,  fill = ssp)) +
        color = "Scenario",
        fill = "Scenario") +
   scale_x_continuous(expand = c(0, 0)) ; atm_fraction_plot
+```
+
+``` {r cleanup-source}
+rm(list = c("atmosphere_pool", "ff", "atm_summary", "atm_plot", "percent_summary"))
 ```
 
 ## Destination of anthropogenic emissions
@@ -608,6 +664,11 @@ importance_plot <- relimp_out %>%
 
 ```
 
+``` {r cleanup-destination, echo = FALSE}
+rm(list = c("dest_plot", "all_years_tracking", "dest", "dest_e2a_minimal", "dest_output",
+     "dest_split", "importance_plot"))
+```
+
 ## Airborne fraction
 
 ### Airborne fraction and "fraction of emissions remaining in atmosphere"
@@ -712,11 +773,11 @@ classic_af <- af_results %>%
          run_number %in% emissions_fraction$run_number)
 
 # Isolate relevant parameters and plot
-plot_data <- bind_rows(emissions_fraction, classic_af) %>%
+af_plot_data <- bind_rows(emissions_fraction, classic_af) %>%
   select(run_number, year, ssp, minimum, maximum, med, sdev, def) %>%
   filter(year %in% 1910:2200) # past 2200, data gets weird
 
-af_plot <- ggplot(plot_data, aes(x = year, fill = def)) +
+af_plot <- ggplot(af_plot_data, aes(x = year, fill = def)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), 
               alpha = 0.2) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), 
@@ -735,7 +796,7 @@ af_plot <- ggplot(plot_data, aes(x = year, fill = def)) +
   scale_x_continuous(expand = c(0, 0)) ; af_plot
 
 
-test <- classic_af %>%
+average_af <- classic_af %>%
   ungroup() %>%
   filter(year %in% 1960:2020) %>%
   summarize(avg = mean(af),
@@ -828,6 +889,14 @@ luc_trend <- luc %>%
 
 `r af_negative`% of the runs had a negative AF trend.
 
+``` {r cleanup-af, echo = FALSE}
+rm(list = c("atm_earth_diffs", "af_results", "min_runs", "emissions", 
+            "emissions_fraction", "classic_af", "af_plot_data", "average_af", 
+            "af", "af_trend", "af_trend_plot", "a_stats", "af_negative",
+            "luc", "luc_avg", "luc_trend"))
+
+```
+
 # Supplementary figures
 
 ## Realized parameter PDFs
@@ -851,56 +920,10 @@ runlist %>%
   labs(x = NULL, y = NULL)
 ```
 
-## Hector temperature vs CMIP6 diagnostic
-
-``` {r s-cmip, message = FALSE, warning = FALSE, fig.cap = " Visualization of sample model runs. The black dots represent the CMIP6 minimums and maximums for global temperature anomaly, and the runs that pass must fall within these bounds more than 50% of the time."}
-# Visualize the run fail summary calculated above
-# Make a table of failure rates
-run_fail_summary_h %>% 
-  group_by(fraction_fail > 0.33) %>% 
-  summarise(n()) %>% 
-  knitr::kable()
-
-run_fail_summary_tgav %>% 
-  group_by(fraction_fail > 0.33) %>% 
-  summarise(n()) %>% 
-  knitr::kable()
-
-run_fail_summary_tgav_ssp %>% 
-  group_by(fraction_fail > 0.5) %>% 
-  summarise(n()) %>% 
-  knitr::kable()
-
-# ...and a figure 
-hector_temp_runs <- tgav_h_ssp %>% 
-  group_by(ssp) %>%
-  filter(year == min(year)) %>%
-  slice_sample(n = 100, replace = TRUE) %>% # this is a debugging figure; plot just 100 runs for clarity
-  arrange(ssp, run_number) %>%
-  summarize(run_number)
-
-# Filter out data for just the 100 runs per scenario identified above
-hector_temp_slice <- left_join(hector_temp_runs, tgav_h_ssp, by = c("run_number", "ssp"))
-  
-# Plot
-left_join(hector_temp_slice, run_fail_summary_tgav_ssp, by = c("run_number", "ssp")) %>%
-  ggplot(aes(year, value, color = fraction_fail, group = run_number)) + 
-  geom_line() + 
-  geom_point(aes(y = minimum), color = "black") + 
-  geom_point(aes(y = maximum), color = "black") +
-  facet_wrap(~ssp,
-             labeller = labeller(ssp = ssp_labels),
-             ncol = 3) +
-  scale_color_viridis_c() +
-  labs(x = "Year",
-       y = expression(degree*C),
-       color = "Fraction of failed runs")
-
-```
 
 ## Source coefficients of variability
 
-``` {r s-coeff-var, echo = FALSE, eval = FALSE, warning = FALSE, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
+``` {r s-coeff-var, eval = F, echo = FALSE, eval = FALSE, warning = FALSE, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
 # Compute coefficient of variability for each source in the atmosphere pool
 atmos_cv <- atmosphere_pool %>%
   filter(ssp == MAIN_SCENARIO) %>%
@@ -927,7 +950,7 @@ ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
 
 ## Parameter distributions and source fraction controls
 
-```{r s-parameter-space, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating how much of the atmosphere is composed of anthropogenic CO2 in the year 2100."}
+```{r s-parameter-space, eval = F, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating how much of the atmosphere is composed of anthropogenic CO2 in the year 2100."}
 # Exploring how the parameter space is linked to output
 # What parameters control the percentage of earth_c in the atmosphere?
 # Isolating the year 2100
@@ -958,7 +981,7 @@ ggpairs(ffi_atm_2100,
 
 ## Airborne fraction window size
 
-```{r s-af-window, fig.cap = " Airborne fraction mathematically computed over varying time window sizes."}
+```{r s-af-window, eval = F, fig.cap = " Airborne fraction mathematically computed over varying time window sizes."}
 # Plot airborne fraction window size plot
 af_results %>% 
   group_by(year, ssp, window_size) %>% 

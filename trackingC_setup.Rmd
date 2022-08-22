@@ -83,7 +83,7 @@ library(gridExtra)
 library(ggExtra)
 library(GGally)
 library(bookdown)
-library(data.table) # for the speed of fwrite()
+library(data.table) 
 
 theme_set(theme_light())
 
