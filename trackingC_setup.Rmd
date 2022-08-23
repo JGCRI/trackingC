@@ -83,7 +83,7 @@ library(gridExtra)
 library(ggExtra)
 library(GGally)
 library(bookdown)
-library(data.table) # for the speed of fwrite()
+library(data.table) 
 
 theme_set(theme_light())
 
@@ -138,7 +138,7 @@ generate_params <- function(run_numbers){
     "NPP_FLUX0" = rnorm(runs, mean = 56.2, sd = 14.3),
     
     # Smith et al. (2020)
-    "AERO_SCALE" = rnorm(runs, mean = -1.01, sd = 0.23),
+    "AERO_SCALE" = rnorm(runs, mean = 1.01, sd = 0.23),
     
     # Land use change emissions scaling parameter, to account for uncertainties in values for LUC
     # Friedlingstein et al 2021 state: 
@@ -226,7 +226,7 @@ tibble(lognorm = ecs_vals_lognorm, transformed = runlist$ECS) %>%
 
 Run the model and store outputs and tracking data.
 
-```{r functions, cache=TRUE, message=FALSE}
+```{r functions, message=FALSE, cache=TRUE}
 run_hector <- function(pdata, c, sce) {
   
   # Function to set multiple parameter values for Hector, run a core, and retrieve tracking data
@@ -254,13 +254,22 @@ run_hector <- function(pdata, c, sce) {
   out <- list()
   out$tdata <- get_tracking_data(c) %>% 
     filter(year %in% OUTPUT_YEARS, 
-           # Save only emissions and their destinations or the atmosphere and its sources
-           # to keep file size down
-           source_name == "earth_c" | pool_name == "atmos_co2")
-  out$results <- fetchvars(c, OUTPUT_YEARS, c("CO2_concentration", "RF_tot", "RF_CO2", "global_tas", "luc_emissions"))
+           # Save only emissions and their destinations or the atmosphere 
+           # and its sources to keep file size down
+           source_name == "earth_c" | pool_name == "atmos_co2",
+           # remove unneeded rows to shrink outputs
+           year %% SAVE_EVERY_YEARS == 0)
   
-  out$results$ssp <- sce
-  out$tdata$ssp <- sce
+  out$results <- fetchvars(c, OUTPUT_YEARS, 
+                           c("CO2_concentration", "RF_tot",
+                             "RF_CO2", "global_tas", "luc_emissions")) %>% 
+    # remove unneeded rows to shrink outputs
+    filter(year %% SAVE_EVERY_YEARS == 0)
+  
+  # Remove unneeded columns to save space
+  out$results$scenario <- NULL
+  out$results$units <- NULL
+  
   return(out)
 }
 
@@ -292,7 +301,7 @@ for(s in names(SSP_files)) {
     # Create unique ssp + run_number identifier for each row so that data 
     # does not get overwritten
     id <- paste0(s, "_", row)
-
+    
     outp <- try(run_hector(s_runlist[row,][-c(1, 2)], core, s))
     if(class(outp) == "try-error") { 
       # if there is an error, record row numbers that error
@@ -340,31 +349,23 @@ trk_output <- bind_rows(tdata) %>% as_tibble
 # Then, access model output data
 results <- lapply(out, function(x) x$results)
 model_output <- bind_rows(results) %>% as_tibble()
-
-# Can left join with runlist to get param values
-# Make sure data is same class
-trk_output$run_number <- as.integer(trk_output$run_number)
-trk_output <- left_join(trk_output, runlist, by = c("run_number", "ssp"))
-
-model_output$run_number <- as.integer(model_output$run_number)
-model_output <- left_join(model_output, runlist, by = c("run_number", "ssp"))
 ```
 
-``` {r destination-data}
+```{r destination-data}
 # To save memory in our main file, we manipulate the destination fraction code here
 # Step 1: compute source_quantity = pool_value * source_fraction
 # Step 2: for each year and source_name, compute destination_fraction
 
-### Move to setup, write out destination file and tracking file
 dest_output <- trk_output %>%
   filter(source_name == "earth_c", pool_name != "earth_c") %>%
   mutate(source_quantity = pool_value * source_fraction) %>%
-  group_by(year, ssp, run_number) %>%
+  group_by(year, run_number) %>%
   summarize(destination_fraction = source_quantity / sum(source_quantity),
-            pool_name = pool_name) %>% 
+            pool_name = pool_name,
+            .groups = "drop") %>% 
   ungroup()
-
 ```
+
 # Save outputs
 
 ```{r output-files}
@@ -373,6 +374,13 @@ fwrite(model_output, "./output_files/model_output.csv", row.names = FALSE)
 fwrite(trk_output, "./output_files/trk_output.csv", row.names = FALSE)
 fwrite(dest_output, "./output_files/dest_output.csv", row.names = FALSE)
 ```
+
+`runlist` size = `r format(object.size(runlist), "Mb")`
+
+`model_output` size = `r format(object.size(model_output), "Mb")`
+
+`trk_output` size = `r format(object.size(trk_output), "Mb")`
+
 
 # The End
 
