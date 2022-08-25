@@ -296,10 +296,10 @@ gc()
 # Access good run numbers for destination code below
 dest_runs <- trk_output_final$run_number
 dest_output <- dest_output %>%
-  filter(run_number %in% dest_runs) %>%
+  filter(run_number %in% dest_runs)
   
-  # Create facet labels for plotting
-  ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP460", "SSP585")
+# Create facet labels for plotting
+ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP460", "SSP585")
 names(ssp_labels) <- c(names(SSP_runs))
 
 # Plot temperature spreads for each scenario, Hector vs CMIP6
