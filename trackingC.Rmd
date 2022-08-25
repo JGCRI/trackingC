@@ -39,12 +39,14 @@ source("trackingC_common.R")
 # Read in data files
 runlist <- fread("./output_files/runlist.csv")
 model_output <- fread("./output_files/model_output.csv")
-trk_output <- fread("./output_files/trk_output.csv")
+trk_output_final <- fread("./output_files/trk_final.csv")
+
 dest_output <- fread("./output_files/dest_output.csv")
+dest_runs <- trk_output_final$run_number
 
 # Add ssp information to the output data
 model_output$ssp <- runlist$ssp[model_output$run_number]
-trk_output$ssp <- runlist$ssp[trk_output$run_number]
+#trk_output$ssp <- runlist$ssp[trk_output$run_number]
 dest_output$ssp <- runlist$ssp[dest_output$run_number]
 
 # If there are over 100 observations per time point and we want to plot
@@ -112,20 +114,19 @@ carbon_h <- model_output %>%
 # Summarize
 run_fail_summary_h <- carbon_h %>%
   group_by(run_number) %>%
-  summarize(fraction_fail = sum(fail) / n())
+  summarize(fraction_fail = sum(fail) / n()) %>%
+  filter(fraction_fail < 0.33)
 
 # Filter out 'unrealistic' runs (identified above)
 model_output_filtered_1 <- model_output %>%
   left_join(run_fail_summary_h, by = "run_number") %>% 
-  filter(fraction_fail < 0.33) %>% 
   select(-fraction_fail)
 
 rm(model_output)
 
 # Note that the tracking output needs to be filtered as well
-trk_output_filtered_1 <- trk_output %>%
-  left_join(run_fail_summary_h, by = "run_number") %>% 
-  filter(fraction_fail < 0.33) %>% 
+trk_output_filtered_1 <- run_fail_summary_h %>%
+  left_join(trk_output, by = "run_number") %>% 
   select(-fraction_fail)
 
 rm(trk_output)
@@ -240,20 +241,19 @@ tgav_h <- model_output_filtered_1 %>%
 # Summarize
 run_fail_summary_tgav <- tgav_h %>%
   group_by(ssp, run_number) %>%
-  summarize(fraction_fail = sum(fail) / n())
+  summarize(fraction_fail = sum(fail) / n()) %>%
+  filter(fraction_fail < 0.33)
 
 # Filter out 'unrealistic' runs (identified above)
 model_output_filtered_2 <- model_output_filtered_1 %>%
   left_join(run_fail_summary_tgav, by = c("ssp", "run_number")) %>% 
-  filter(fraction_fail < 0.33) %>%
   select(-fraction_fail)
 
 rm(model_output_filtered_1)
 
 # Note that the tracking output needs to be filtered as well
-trk_output_filtered_2 <- trk_output_filtered_1 %>%
-  left_join(run_fail_summary_tgav, by = c("ssp", "run_number")) %>% 
-  filter(fraction_fail < 0.33) %>%
+trk_output_filtered_2 <- run_fail_summary_tgav %>% 
+  left_join(trk_output_filtered_1, by = c("ssp", "run_number")) %>% 
   select(-fraction_fail)
 
 rm(trk_output_filtered_1)
@@ -273,7 +273,8 @@ tgav_h_ssp <- model_output_filtered_2 %>%
 # Summarize
 run_fail_summary_tgav_ssp <- tgav_h_ssp %>%
   group_by(ssp, run_number) %>%
-  summarize(fraction_fail = sum(fail) / n())
+  summarize(fraction_fail = sum(fail) / n()) %>%
+  filter(fraction_fail < 0.5)
 
 # Filter out 'unrealistic' runs (identified above)
 model_output_final <- model_output_filtered_2 %>%
@@ -283,9 +284,8 @@ model_output_final <- model_output_filtered_2 %>%
 rm(model_output_filtered_2)
 
 # Note that the tracking output needs to be filtered as well
-trk_output_final <- trk_output_filtered_2 %>%
-  left_join(run_fail_summary_tgav_ssp, by = c("ssp", "run_number")) %>% 
-  filter(fraction_fail < 0.5)
+trk_output_final <- run_fail_summary_tgav_ssp %>%
+  left_join(trk_output_filtered_2, by = c("ssp", "run_number"))
 
 rm(trk_output_filtered_2)
 
@@ -321,6 +321,7 @@ temp_plot <- model_output_final %>%
        y = expression(degree*C),
        color = "Source",
        fill = "Source") +
+  theme(axis.text.x = element_text(angle = 90))
   scale_x_continuous(expand = c(0, 0)) ; temp_plot
 ```
 
@@ -374,7 +375,8 @@ left_join(hector_temp_slice, run_fail_summary_tgav_ssp, by = c("run_number", "ss
 ``` {r cleanup-cmip, echo = FALSE}
 rm(list = c("cmip_co2", "cmip_co2_hist", "cmip_bounds_h", "cmip_bounds_t", "cmip_hist_repeat",
      "cmip_hist_repeat_t", "cmip_sce", "cmip_t_final", "cmip_t_scenarios",
-     "cmip_tgav_hist", "cmip_tgav_sce"))
+     "cmip_tgav_hist", "cmip_tgav_sce", "tgav_h", "tgav_h_ssp", "hector_temp_slice",
+     "hector_temp_runs", "hector_co2", "carbon_h"))
 ```
 
 ## Sources of atmospheric CO~2~
@@ -414,12 +416,12 @@ atm_plot <- atm_summary %>%
   facet_wrap(~source_name, scales = "free",
              labeller = labeller(source_name = pool_labels)) +
   labs(x = "Year",
-       y = "Source fraction of CO2 in atmosphere") +
+       y = "Source fraction of CO2 in atmosphere") ; atm_plot
   scale_x_continuous(expand = c(0, 0)) ; atm_plot
  
 
 percent_summary <- atmosphere_pool %>%
-  filter(year %in% c(2010, 2050, 2100, 2300),
+  filter(year %in% c(2015, 2100, 2300),
          source_name == "earth_c") %>%
   group_by(ssp, year) %>%
   summarize(avg = mean(source_fraction),
@@ -473,7 +475,8 @@ atm_fraction_plot <- ggplot(ff, aes(year,  fill = ssp)) +
 ```
 
 ``` {r cleanup-source, echo = FALSE}
-rm(list = c("atmosphere_pool", "ff", "atm_summary", "atm_plot", "percent_summary"))
+rm(list = c("atmosphere_pool", "ff", "atm_summary", "percent_summary",
+            "atm_plot", "atm_fraction_plot"))
 ```
 
 ## Destination of anthropogenic emissions
@@ -499,17 +502,16 @@ o_pool_labels <- c("Atmosphere", "Soil", "Vegetation",  "Detritus",
                                   "Intermed. ocean", "Deep ocean")
 names(o_pool_labels) <- c("atmos_co2", "soil_c", "veg_c",  "detritus_c",
                                   "HL", "LL", "intermediate", "deep")
-
-# Just looking at the mean of all runs in SSP245
-dest_plot <- dest_output %>%
- # filter(ssp == MAIN_SCENARIO) %>%
+dest_average <- dest_output %>%
   group_by(ssp, year, pool_name) %>%
   mutate(dest_avg = mean(destination_fraction),
          pool_name = factor(pool_name, levels = rev(c("deep", "intermediate",
                                                       "LL", "HL", "detritus_c", 
                                                       "veg_c", "soil_c", "atmos_co2")))) %>%
-  filter(run_number == min(run_number),
-         year > 1800) %>%
+  filter(year > 1800)
+
+# Just looking at the mean of all runs in SSP245
+dest_plot <- dest_average %>%  
   ggplot(aes(year, dest_avg, fill = pool_name)) +
   geom_area() +
   scale_fill_viridis_d(breaks = names(o_pool_labels),
@@ -524,6 +526,24 @@ dest_plot <- dest_output %>%
   theme(#strip.background = element_blank(),
     # strip.text.x = element_blank(),
     axis.text.x = element_text(angle = 90)) ; dest_plot
+
+# Looking at average pool destination
+average_summary <- dest_average %>% 
+  filter(year == 2300) %>% 
+  mutate(pool_name = gsub("atmos_co2", "atmosphere", pool_name),
+         pool_name = gsub("soil_c", "land", pool_name),
+         pool_name = gsub("veg_c", "land", pool_name),
+         pool_name = gsub("detritus_c", "land", pool_name),
+         pool_name = gsub("HL", "ocean", pool_name),
+         pool_name = gsub("LL", "ocean", pool_name),
+         pool_name = gsub("deep", "ocean", pool_name),
+         pool_name = gsub("intermediate", "ocean", pool_name)) %>%
+  group_by(ssp, pool_name) %>%
+  mutate(dest_avg = sum(dest_avg))
+  distinct(pool_name)
+  summarize(avg = mean(dest_avg))
+  pivot_wider(names_from = pool_name, values_from = avg)
+
 
 ```
 
@@ -593,7 +613,7 @@ all_years_tracking %>%
 ```{r relative-importance, message=FALSE, echo=FALSE, warning=FALSE, fig.cap = " Relative importance of parameters over time in controlling the atmosphere as a destination of anthropogenic emissions. Relative importance is the R^2 contribution averaged over orderings among regressors; here, we normalize the values so that they sum to one."}
 # Process data
 dest <- dest_output %>% 
-  filter(run_number %in% trk_output_final$run_number) %>%
+  filter(run_number %in% dest_runs) %>%
   left_join(runlist, by = c("run_number", "ssp")) %>%
   as.data.frame()
 
@@ -653,19 +673,20 @@ importance_plot <- relimp_out %>%
                                   "CO2 fertilization", "Q10",
                                   "Pre-industrial NPP")) +
   facet_wrap(~ssp,
-             labeller = labeller(ssp = ssp_labels),
-             ncol = 3) +
+             labeller = labeller(ssp = ssp_labels)) +
   labs(x = "Year",
        y = "Relative importance for anthropogenic CO2 in the atmosphere",
        fill = "Parameter") +
-  theme(axis.text.x = element_text(angle = 90)) +
+  theme(axis.text.x = element_text(angle = 90),
+        panel.spacing=unit(1, "lines")) +
   scale_x_continuous(expand = c(0, 0)) ; importance_plot
 
 ```
 
 ``` {r cleanup-destination, echo = FALSE}
-rm(list = c("dest_plot", "all_years_tracking", "dest", "dest_e2a_minimal", "dest_output",
-     "dest_split", "importance_plot"))
+rm(list = c("dest_plot", "all_years_tracking", "dest", "dest_e2a_minimal", 
+            "dest_output", "dest_average", "average_summary",
+            "relimp_out", "dest_split", "importance_plot"))
 ```
 
 ## Airborne fraction
@@ -774,7 +795,7 @@ classic_af <- af_results %>%
 # Isolate relevant parameters and plot
 af_plot_data <- bind_rows(emissions_fraction, classic_af) %>%
   select(run_number, year, ssp, minimum, maximum, med, sdev, def) %>%
-  filter(year %in% 1910:2200) # past 2200, data gets weird
+  filter(year %in% 1910:2100) # past 2200, data gets weird
 
 af_plot <- ggplot(af_plot_data, aes(x = year, fill = def)) +
   geom_ribbon(aes(ymin = minimum, ymax = maximum), 
@@ -791,8 +812,9 @@ af_plot <- ggplot(af_plot_data, aes(x = year, fill = def)) +
       y = "Airborne fraction",
       color = "Computation",
       fill = "Computation") +
-  theme(axis.text.x = element_text(angle = 90)) +
-  scale_x_continuous(expand = c(0, 0)) ; af_plot
+  theme(axis.text.x = element_text(angle = 90)) + 
+  scale_x_continuous(expand = c(0, 0)) +
+  ylim(-0.5, 1.5); af_plot
 
 
 average_af <- classic_af %>%
@@ -877,12 +899,12 @@ luc_trend <- luc %>%
   left_join(luc_avg, by = "ssp")
 
 # Organize data, make table
-# luc_trend %>%
-#   select(ssp, 
-#          luc_trend = estimate, 
-#          error = std.error,
-#          avg) %>%
-#   knitr::kable()
+luc_trend %>%
+  select(ssp,
+         luc_trend = estimate,
+         error = std.error,
+         avg) %>%
+  knitr::kable()
 
 ```
 
@@ -890,9 +912,9 @@ luc_trend <- luc %>%
 
 ``` {r cleanup-af, echo = FALSE}
 rm(list = c("atm_earth_diffs", "af_results", "min_runs", "emissions", 
-            "emissions_fraction", "classic_af", "af_plot_data", "average_af", 
-            "af", "af_trend", "af_trend_plot", "a_stats", "af_negative",
-            "luc", "luc_avg", "luc_trend"))
+            "emissions_fraction", "classic_af", "af_plot_data", "af_plot", 
+            "average_af", "af", "af_trend", "af_trend_plot", "a_stats", 
+            "af_negative", "a", "luc", "luc_avg", "luc_trend"))
 
 ```
 
@@ -908,7 +930,7 @@ param_labels <- c("Aerosol forcing", "CO2 fertilization", "Ocean diffusivity",
 names(param_labels) <- c("AERO_SCALE", "BETA", "DIFFUSIVITY", "ECS", "LUC_SCALE", 
                          "NPP_FLUX0", "Q10_RH")
 
-runlist %>% 
+runlist_plot <- runlist %>% 
   filter(ssp == MAIN_SCENARIO) %>%
   select(-c(run_number, ssp)) %>%
   pivot_longer(everything()) %>% 
@@ -916,7 +938,7 @@ runlist %>%
   geom_density() + 
   facet_wrap(~name, scales = "free",
              labeller = labeller(name = param_labels)) +
-  labs(x = NULL, y = NULL)
+  labs(x = NULL, y = NULL) ; runlist_plot
 ```
 
 
