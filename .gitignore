@@ -47,3 +47,6 @@ vignettes/*.pdf
 
 # Output files
 output_files/*.csv
+
+# Figures
+figures/*.png
