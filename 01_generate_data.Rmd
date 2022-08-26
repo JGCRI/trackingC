@@ -1,5 +1,5 @@
 ---
-title: "trackingC_setup"
+title: "01_generate_data"
 author: "Leeya Pressburger"
 date: "`r Sys.Date()`"
 output:
@@ -15,59 +15,6 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 ```
-
-# Introduction
-
-## Science background
-
-* We are pumping massive amounts of carbon dioxide into the atmosphere. 
-Many studies have looked at the current dynamics of the C cycle, and/or 
-long-term ultimate fate of anthropogenic CO~2~.
-
-* There are many uncertainties surrounding the trend of airborne fraction
-(thought of as how much anthropogenic CO~2~ remain in the atmosphere, though
-see below), and more generally surrounding feedbacks and processes in the
-earth system controlling the growth of atmospheric CO~2~ 
-and thus radiative forcing.
-
-* Simple climate models are a useful tool to understanding the short-term 
-impacts of humans on the climate. In particular, the simple climate model 
-Hector 3.0.0 incorporates a novel carbon tracking feature, allowing the user to 
-trace the origins of CO~2~ as it moves through the Earth system.  
-
-* Using this model allows us to understand how sensitive Hector is to changing 
-parameters as well as determining the uncertainties in model projections.
-
-## Goals
-
-Using Hector v3.0.0 and its novel carbon tracking feature, we want to:  
-
-* Understand the ultimate fate and distribution of anthropogenic CO~2~ and 
-its controls.  
-
-* Understand the uncertainties on the lifetime and fate of FFI CO~2~ emissions.  
-
-* Understand the uncertainties on the trends/robustness of airborne fraction as
-a metric for understanding how anthropogenic emissions influence the Earth system,
-and how Earth system feedbacks influence airborne fraction.
-
-* Quantify the likely distribution of the AF trend.
-
-# Methods
-
-## Definitions
-
-* ƒATM~ffi~: the fraction of atmospheric CO~2~ derived from fossil fuel industrial emissions
-* ƒFFI~atm~: the fraction of fossil fuel CO~2~ emissions residing in the atmosphere
-* AF: airborne fraction, computed as $\Delta$ATM / $\Sigma$FFI over some time period
-
-Note that while AF is commonly described as "the fraction of anthropogenic 
-emissions which remain in the atmosphere" 
-([source](https://gml.noaa.gov/co2conference/posters_pdf/jones1_poster.pdf)), 
-the ratio above will not exactly be that, because in some circumstances earth 
-system feedbacks will add to (or remove from) atmospheric CO~2~ as well. 
-In addition, note that the formula above produces negative numbers if $\Delta$ATM < 0.
-
 
 ### R setup
 
@@ -324,6 +271,7 @@ tm <- difftime(Sys.time(), start_time, units = "secs") %>% round(1)
 
 # Collapse errors into a single vector
 errors <- unlist(errors)
+
 ```
 
 Doing `r nrow(runlist)` runs took `r tm` seconds 
@@ -349,6 +297,7 @@ trk_output <- bind_rows(tdata) %>% as_tibble
 # Then, access model output data
 results <- lapply(out, function(x) x$results)
 model_output <- bind_rows(results) %>% as_tibble()
+
 ```
 
 ```{r destination-data}
@@ -364,6 +313,7 @@ dest_output <- trk_output %>%
             pool_name = pool_name,
             .groups = "drop") %>% 
   ungroup()
+
 ```
 
 # Save outputs

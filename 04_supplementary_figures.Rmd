@@ -1,0 +1,226 @@
+---
+title: "04_supplementary_figures"
+author: "Leeya Pressburger"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Supplementary and extra figures
+
+## Realized parameter PDFs
+
+``` {r s-params-PDFs, fig.cap = paste0(" Probability densities of each parameter (N=", SSP_runs[[MAIN_SCENARIO]], " draws).")}
+# Density plots to visualize parameter distributions
+# Create facet labels
+param_labels <- c("Aerosol forcing", "CO2 fertilization", "Ocean diffusivity", 
+                  "ECS", "LUC emissions", "Pre-industrial NPP", "Q10")
+names(param_labels) <- c("AERO_SCALE", "BETA", "DIFFUSIVITY", "ECS", "LUC_SCALE", 
+                         "NPP_FLUX0", "Q10_RH")
+
+runlist_plot <- runlist %>% 
+  filter(ssp == MAIN_SCENARIO) %>%
+  select(-c(run_number, ssp)) %>%
+  pivot_longer(everything()) %>% 
+  ggplot(aes(value)) +
+  geom_density() + 
+  facet_wrap(~name, scales = "free",
+             labeller = labeller(name = param_labels)) +
+  labs(x = NULL, y = NULL) ; runlist_plot
+```
+
+## Source coefficients of variability
+
+``` {r s-coeff-var, eval = F, echo = FALSE, eval = FALSE, warning = FALSE, fig.cap = " Coefficients of variability for each source in the atmosphere over time."}
+# Compute coefficient of variability for each source in the atmosphere pool
+atmos_cv <- atmosphere_pool %>%
+  filter(ssp == MAIN_SCENARIO) %>%
+  group_by(year, source_name) %>%
+  mutate(sdev = sd(source_fraction),
+         mean = mean(source_fraction),
+         cv = sdev / mean)
+
+# Plot the coefficient of variability for each source in atmosphere pool over time
+ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
+  geom_line() +
+  scale_color_viridis_d(breaks = c("veg_c", "detritus_c", "soil_c", "earth_c",
+                                   "LL", "atmos_co2", "intermediate", "deep", "HL"),
+                        labels = c("Vegetation", "Detritus", "Soil", "Anthropogenic emissions",
+                                   "Low-lat ocean", "Atmosphere", "Intermed. ocean",
+                                   "Deep ocean", "High-lat ocean")) +
+  labs(x = "Source fraction",
+       y = "Coefficient of variability",
+       color = "Source parameter") +
+  xlim(1800, 2300) +
+  ylim(0, 0.25)
+
+```
+
+## Parameter distributions and source fraction controls
+
+```{r s-parameter-space, eval = F, fig.cap = " Parameter correlations and distributions (diagonal), with color indicating how much of the atmosphere is composed of anthropogenic CO2 in the year 2100."}
+# Exploring how the parameter space is linked to output
+# What parameters control the percentage of earth_c in the atmosphere?
+# Isolating the year 2100
+pairs_labels <- c("Aerosol", "Beta", "Keff", 
+                  "ECS", "LUC", "NPP", "Q10")
+names(pairs_labels) <- c("AERO_SCALE", "BETA", "DIFFUSIVITY", "ECS", "LUC_SCALE", 
+                         "NPP_FLUX0", "Q10_RH")
+
+ffi_atm_2100 <- atmosphere_pool %>%
+  filter(source_name == "earth_c",
+         year == 2100) %>% 
+  mutate(sf = cut(source_fraction, 3)) %>% 
+  left_join(runlist, by = c("run_number", "ssp"))
+n <- length(name_vector)
+which_cols <- which(names(ffi_atm_2100) %in% names(name_vector))
+ggpairs(ffi_atm_2100,
+        columns = which_cols,
+        # Color by magnitude of source_fraction - how much earth_c is in the atmosphere
+        aes(color = sf), 
+        diag = list(mapping = aes(alpha = 0.5)),
+        upper = list(continuous = "blank"),
+        legend = c(6,5),
+        columnLabels = pairs_labels) + 
+  scale_color_viridis_d() + 
+  scale_fill_viridis_d() +
+  labs(color = "Source Fraction")
+```
+
+## Does time affect destination?
+
+```{r tracking-multiple-years, eval = F, warning = FALSE, fig.cap = paste0(" Final destination pools of anthropogenic emissions in ", MAIN_SCENARIO, " for ten 50-year periods between 1750 and 2250. Note that turning on carbon tracking at the beginning of each period does not have a dramatic effect on the destination of emissions.")}
+# Prepare data: reset the core, set start dates every 50 years
+tcore <- newcore(SSP_files[[MAIN_SCENARIO]])
+dates <- seq(from = TRACKING_START, to = 2250, 50)
+tracking_output <- list()
+
+# Function to set a tracking date, run the core for a 50 year period, and retrieve tracking data
+set_tracking <- function(c, date){
+  setvar(c, NA, TRACKING_DATE(), date, "(unitless)")
+  reset(c)
+  run(c, (date + 50))
+  tdata <- get_tracking_data(c)
+  tdata$ty <- date
+  tdata$ssp <- MAIN_SCENARIO
+  tdata
+}
+
+# Loop through above function for desired dates
+for(d in dates){
+  tracking_output[[d]] <- set_tracking(tcore, d)
+}
+
+all_years_tracking <- bind_rows(tracking_output)
+
+# Plot the fraction of the atmosphere that is sourced from earth_c
+# all_years_tracking %>%
+#   filter(source_name == "earth_c",
+#          pool_name == "atmos_co2") %>%
+#   ggplot(aes(year, source_fraction, color = ty, group = ty)) +
+#   geom_line() +
+#   labs(x = "Year",
+#        y = "Source fraction") +
+#   scale_color_viridis_c()
+
+
+# Plot the destination of earth_c emissions
+all_years_tracking %>%
+  filter(source_name == "earth_c", pool_name != "earth_c") %>%
+  mutate(source_quantity = pool_value * source_fraction) %>%
+  group_by(year) %>%
+  mutate(destination_fraction = source_quantity / sum(source_quantity)) %>% 
+  ungroup() %>%
+  mutate(pool_name = factor(pool_name, levels = rev(c("deep", "intermediate",
+                                                      "LL", "HL", "detritus_c",
+                                                      "veg_c", "soil_c", "atmos_co2")))) %>%
+  filter(ty != "2250") %>%
+  ggplot(aes(year, destination_fraction, fill = pool_name), group = ty) +
+  geom_area() +
+  facet_wrap(~ty, 
+             scales = "free_x",
+             nrow = 2) +
+  labs(x = "Year",
+       y = "Fraction of anthropogenic emissions",
+       fill = "Destination") +
+  scale_fill_viridis_d(breaks = names(o_pool_labels),
+                       labels = o_pool_labels) +
+  theme(axis.text.x = element_text(angle = 90))
+
+```
+
+## Airborne fraction window size
+
+```{r s-af-window, eval = F, fig.cap = " Airborne fraction mathematically computed over varying time window sizes."}
+# Plot airborne fraction window size plot
+af_results %>% 
+  group_by(year, ssp, window_size) %>% 
+  summarise(af = mean(af), .groups = "drop") %>% 
+  filter(year %in% 1900:2200) %>%
+  ggplot(aes(year, af, color = window_size, group = window_size)) + 
+  geom_line(na.rm = TRUE) + 
+  facet_wrap(~ssp, scales = "free",
+             labeller = labeller(ssp = ssp_labels)) +
+  scale_color_viridis_c() +
+  labs(x = "Year",
+       y = "Airborne fraction",
+       color = "Window size")
+
+```
+
+
+``` {r s-tracking-af, echo = FALSE, eval = FALSE}
+# We want to calculate airborne fraction in the year immediately following the 
+# tracking date. 
+date_plus_one <- dates + 1
+year_one <- all_years_tracking %>% 
+  filter(year %in% date_plus_one) %>%
+  # Assign arbitrary run number in order to use the emissions functions defined above
+  mutate(run_number = 1)
+
+# Compute cumulative emissions over time
+emissions_one <- calc_emissions(year_one)
+
+# Compute the fraction of fossil fuel emissions residing in the atmosphere
+emissions_frac_one <- calc_emissions_fraction(year_one, emissions_one)
+
+# Plot
+emissions_frac_one %>%
+  ggplot(aes(year, c_emissions_fraction, color = cumulative_emissions)) +
+  geom_point() +
+  scale_color_viridis_c()
+```
+
+``` {r luc}
+# LUC comparison
+luc <- model_output_final %>%
+  filter(year %in% 1960:2020,
+         variable == "luc_emissions")
+
+# Compute average LUC emissions by scenario  
+luc_avg <- luc %>%
+  group_by(ssp) %>%
+  summarize(avg = mean(value))
+
+# Compute LUC emissions trend, join with luc_avg
+luc_trend <- luc %>%
+  group_by(ssp) %>%
+  do(mod = lm(value ~ year, data = .)) %>%
+  summarize(ssp = ssp,
+            broom::tidy(mod)) %>%
+  # Extract only the slope, not the intercept term
+  filter(term == "year") %>%
+  left_join(luc_avg, by = "ssp")
+
+# Organize data, make table
+luc_trend %>%
+  select(ssp,
+         luc_trend = estimate,
+         error = std.error,
+         avg) %>%
+  knitr::kable()
+
+```
