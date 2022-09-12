@@ -76,16 +76,16 @@ generate_params <- function(run_numbers){
     run_number = run_numbers,
     # Keenan et al. (2021) (0.54, 0.03)
     # Match prior of trendy models
-    "BETA" = rnorm(runs, mean = 0.54, sd = 0.1),
+    "BETA" = rnorm(runs, mean = 0.28, sd = 0.1),
     
     # Davidson and Janssens (2006)
-    "Q10_RH" = rlnorm(runs, lognorm(2, 1.0)[1], lognorm(2, 1.0)[2]),
+    "Q10_RH" = rlnorm(runs, lognorm(1.5, 1.0)[1], lognorm(1.5, 1.0)[2]),
     
     # Ito (2011)
     "NPP_FLUX0" = rnorm(runs, mean = 56.2, sd = 14.3),
     
     # Smith et al. (2020)
-    "AERO_SCALE" = rnorm(runs, mean = 1.01, sd = 0.23),
+    "AERO_SCALE" = rnorm(runs, mean = 1.01, sd = 0.1),
     
     # Land use change emissions scaling parameter, to account for uncertainties in values for LUC
     # Friedlingstein et al 2021 state: 
@@ -319,10 +319,10 @@ dest_output <- trk_output %>%
 # Save outputs
 
 ```{r output-files}
-fwrite(runlist, "./output_files/runlist.csv", row.names = FALSE)
-fwrite(model_output, "./output_files/model_output.csv", row.names = FALSE)
-fwrite(trk_output, "./output_files/trk_output.csv", row.names = FALSE)
-fwrite(dest_output, "./output_files/dest_output.csv", row.names = FALSE)
+fwrite(runlist, "./output_files/runlist_test.csv", row.names = FALSE)
+fwrite(model_output, "./output_files/model_output_test.csv", row.names = FALSE)
+fwrite(trk_output, "./output_files/trk_output_test.csv", row.names = FALSE)
+fwrite(dest_output, "./output_files/dest_output_test.csv", row.names = FALSE)
 ```
 
 `runlist` size = `r format(object.size(runlist), "Mb")`
