@@ -51,7 +51,11 @@ trk_output$ssp <- runlist$ssp[trk_output$run_number]
 
 # First, we need to read in the CMIP6 data and organize
 # Read in CMIP CO2 data, compute summary statistics
-cmip_co2 <- read.csv("./data_files/CMIP6_annual_co2.csv")
+cmip_co2_og <- read.csv("./data_files/CMIP6_annual_co2.csv")
+
+# Remove models with constant historical CO2
+cmip_co2 <- cmip_co2_og %>%
+  filter(!(model %in% c("NorESM2-MM", "NorESM2-LM")))
 
 # Isolate historical data
 cmip_co2_hist <- cmip_co2 %>%
@@ -88,7 +92,7 @@ hector_co2 <- model_output %>%
 run_fail_summary_h <- hector_co2 %>%
   group_by(run_number) %>%
   summarize(fraction_fail = sum(fail) / n()) %>%
-  filter(fraction_fail < 0.33)
+  filter(fraction_fail < 0.5)
 
 # Filter out 'unrealistic' runs (identified above)
 model_output_filtered_1 <- run_fail_summary_h %>%
@@ -126,6 +130,15 @@ hector_co2_summary <- model_output_filtered_1 %>%
 # Combine data
 plot_data_co2 <- bind_rows(cmip_co2_hist, hector_co2_summary)
 
+# Add historical NOAA data for comparison
+# Comparing outputs to NOAA CO2 data from Mauna Loa observatory
+# https://gml.noaa.gov/ccgg/trends/data.html
+noaa <- read.csv("./data_files/noaa_co2_data.csv")
+noaa_co2 <- noaa %>% 
+  mutate(source = "NOAA") %>%
+  filter(year < 2015)
+
+
 # Plot
 co2_plot <- plot_data_co2 %>% 
   filter(year < 2015) %>%
@@ -133,6 +146,7 @@ co2_plot <- plot_data_co2 %>%
   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
   geom_line(aes(y = med), size = 2) +
+  #geom_line(data = noaa_co2, aes(year, mean, color = source), size = 2) +
   scale_color_viridis_d(begin = 0.5) +
   scale_fill_viridis_d(begin = 0.5) +
   labs(x = "Year",
