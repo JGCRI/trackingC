@@ -319,10 +319,10 @@ dest_output <- trk_output %>%
 # Save outputs
 
 ```{r output-files}
-fwrite(runlist, "./output_files/runlist_test.csv", row.names = FALSE)
-fwrite(model_output, "./output_files/model_output_test.csv", row.names = FALSE)
-fwrite(trk_output, "./output_files/trk_output_test.csv", row.names = FALSE)
-fwrite(dest_output, "./output_files/dest_output_test.csv", row.names = FALSE)
+fwrite(runlist, "./output/runlist_test.csv", row.names = FALSE)
+fwrite(model_output, "./output/model_output_test.csv", row.names = FALSE)
+fwrite(trk_output, "./output/trk_output_test.csv", row.names = FALSE)
+fwrite(dest_output, "./output/dest_output_test.csv", row.names = FALSE)
 ```
 
 `runlist` size = `r format(object.size(runlist), "Mb")`
