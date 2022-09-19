@@ -85,7 +85,7 @@ generate_params <- function(run_numbers){
     "NPP_FLUX0" = rnorm(runs, mean = 56.2, sd = 14.3),
     
     # Smith et al. (2020)
-    "AERO_SCALE" = rnorm(runs, mean = 1.01, sd = 0.23),
+    "AERO_SCALE" = rnorm(runs, mean = 0.5, sd = 0.1),
     
     # Land use change emissions scaling parameter, to account for uncertainties in values for LUC
     # Friedlingstein et al 2021 state: 
@@ -173,7 +173,7 @@ tibble(lognorm = ecs_vals_lognorm, transformed = runlist$ECS) %>%
 
 Run the model and store outputs and tracking data.
 
-```{r functions, message=FALSE, cache=TRUE}
+```{r functions, cache=TRUE}
 run_hector <- function(pdata, c, sce) {
   
   # Function to set multiple parameter values for Hector, run a core, and retrieve tracking data
@@ -319,10 +319,10 @@ dest_output <- trk_output %>%
 # Save outputs
 
 ```{r output-files}
-fwrite(runlist, "./output/runlist_test.csv", row.names = FALSE)
-fwrite(model_output, "./output/model_output_test.csv", row.names = FALSE)
-fwrite(trk_output, "./output/trk_output_test.csv", row.names = FALSE)
-fwrite(dest_output, "./output/dest_output_test.csv", row.names = FALSE)
+fwrite(runlist, "../output/runlist_test.csv", row.names = FALSE)
+fwrite(model_output, "../output/model_output_test.csv", row.names = FALSE)
+fwrite(trk_output, "../output/trk_output_test.csv", row.names = FALSE)
+fwrite(dest_output, "../output/dest_output_test.csv", row.names = FALSE)
 ```
 
 `runlist` size = `r format(object.size(runlist), "Mb")`
