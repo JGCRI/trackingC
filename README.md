@@ -59,7 +59,7 @@ before running; this will limit the number of Hector runs.
 3. Run the following script in the `workflow` directory to re-create this experiment:
 
 | Script Name | Description | 
-| --- | --- | --- |
+| --- | --- |
 | `01_generate_data.Rmd` | Script to create list of input parameters and run Hector |
 
 
