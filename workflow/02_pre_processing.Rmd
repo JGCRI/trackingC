@@ -115,7 +115,7 @@ gc()
 
 ## Plot
 # Read in filtered Hector data, compute summary statistics 
-hector_co2_summary <- model_output %>%
+hector_co2_summary <- model_output_filtered_1 %>%
   filter(variable == "CO2_concentration",
          year %in% 1959:2014,
          ssp == MAIN_SCENARIO) %>%
