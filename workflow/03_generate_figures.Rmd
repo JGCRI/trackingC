@@ -485,14 +485,12 @@ a <- af_trend %>%
 af_trend_plot <- a %>% 
   ggplot(aes(af_trend)) + 
   geom_histogram(bins = 40) +
-  facet_wrap(~ssp) +
   labs(x = expression(Airborne~fraction~trend~(decade^-1)),
        y = "Count") +
   scale_x_continuous(expand = c(0, 0)) ; af_trend_plot
 
 # Summary stats
 a_stats <- a %>%
-  group_by(ssp) %>%
   summarize(sdev = sd(af_trend),
             minimum = min(af_trend),
             maximum = max(af_trend),
