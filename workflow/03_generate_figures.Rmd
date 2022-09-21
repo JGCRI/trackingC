@@ -311,7 +311,6 @@ gc()
 ### Airborne fraction and "fraction of emissions remaining in atmosphere"
 
 ```{r airborne, warning = FALSE, fig.cap = " Airborne fraction over time, by scenario. The yellow line and band shows the actual amount of anthropogenic emissions remaining in the atmosphere from the model's carbon-tracking mechanism, whereas the blue line shows the actual airborne fraction."}
-# This chunk 
 
 # Prep the data
 atm_earth_diffs <- trk_output_final %>%
