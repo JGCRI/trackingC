@@ -18,7 +18,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 
 ### R setup
 
-Load necessary packages, read in an ini file and initiate core, and set seed for reproducibility.
+Load necessary packages.
 
 ```{r intro, warning=FALSE, message=FALSE}
 library(hector)
@@ -54,8 +54,9 @@ trk_output$ssp <- runlist$ssp[trk_output$run_number]
 cmip_co2_data <- read.csv("../input/CMIP6_annual_co2.csv")
 
 # Isolate historical data
+HISTORICAL_CO2_YEARS <- 1959:2014
 cmip_co2 <- cmip_co2_data %>%
-  filter(year %in% 1959:2014,
+  filter(year %in% HISTORICAL_CO2_YEARS,
          experiment == "historical",
          # Remove models with constant historical CO2
          !(model %in% c("NorESM2-MM", "NorESM2-LM"))) %>%
@@ -63,7 +64,6 @@ cmip_co2 <- cmip_co2_data %>%
          units = "ppm") %>%
   group_by(year, model) %>%
   mutate(value = mean(value)) %>%
-  ungroup() %>%
   group_by(year) %>%
   summarize(sdev = sd(value), 
             minimum = min(value),
@@ -76,28 +76,51 @@ cmip_co2 <- cmip_co2_data %>%
 # Identify unrealistic runs - for each Hector run, if more than 33% of values are
 # outside of the min/max of the CMIP6 data, the run is removed from the data
 
-# Find min/max of the CMIP6 data
-cmip_bounds_h <- cmip_co2 %>% 
-  select(year, minimum, maximum) %>%
-  ungroup()
+# Isolate min/max of the CMIP6 data
+cmip_bounds_h <- select(cmip_co2, year, minimum, maximum)
 
 # Get CO2 data from Hector, add "fail" column if values are outside the
 # min/max of CMIP6
 hector_co2 <- model_output %>%
   filter(variable == "CO2_concentration",
-         year >= 1959 & year <= 2014) %>%
+         year %in% HISTORICAL_CO2_YEARS) %>%
   select(run_number, year, value) %>%
   left_join(cmip_bounds_h, by = "year") %>%
   mutate(fail = value < minimum | value > maximum)
 
 # Summarize
+MAX_FAILFRAC_CO2 <- 0.33
 run_fail_summary_h <- hector_co2 %>%
   group_by(run_number) %>%
-  summarize(fraction_fail = sum(fail) / n()) %>%
-  filter(fraction_fail < 0.33)
+  summarize(fraction_fail = sum(fail) / n())
+
+# Plot a random slice of Hector runs, colored by failure, and the CMIP6 bounds
+model_output %>% 
+  distinct(run_number) %>% 
+  slice_sample(n = 100, replace = TRUE) %>% 
+  left_join(model_output, by = "run_number") %>%
+  filter(variable == "CO2_concentration", 
+         year %in% HISTORICAL_CO2_YEARS) %>% 
+  left_join(run_fail_summary_h, by = "run_number") %>% 
+  ggplot(aes(year, value)) +
+  geom_line(aes(group = run_number, color = fraction_fail)) +
+  geom_point(data = cmip_bounds_h, aes(y = minimum)) +
+  geom_point(data = cmip_bounds_h, aes(y = maximum)) +
+  scale_color_viridis_c() +
+  ggtitle("Pre CO2 filtering (dots show CMIP6 bounds)")
+
+# Make a table summarizing the run failures
+run_fail_summary_h %>% 
+  mutate(run_fails = fraction_fail > MAX_FAILFRAC_CO2) %>% 
+  group_by(run_fails) %>% 
+  summarise(N = n()) %>% 
+  mutate(Percent = round(N / sum(N) * 100, 0),
+         Cutoff = MAX_FAILFRAC_CO2) %>% 
+  knitr::kable()
 
 # Filter out 'unrealistic' runs (identified above)
 model_output_filtered_1 <- run_fail_summary_h %>%
+  filter(fraction_fail < MAX_FAILFRAC_CO2) %>% 
   left_join(model_output, by = "run_number") %>% 
   select(-fraction_fail)
 
@@ -106,6 +129,7 @@ rm(model_output)
 
 # Note that the tracking output needs to be filtered as well
 trk_output_filtered_1 <- run_fail_summary_h %>%
+  filter(fraction_fail < MAX_FAILFRAC_CO2) %>% 
   left_join(trk_output, by = "run_number") %>% 
   select(-fraction_fail)
 
@@ -117,10 +141,9 @@ gc()
 # Read in filtered Hector data, compute summary statistics 
 hector_co2_summary <- model_output_filtered_1 %>%
   filter(variable == "CO2_concentration",
-         year %in% 1959:2014,
+         year %in% HISTORICAL_CO2_YEARS,
          ssp == MAIN_SCENARIO) %>%
   select(run_number, year, value) %>%
-  mutate(units = "ppm") %>%
   group_by(year) %>%
   summarize(sdev = sd(value), 
             minimum = min(value),
@@ -152,7 +175,8 @@ co2_plot <- plot_data_co2 %>%
 #  geom_line(data = noaa_co2, aes(year, mean, color = source), size = 2) +
   scale_color_viridis_d(begin = 0.5) +
   scale_fill_viridis_d(begin = 0.5) +
-  labs(x = "Year",
+  labs(title = paste0("Post CO2 filtering (cutoff = ", MAX_FAILFRAC_CO2, ")"),
+       x = "Year",
        y = "CO2 (ppm)",
        color = "Source",
        fill = "Source") +
@@ -339,7 +363,7 @@ temp_plot <- model_output_final %>%
 
 # Historical CO2
 run_fail_summary_h %>% 
-  group_by(fraction_fail > 0.33) %>% 
+  group_by(fraction_fail > MAX_FAILFRAC_CO2) %>% 
   summarise(n()) %>% 
   knitr::kable()
 
