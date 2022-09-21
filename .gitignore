@@ -50,3 +50,4 @@ output/*.csv
 
 # Figures
 figures/*.png
+workflow/**/*.png
