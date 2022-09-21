@@ -79,13 +79,13 @@ generate_params <- function(run_numbers){
     "BETA" = rnorm(runs, mean = 0.28, sd = 0.1),
     
     # Davidson and Janssens (2006)
-    "Q10_RH" = rlnorm(runs, lognorm(2.0, 1.0)[1], lognorm(2.0, 1.0)[2]),
+    "Q10_RH" = rlnorm(runs, lognorm(1.5, 1.0)[1], lognorm(1.5, 1.0)[2]),
     
     # Ito (2011)
     "NPP_FLUX0" = rnorm(runs, mean = 56.2, sd = 14.3),
     
     # Smith et al. (2020)
-    "AERO_SCALE" = rnorm(runs, mean = 0.5, sd = 0.1),
+    "AERO_SCALE" = rnorm(runs, mean = 1.01, sd = 0.1),
     
     # Land use change emissions scaling parameter, to account for uncertainties in values for LUC
     # Friedlingstein et al 2021 state: 
