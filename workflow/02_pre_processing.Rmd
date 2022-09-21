@@ -41,6 +41,14 @@ trk_output <- fread("../output/trk_output_test.csv")
 model_output$ssp <- runlist$ssp[model_output$run_number]
 trk_output$ssp <- runlist$ssp[trk_output$run_number]
 
+# Read historical NOAA data for comparison graphs
+# Comparing outputs to NOAA CO2 data from Mauna Loa observatory
+# https://gml.noaa.gov/ccgg/trends/data.html
+noaa <- read.csv("../input/noaa_co2_data.csv")
+noaa_co2 <- noaa %>% 
+  mutate(source = "NOAA") %>%
+  filter(year < 2015)
+
 ```
 
 ### Hector atmospheric CO~2~ vs observed data
@@ -106,6 +114,8 @@ model_output %>%
   geom_line(aes(group = run_number, color = fraction_fail)) +
   geom_point(data = cmip_bounds_h, aes(y = minimum)) +
   geom_point(data = cmip_bounds_h, aes(y = maximum)) +
+  # Mauna Loa for comparison
+  geom_line(data = noaa_co2, aes(y = mean), color = "red", size = 2) +
   scale_color_viridis_c() +
   ggtitle("Pre CO2 filtering (dots show CMIP6 bounds)")
 
@@ -154,15 +164,6 @@ hector_co2_summary <- model_output_filtered_1 %>%
 
 # Combine data
 plot_data_co2 <- bind_rows(cmip_co2, hector_co2_summary)
-
-# Add historical NOAA data for comparison
-# Comparing outputs to NOAA CO2 data from Mauna Loa observatory
-# https://gml.noaa.gov/ccgg/trends/data.html
-noaa <- read.csv("../input/noaa_co2_data.csv")
-noaa_co2 <- noaa %>% 
-  mutate(source = "NOAA") %>%
-  filter(year < 2015)
-
 
 # Plot
 co2_plot <- plot_data_co2 %>% 
