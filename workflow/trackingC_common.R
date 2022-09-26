@@ -23,13 +23,13 @@ scalar_vector <- "LUC_SCALE"
 
 # Number of runs for each SSP scenario
 SSP_runs <- c(#"ssp119" = 100,
-              "ssp126" = 300,
-              "ssp245" = 300,
-              "ssp370" = 300,
+              "ssp126" = 2500,
+              "ssp245" = 2500,
+              "ssp370" = 2500,
               #"ssp434" = 100,
-              "ssp460" = 300,
+              #"ssp460" = 2000,
               #"ssp534-over" = 100,
-              "ssp585" = 300)
+              "ssp585" = 2500)
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
