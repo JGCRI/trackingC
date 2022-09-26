@@ -79,7 +79,7 @@ generate_params <- function(run_numbers){
     "BETA" = rnorm(runs, mean = 0.28, sd = 0.1),
     
     # Davidson and Janssens (2006)
-    "Q10_RH" = rlnorm(runs, lognorm(1.5, 1.0)[1], lognorm(1.5, 1.0)[2]),
+    "Q10_RH" = rlnorm(runs, lognorm(2.0, 1.0)[1], lognorm(2.0, 1.0)[2]),
     
     # Ito (2011)
     "NPP_FLUX0" = rnorm(runs, mean = 56.2, sd = 14.3),
@@ -319,10 +319,10 @@ dest_output <- trk_output %>%
 # Save outputs
 
 ```{r output-files}
-fwrite(runlist, "../output/runlist_test.csv", row.names = FALSE)
-fwrite(model_output, "../output/model_output_test.csv", row.names = FALSE)
-fwrite(trk_output, "../output/trk_output_test.csv", row.names = FALSE)
-fwrite(dest_output, "../output/dest_output_test.csv", row.names = FALSE)
+fwrite(runlist, "../output/runlist.csv", row.names = FALSE)
+fwrite(model_output, "../output/model_output.csv", row.names = FALSE)
+fwrite(trk_output, "../output/trk_output.csv", row.names = FALSE)
+fwrite(dest_output, "../output/dest_output.csv", row.names = FALSE)
 ```
 
 `runlist` size = `r format(object.size(runlist), "Mb")`
