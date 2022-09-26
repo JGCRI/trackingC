@@ -104,7 +104,7 @@ percent_summary <- atmosphere_pool %>%
   summarize(avg = mean(source_fraction),
             med = median(source_fraction))
 
-ggsave(plot = atm_plot, "../figures/figure3.png", height = 6, width = 9, units = "in")
+# ggsave(plot = atm_plot, "../figures/figure3.png", height = 6, width = 9, units = "in")
 
 ```
 
@@ -125,7 +125,7 @@ ff <- atmosphere_pool %>%
 rm(atmosphere_pool)
 
 # Create facet labels for plotting
-ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP460", "SSP585")
+ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP585")
 names(ssp_labels) <- c(names(SSP_runs))
 
 atm_fraction_plot <- ggplot(ff, aes(year,  fill = ssp)) +
@@ -133,17 +133,17 @@ atm_fraction_plot <- ggplot(ff, aes(year,  fill = ssp)) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.5) +
   scale_color_manual(breaks = names(ssp_labels),
                      labels = ssp_labels,
-                     values = c("#8c510a", "#dfc27d", "#c7eae5", "#80cdc1", "#01665e")) +
+                     values = c("#8c510a", "#dfc27d", "#c7eae5", "#01665e")) +
   scale_fill_manual(breaks = names(ssp_labels),
                     labels = ssp_labels,
-                    values = c("#8c510a", "#dfc27d", "#c7eae5", "#80cdc1", "#01665e")) +
+                    values = c("#8c510a", "#dfc27d", "#c7eae5", "#01665e")) +
   labs(x = "Year",
        y = expression(Fraction~of~atmospheric~CO[2]~from~anthropogenic~emissions),
        color = "Scenario",
        fill = "Scenario") +
   scale_x_continuous(expand = c(0, 0)) ; atm_fraction_plot
 
-ggsave(plot = atm_fraction_plot, "../figures/figure4.png", height = 6, width = 9, units = "in")
+# ggsave(plot = atm_fraction_plot, "../figures/figure4.png", height = 6, width = 9, units = "in")
 
 
 ```
@@ -230,7 +230,7 @@ dest_plot <- dest_average %>%
              labeller = labeller(ssp = ssp_labels)) +
   theme(axis.text.x = element_text(angle = 90)) ; dest_plot
 
-ggsave(plot = dest_plot, "../figures/figure5.png", height = 6, width = 9, units = "in")
+# ggsave(plot = dest_plot, "../figures/figure5.png", height = 6, width = 9, units = "in")
 
 ```
 
@@ -306,7 +306,7 @@ importance_plot <- relimp_out %>%
         panel.spacing=unit(1, "lines")) +
   scale_x_continuous(expand = c(0, 0)) ; importance_plot
 
-ggsave(plot = importance_plot, "../figures/figure6.png", height = 6, width = 9, units = "in")
+# ggsave(plot = importance_plot, "../figures/figure6.png", height = 6, width = 9, units = "in")
 
 ```
 
@@ -435,12 +435,12 @@ af_plot <- ggplot(af_plot_data, aes(x = year, fill = def)) +
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.4) +
   geom_line(aes(y = med, color = def)) +
   scale_color_manual(breaks = c("Airborne fraction", "Carbon tracking"),
-                     values = c("#f6e8c3", "#35978f")) +
+                     values = c("#bf812d", "#35978f")) +
   scale_fill_manual(breaks = c("Airborne fraction", "Carbon tracking"),
-                     values = c("#f6e8c3", "#35978f")) +
+                     values = c("#bf812d", "#35978f")) +
   facet_wrap(~ssp, scales = "free_y", 
              labeller = labeller(ssp = ssp_labels),
-             ncol = 3) +
+             ncol = 2) +
   labs(x = "Year",
        y = "Airborne fraction",
        color = "Computation",
@@ -456,7 +456,7 @@ average_af <- classic_af %>%
   summarize(avg = mean(af),
             .groups = "drop")
 
-ggsave(plot = af_plot, "../figures/figure7.png", height = 6, width = 9, units = "in")
+# ggsave(plot = af_plot, "../figures/figure7.png", height = 6, width = 9, units = "in")
 
 ```
 
@@ -517,7 +517,7 @@ a_stats %>% knitr::kable(digits = 4)
 # What percent of runs are negative?
 af_negative <- round(sum(a$af_trend < 0) / nrow(a) * 100, 1)
 
-ggsave(plot = af_trend_plot, "../figures/figure8.png", height = 6, width = 9, units = "in")
+# ggsave(plot = af_trend_plot, "../figures/figure8.png", height = 6, width = 9, units = "in")
 
 ```
 

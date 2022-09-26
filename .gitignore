@@ -47,6 +47,7 @@ vignettes/*.pdf
 
 # Output files
 output/*.csv
+output/old/*.csv
 
 # Figures
 figures/*.png
