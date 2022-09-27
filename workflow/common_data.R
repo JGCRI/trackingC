@@ -1,4 +1,4 @@
-# Settings used by both trackingC_setup.Rmd and trackingC.Rmd
+# Settings used by all workflow files.
 
 library(hector)
 

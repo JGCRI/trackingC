@@ -34,7 +34,7 @@ library(data.table)
 
 theme_set(theme_light())
 
-source("trackingC_common.R")
+source("common_data.R")
 
 # Set random number generator to allow for reproducibility 
 set.seed(10)
@@ -74,7 +74,7 @@ generate_params <- function(run_numbers){
   runs <- length(run_numbers)
   tibble(
     run_number = run_numbers,
-    # Keenan et al. (2021) (0.54, 0.03)
+    # Jones et al ()
     # Match prior of trendy models
     "BETA" = rnorm(runs, mean = 0.28, sd = 0.1),
     
