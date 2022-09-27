@@ -85,7 +85,7 @@ generate_params <- function(run_numbers){
     "NPP_FLUX0" = rnorm(runs, mean = 56.2, sd = 14.3),
     
     # Smith et al. (2020)
-    "AERO_SCALE" = rnorm(runs, mean = 1.01, sd = 0.1),
+    "AERO_SCALE" = rnorm(runs, mean = 1.01, sd = 0.23),
     
     # Land use change emissions scaling parameter, to account for uncertainties in values for LUC
     # Friedlingstein et al 2021 state: 

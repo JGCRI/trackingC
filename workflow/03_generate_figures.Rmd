@@ -98,13 +98,13 @@ atm_plot <- atm_summary %>%
 # Compute the mean and median percentage of anthropogenic CO2 in the 
 # atmosphere for key years
 percent_summary <- atmosphere_pool %>%
-  filter(year %in% c(2015, 2100, 2300),
+  filter(year %in% c(2015, 2050, 2100, 2300),
          source_name == "earth_c") %>%
   group_by(ssp, year) %>%
   summarize(avg = mean(source_fraction),
             med = median(source_fraction))
 
-# ggsave(plot = atm_plot, "../figures/figure3.png", height = 6, width = 9, units = "in")
+ggsave(plot = atm_plot, "../figures/figure3.png", height = 6, width = 9, units = "in")
 
 ```
 
@@ -143,7 +143,7 @@ atm_fraction_plot <- ggplot(ff, aes(year,  fill = ssp)) +
        fill = "Scenario") +
   scale_x_continuous(expand = c(0, 0)) ; atm_fraction_plot
 
-# ggsave(plot = atm_fraction_plot, "../figures/figure4.png", height = 6, width = 9, units = "in")
+ggsave(plot = atm_fraction_plot, "../figures/figure4.png", height = 6, width = 9, units = "in")
 
 
 ```
@@ -230,7 +230,7 @@ dest_plot <- dest_average %>%
              labeller = labeller(ssp = ssp_labels)) +
   theme(axis.text.x = element_text(angle = 90)) ; dest_plot
 
-# ggsave(plot = dest_plot, "../figures/figure5.png", height = 6, width = 9, units = "in")
+ggsave(plot = dest_plot, "../figures/figure5.png", height = 6, width = 9, units = "in")
 
 ```
 
@@ -306,7 +306,7 @@ importance_plot <- relimp_out %>%
         panel.spacing=unit(1, "lines")) +
   scale_x_continuous(expand = c(0, 0)) ; importance_plot
 
-# ggsave(plot = importance_plot, "../figures/figure6.png", height = 6, width = 9, units = "in")
+ggsave(plot = importance_plot, "../figures/figure6.png", height = 6, width = 9, units = "in")
 
 ```
 
@@ -456,7 +456,7 @@ average_af <- classic_af %>%
   summarize(avg = mean(af),
             .groups = "drop")
 
-# ggsave(plot = af_plot, "../figures/figure7.png", height = 6, width = 9, units = "in")
+ggsave(plot = af_plot, "../figures/figure7.png", height = 6, width = 9, units = "in")
 
 ```
 
@@ -517,7 +517,7 @@ a_stats %>% knitr::kable(digits = 4)
 # What percent of runs are negative?
 af_negative <- round(sum(a$af_trend < 0) / nrow(a) * 100, 1)
 
-# ggsave(plot = af_trend_plot, "../figures/figure8.png", height = 6, width = 9, units = "in")
+ggsave(plot = af_trend_plot, "../figures/figure8.png", height = 6, width = 9, units = "in")
 
 ```
 

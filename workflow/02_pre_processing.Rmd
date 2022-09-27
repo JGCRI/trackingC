@@ -167,9 +167,9 @@ co2_plot <- plot_data_co2 %>%
   geom_line(aes(y = med), size = 2) +
   geom_line(data = noaa_co2, aes(year, mean), size = 2) +
   scale_color_manual(breaks = c("CMIP6", "Hector", "NOAA"),
-                     values = c("#bf812d", "#35978f", "#f6e8c3")) +
+                     values = c("#dfc27d", "#01665e", "#bf812d")) +
   scale_fill_manual(breaks = c("CMIP6", "Hector", "NOAA"),
-                     values = c("#bf812d", "#35978f", "#f6e8c3")) +
+                     values = c("#dfc27d", "#01665e", "#bf812d")) +
   labs(x = "Year",
        y = expression(CO[2]~(ppm)),
        color = "Source",
@@ -321,9 +321,9 @@ temp_plot <- model_output_final %>%
   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
   geom_line(aes(y = med), size = 1) +
   scale_color_manual(breaks = c("CMIP6", "Hector"),
-                     values = c("#bf812d", "#35978f")) +
+                     values = c("#dfc27d", "#01665e")) +
   scale_fill_manual(breaks = c("CMIP6", "Hector"),
-                     values = c("#bf812d", "#35978f")) +
+                     values = c("#dfc27d", "#01665e")) +
   facet_wrap(~ssp, scales = "free",
              labeller = labeller(ssp = ssp_labels),
              ncol = 2) +
