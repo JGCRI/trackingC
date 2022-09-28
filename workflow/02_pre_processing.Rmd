@@ -171,7 +171,7 @@ co2_plot <- plot_data_co2 %>%
   scale_fill_manual(breaks = c("CMIP6", "Hector", "NOAA"),
                      values = c("#dfc27d", "#01665e", "#bf812d")) +
   labs(x = "Year",
-       y = expression(CO[2]~(ppm)),
+       y = expression(Atmospheric~CO[2]~(ppm)),
        color = "Source",
        fill = "Source") +
   scale_x_continuous(expand = c(0, 0)) ; co2_plot
@@ -328,7 +328,7 @@ temp_plot <- model_output_final %>%
              labeller = labeller(ssp = ssp_labels),
              ncol = 2) +
   labs(x = "Year",
-       y = expression(degree*C),
+       y = expression(Temperature~anomaly~~(degree*C)),
        color = "Source",
        fill = "Source") +
   theme(axis.text.x = element_text(angle = 90)) +
