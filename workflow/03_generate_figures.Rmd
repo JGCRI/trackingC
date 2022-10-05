@@ -437,7 +437,7 @@ af_plot <- ggplot(af_plot_data, aes(x = year, fill = def)) +
   scale_color_manual(breaks = c("Airborne fraction", "Carbon tracking"),
                      values = c("#bf812d", "#35978f")) +
   scale_fill_manual(breaks = c("Airborne fraction", "Carbon tracking"),
-                     values = c("#bf812d", "#35978f")) +
+                    values = c("#bf812d", "#35978f")) +
   facet_wrap(~ssp, scales = "free_y", 
              labeller = labeller(ssp = ssp_labels),
              ncol = 2) +

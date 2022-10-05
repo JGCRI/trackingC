@@ -169,7 +169,7 @@ co2_plot <- plot_data_co2 %>%
   scale_color_manual(breaks = c("CMIP6", "Hector", "NOAA"),
                      values = c("#dfc27d", "#01665e", "#bf812d")) +
   scale_fill_manual(breaks = c("CMIP6", "Hector", "NOAA"),
-                     values = c("#dfc27d", "#01665e", "#bf812d")) +
+                    values = c("#dfc27d", "#01665e", "#bf812d")) +
   labs(x = "Year",
        y = expression(Atmospheric~CO[2]~(ppm)),
        color = "Source",
@@ -323,7 +323,7 @@ temp_plot <- model_output_final %>%
   scale_color_manual(breaks = c("CMIP6", "Hector"),
                      values = c("#dfc27d", "#01665e")) +
   scale_fill_manual(breaks = c("CMIP6", "Hector"),
-                     values = c("#dfc27d", "#01665e")) +
+                    values = c("#dfc27d", "#01665e")) +
   facet_wrap(~ssp, scales = "free",
              labeller = labeller(ssp = ssp_labels),
              ncol = 2) +
