@@ -33,4 +33,4 @@ jobs:
           Rscript -e 'rmarkdown::render("./workflow/01_generate_data.Rmd")'
           Rscript -e 'rmarkdown::render("./workflow/02_pre_processing.Rmd")'
           Rscript -e 'rmarkdown::render("./workflow/03_generate_figures.Rmd")'
-          Rscript -e 'rmarkdown::render("./workflow/04_supplementary figures.Rmd")'
+          Rscript -e 'rmarkdown::render("./workflow/04_supplementary_figures.Rmd")'
