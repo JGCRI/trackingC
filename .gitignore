@@ -46,7 +46,9 @@ vignettes/*.pdf
 .DS_Store
 
 # Output files
-output_files/*.csv
+output/*.csv
+output/old/*.csv
 
 # Figures
 figures/*.png
+workflow/**/*.png

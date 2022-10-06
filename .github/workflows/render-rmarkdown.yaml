@@ -30,5 +30,7 @@ jobs:
         shell: Rscript {0}
       - name: Render Rmarkdown files
         run: |
-          Rscript -e 'rmarkdown::render("./trackingC_setup.Rmd")'
-          Rscript -e 'rmarkdown::render("./trackingC.Rmd")'
+          Rscript -e 'rmarkdown::render("./workflow/01_generate_data.Rmd")'
+          Rscript -e 'rmarkdown::render("./workflow/02_pre_processing.Rmd")'
+          Rscript -e 'rmarkdown::render("./workflow/03_generate_figures.Rmd")'
+          Rscript -e 'rmarkdown::render("./workflow/04_supplementary_figures.Rmd")'
