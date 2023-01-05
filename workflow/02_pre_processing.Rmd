@@ -381,7 +381,7 @@ tgav_h_future %>%
 ``` {r filter-temp}
 # Note that the tracking output needs to be filtered as well
 trk_output_filtered_1 <- run_fail_summary_new %>%
-  filter(fail) %>% 
+  filter(!fail) %>% 
   select(-fraction_out, -fail) %>% 
   left_join(trk_output, by = "run_number")
 
@@ -389,12 +389,14 @@ trk_output_filtered_1 <- run_fail_summary_new %>%
 rm(trk_output)
 
 trk_output_filtered_2 <- tgav_h_hist %>% 
+  filter(!fail) %>% 
   select(-fraction_out, -fail) %>% 
   left_join(trk_output_filtered_1, by = "run_number")
 
 rm(trk_output_filtered_1)
 
 trk_output_final <- tgav_h_future %>%
+  filter(!fail) %>% 
   select(-fraction_out, -fail) %>% 
   left_join(trk_output_filtered_2, by = "run_number")
 
