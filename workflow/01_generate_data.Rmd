@@ -99,7 +99,19 @@ generate_params <- function(run_numbers){
     # Or, 0.83 < x < 1.61 
     # The following distribution roughly aligns with the above criteria
     # Using a lognormal distribution because we do not want negative or near-zero values
-    "LUC_SCALE" = rlnorm(runs, lognorm(1.3, 0.2)[1], lognorm(1.3, 0.2)[2])
+    "LUC_SCALE" = rlnorm(runs, lognorm(1.3, 0.2)[1], lognorm(1.3, 0.2)[2]),
+    
+    # Thermohaline overturning
+    "TT" = rnorm(runs, mean = 7.2e+07, sd = 7.2e+06),
+    
+    # High-latitude overturning
+    "TU" = rnorm(runs, mean = 4.9e+07, sd = 4.9e+06),
+    
+    # Warm-intermediate exchange
+    "TWI" = rnorm(runs, mean = 12500000, sd = 1250000),
+    
+    # Intermediate-deep exchange
+    "TID" = rnorm(runs, mean = 2e+08, sd = 2e+07)
   )
 }
 
@@ -319,10 +331,10 @@ dest_output <- trk_output %>%
 # Save outputs
 
 ```{r output-files}
-fwrite(runlist, "../output/runlist.csv", row.names = FALSE)
-fwrite(model_output, "../output/model_output.csv", row.names = FALSE)
-fwrite(trk_output, "../output/trk_output.csv", row.names = FALSE)
-fwrite(dest_output, "../output/dest_output.csv", row.names = FALSE)
+fwrite(runlist, "../output/runlist_test.csv", row.names = FALSE)
+fwrite(model_output, "../output/model_output_test.csv", row.names = FALSE)
+fwrite(trk_output, "../output/trk_output_test.csv", row.names = FALSE)
+fwrite(dest_output, "../output/dest_output_test.csv", row.names = FALSE)
 ```
 
 `runlist` size = `r format(object.size(runlist), "Mb")`

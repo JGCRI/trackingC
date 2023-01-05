@@ -9,7 +9,11 @@ name_vector <- c("BETA" = BETA(),
                  "NPP_FLUX0" = NPP_FLUX0(),
                  "AERO_SCALE" = AERO_SCALE(), 
                  "DIFFUSIVITY" = DIFFUSIVITY(),
-                 "LUC_SCALE" = "LUC_SCALE")
+                 "LUC_SCALE" = "LUC_SCALE",
+                 "TT" = TT(),
+                 "TU" = TU(),
+                 "TWI" = TWI(),
+                 "TID" = TID())
 
 units_vector <- c("BETA" = "(unitless)",
                   "Q10_RH" = "(unitless)", 
@@ -17,19 +21,23 @@ units_vector <- c("BETA" = "(unitless)",
                   "NPP_FLUX0" = "Pg C/yr",
                   "AERO_SCALE" = "(unitless)",
                   "DIFFUSIVITY" = "cm2/s",
-                  "LUC_SCALE" = "(unitless)")
+                  "LUC_SCALE" = "(unitless)",
+                  "TT" = "m3/s",
+                  "TU" = "m3/s",
+                  "TWI" = "m3/s",
+                  "TID" = "m3/s")
 
 scalar_vector <- "LUC_SCALE"
 
 # Number of runs for each SSP scenario
 SSP_runs <- c(#"ssp119" = 100,
-              "ssp126" = 2500,
-              "ssp245" = 2500,
-              "ssp370" = 2500,
+              "ssp126" = 1000,
+              "ssp245" = 1000,
+              "ssp370" = 1000,
               #"ssp434" = 100,
               #"ssp460" = 2000,
               #"ssp534-over" = 100,
-              "ssp585" = 2500)
+              "ssp585" = 1000)
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully
 # But if running there, only do a small number of Hector simulations
