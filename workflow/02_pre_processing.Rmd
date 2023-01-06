@@ -52,6 +52,64 @@ HISTORICAL_CO2_YEARS <- 1959:2014
 MAX_FAILFRAC_HISTORICAL <- 0.33
 MAX_FAILFRAC_FUTURE <- 0.5
 
+# Helper function to calculate out-of-bounds values and then run failures
+# Handles either by SSP or not, which is a pain
+run_failures <- function(filter_name, x, var_name, var_years, 
+                         var_min_values, var_max_values, 
+                         var_ssp, max_out_frac) {
+  # Create an observational data frame
+  y <- tibble(year = var_years, ssp = var_ssp, 
+              min_value = var_min_values, max_value = var_max_values)
+  if(is.null(var_ssp)) {
+    join_vars <- "year"
+  } else {
+    join_vars <- c("ssp", "year")
+  }
+  # Isolate the matching Hector data, merge with observations, calculate outs 
+  # and the run failures (fraction of outs exceeds some limit)
+  x %>% 
+    filter(variable == var_name, year %in% unique(var_years)) %>% 
+    left_join(y, by = join_vars) %>% 
+    mutate(out = value < min_value | value > max_value) %>% 
+    group_by(ssp, run_number) %>% 
+    summarize(fraction_out = sum(out) / n(), .groups = "drop") %>% 
+    mutate(fail = fraction_out > max_out_frac,
+           filter = filter_name) 
+}
+
+# Helper function to plot a random subset of run, colored by fraction_out,
+# with the filter bounds
+run_fail_plot <- function(x, fail_data, n_sample, var_name, 
+                          var_years, var_min_values, var_max_values, var_ssp) {
+  # Create an observational data frame
+  y <- tibble(year = var_years, min_value = var_min_values,
+              max_value = var_max_values, ssp = var_ssp)
+  if(is.null(var_ssp)) {
+    join_vars <- "run_number"
+  } else {
+    join_vars <- c("ssp", "run_number")
+  }
+  # Plot a random slice of run data, colored by failure, and the CMIP6 bounds
+  x %>% 
+    distinct(run_number) %>% 
+    slice_sample(n = n_sample, replace = TRUE) %>% 
+    left_join(model_output, by = "run_number") %>%
+    filter(variable == var_name, year %in% var_years) %>% 
+    left_join(fail_data, by = join_vars) %>% 
+    ggplot(aes(year, value)) +
+    geom_line(aes(group = run_number, color = fraction_out)) +
+    geom_point(data = y, aes(y = min_value)) +
+    geom_point(data = y, aes(y = max_value)) +
+    # Mauna Loa historical data for comparison
+    #  geom_line(data = noaa_co2, aes(y = mean), color = "red", size = 2) +
+    scale_color_distiller(palette = "BrBG") +
+    ylab(var_name) +
+    ggtitle(paste("Filter:", fail_data$filter[1])) ->
+    p
+  
+  if(!is.null(var_ssp)) p <- p + facet_wrap(~ssp)
+  p
+}
 ```
 
 ## Hector atmospheric CO~2~ vs observed data
@@ -91,23 +149,6 @@ cmip_bounds_h <- cmip_co2 %>%
          maximum = hist_mean + sdev,
          source = "CMIP6")
 
-# Helper function to calculate out-of-bounds values and then run failures
-run_failures <- function(filter_name, x, var_name, var_years, 
-                         var_min_values, var_max_values, max_out_frac) {
-  # Create an observational data frame
-  y <- tibble(year = var_years, min_value = var_min_values, max_value = var_max_values)
-  # Isolate the matching Hector data, merge with observations, calculate outs 
-  # and the run failures (fraction of outs exceeds some limit)
-  x %>% 
-    filter(variable == var_name, year %in% unique(var_years)) %>% 
-    left_join(y, by = "year") %>% 
-    mutate(out = value < min_value | value > max_value) %>% 
-    group_by(run_number) %>% 
-    summarize(fraction_out = sum(out) / n(), .groups = "drop") %>% 
-    mutate(fail = fraction_out > max_out_frac,
-           filter = filter_name) 
-}
-
 # Summarize
 fails_co2 <- run_failures("CMIP6 historical CO2",
                           model_output,
@@ -115,36 +156,12 @@ fails_co2 <- run_failures("CMIP6 historical CO2",
                           cmip_bounds_h$year, 
                           cmip_bounds_h$minimum, 
                           cmip_bounds_h$maximum, 
+                          var_ssp = NULL,
                           max_out_frac = MAX_FAILFRAC_HISTORICAL)
 
-
-# Helper function to plot a random subset of run, colored by fraction_out,
-# with the filter bounds
-run_fail_plot <- function(x, fail_data, n_sample, var_name, 
-                          var_years, var_min_values, var_max_values) {
-  # Create an observational data frame
-  y <- tibble(year = var_years, min_value = var_min_values, max_value = var_max_values)
-
-  # Plot a random slice of run data, colored by failure, and the CMIP6 bounds
-  x %>% 
-    distinct(run_number) %>% 
-    slice_sample(n = n_sample, replace = TRUE) %>% 
-    left_join(model_output, by = "run_number") %>%
-    filter(variable == var_name, year %in% var_years) %>% 
-    left_join(fail_data, by = "run_number") %>% 
-    ggplot(aes(year, value)) +
-    geom_line(aes(group = run_number, color = fraction_out)) +
-    geom_point(data = y, aes(y = min_value)) +
-    geom_point(data = y, aes(y = max_value)) +
-    # Mauna Loa historical data for comparison
-    #  geom_line(data = noaa_co2, aes(y = mean), color = "red", size = 2) +
-    scale_color_distiller(palette = "BrBG") +
-    ylab(var_name) +
-    ggtitle(paste("Filter:", fail_data$filter[1]))
-}
-
 run_fail_plot(model_output, fails_co2, 100, "CO2_concentration",
-              cmip_bounds_h$year, cmip_bounds_h$minimum, cmip_bounds_h$maximum)
+              cmip_bounds_h$year, cmip_bounds_h$minimum, cmip_bounds_h$maximum, 
+              var_ssp = NULL)
 
 ## Plot
 # Read in filtered Hector data, compute summary statistics 
@@ -257,12 +274,14 @@ fails_cmip6tas_hist <- run_failures("CMIP6 historical TAS",
                                     cmip_t_hist$year,
                                     cmip_t_hist$minimum,
                                     cmip_t_hist$maximum,
+                                    var_ssp = cmip_t_hist$ssp,
                                     max_out_frac = MAX_FAILFRAC_HISTORICAL)
 
 run_fail_plot(model_output, fails_cmip6tas_hist, 100, "global_tas",
               cmip_t_hist$year,
               cmip_t_hist$minimum,
-              cmip_t_hist$maximum)
+              cmip_t_hist$maximum,
+              var_ssp = NULL)
 
 fails_cmip6tas_future <- run_failures("CMIP6 future TAS",
                                       model_output, 
@@ -270,13 +289,14 @@ fails_cmip6tas_future <- run_failures("CMIP6 future TAS",
                                       cmip_t_future$year,
                                       cmip_t_future$minimum,
                                       cmip_t_future$maximum,
+                                      var_ssp = cmip_t_future$ssp,
                                       max_out_frac = MAX_FAILFRAC_FUTURE)
 
-p <- run_fail_plot(model_output, fails_cmip6tas_future, 100, "global_tas",
+run_fail_plot(model_output, fails_cmip6tas_future, 100, "global_tas",
               cmip_t_future$year,
               cmip_t_future$minimum,
-              cmip_t_future$maximum)
-print(p + facet_wrap(~ssp))
+              cmip_t_future$maximum,
+              var_ssp = cmip_t_future$ssp)
 
 # Filter model output data
 n_runs <- length(unique(model_output$run_number))
@@ -285,7 +305,7 @@ fail_summary <- bind_rows(fails_co2, fails_cmip6tas_hist, fails_cmip6tas_future)
 fail_summary %>% 
   group_by(run_number) %>% 
   # runs have to pass ALL the filters
-  summarise(all_pass = all(!fail)) %>% 
+  summarise(all_pass = all(!fail), .groups = "drop") %>% 
   filter(all_pass) %>% 
   select(run_number) %>% 
   left_join(model_output, by = "run_number") ->
@@ -316,7 +336,7 @@ Top 10 worst-performing runs:
 
 ```{r}
 fail_summary %>% 
-  group_by(run_number) %>% 
+  group_by(ssp, run_number) %>% 
   summarise(fails = sum(fail), .groups = "drop") %>% 
   arrange(desc(fails)) %>% 
   head(n = 10) %>% 
