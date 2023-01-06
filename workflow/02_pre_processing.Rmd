@@ -16,7 +16,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ```
 
-### R setup
+## R setup
 
 ```{r intro, warning=FALSE, message=FALSE}
 library(hector)
@@ -54,7 +54,7 @@ MAX_FAILFRAC_FUTURE <- 0.5
 
 ```
 
-### Hector atmospheric CO~2~ vs observed data
+## Hector atmospheric CO~2~ vs observed data
 
 ``` {r ca-comp, echo = FALSE, fig.cap = " Historical CO2 data from Hector runs and CMIP6 data."}
 # This chunk will compare CMIP6 historical CO2 concentration data with 
@@ -91,9 +91,9 @@ cmip_bounds_h <- cmip_co2 %>%
          maximum = hist_mean + sdev,
          source = "CMIP6")
 
-# General function to calculate out-of-bounds values and then run failures
-run_failures <- function(x, var_name, var_years, 
-                                var_min_values, var_max_values, max_out_frac) {
+# Helper function to calculate out-of-bounds values and then run failures
+run_failures <- function(filter_name, x, var_name, var_years, 
+                         var_min_values, var_max_values, max_out_frac) {
   # Create an observational data frame
   y <- tibble(year = var_years, min_value = var_min_values, max_value = var_max_values)
   # Isolate the matching Hector data, merge with observations, calculate outs 
@@ -104,96 +104,92 @@ run_failures <- function(x, var_name, var_years,
     mutate(out = value < min_value | value > max_value) %>% 
     group_by(run_number) %>% 
     summarize(fraction_out = sum(out) / n(), .groups = "drop") %>% 
-    mutate(fail = fraction_out > max_out_frac)
+    mutate(fail = fraction_out > max_out_frac,
+           filter = filter_name) 
 }
 
 # Summarize
-run_fail_summary_new <- run_failures(model_output, "CO2_concentration", 
-                                     cmip_bounds_h$year, 
-                                     cmip_bounds_h$minimum, 
-                                     cmip_bounds_h$maximum, 
-                                     max_out_frac = MAX_FAILFRAC_HISTORICAL)
+fails_co2 <- run_failures("CMIP6 historical CO2",
+                          model_output,
+                          "CO2_concentration", 
+                          cmip_bounds_h$year, 
+                          cmip_bounds_h$minimum, 
+                          cmip_bounds_h$maximum, 
+                          max_out_frac = MAX_FAILFRAC_HISTORICAL)
 
-# Plot a random slice of Hector runs, colored by failure, and the CMIP6 bounds
-model_output %>% 
-  distinct(run_number) %>% 
-  slice_sample(n = 100, replace = TRUE) %>% 
-  left_join(model_output, by = "run_number") %>%
-  filter(variable == "CO2_concentration", 
-         year %in% HISTORICAL_CO2_YEARS) %>% 
-  left_join(run_fail_summary_new, by = "run_number") %>% 
-  ggplot(aes(year, value)) +
-  geom_line(aes(group = run_number, color = fraction_out)) +
-  geom_point(data = cmip_bounds_h, aes(y = minimum)) +
-  geom_point(data = cmip_bounds_h, aes(y = maximum)) +
-  # Mauna Loa historical data for comparison
-  geom_line(data = noaa_co2, aes(y = mean), color = "red", size = 2) +
-  scale_color_distiller(palette = "BrBG") +
-  ggtitle("Pre CO2 filtering (dots show CMIP6 bounds; red is observed)")
 
-# Make a table summarizing the run failures
-run_fail_summary_new %>% 
-  group_by(fail) %>% 
-  summarise(N = n(), .groups = "drop") %>% 
-  mutate(Percent = round(N / sum(N) * 100, 0),
-         Cutoff = MAX_FAILFRAC_HISTORICAL) %>% 
-  knitr::kable()
+# Helper function to plot a random subset of run, colored by fraction_out,
+# with the filter bounds
+run_fail_plot <- function(x, fail_data, n_sample, var_name, 
+                          var_years, var_min_values, var_max_values) {
+  # Create an observational data frame
+  y <- tibble(year = var_years, min_value = var_min_values, max_value = var_max_values)
 
-# Filter out 'unrealistic' runs (identified above)
-model_output_filtered_1 <- run_fail_summary_new %>%
-  filter(!fail) %>% 
-  select(-fraction_out, -fail) %>% 
-  left_join(model_output, by = "run_number")
+  # Plot a random slice of run data, colored by failure, and the CMIP6 bounds
+  x %>% 
+    distinct(run_number) %>% 
+    slice_sample(n = n_sample, replace = TRUE) %>% 
+    left_join(model_output, by = "run_number") %>%
+    filter(variable == var_name, year %in% var_years) %>% 
+    left_join(fail_data, by = "run_number") %>% 
+    ggplot(aes(year, value)) +
+    geom_line(aes(group = run_number, color = fraction_out)) +
+    geom_point(data = y, aes(y = min_value)) +
+    geom_point(data = y, aes(y = max_value)) +
+    # Mauna Loa historical data for comparison
+    #  geom_line(data = noaa_co2, aes(y = mean), color = "red", size = 2) +
+    scale_color_distiller(palette = "BrBG") +
+    ylab(var_name) +
+    ggtitle(paste("Filter:", fail_data$filter[1]))
+}
 
-# Remove large data
-rm(model_output)
+run_fail_plot(model_output, fails_co2, 100, "CO2_concentration",
+              cmip_bounds_h$year, cmip_bounds_h$minimum, cmip_bounds_h$maximum)
 
 ## Plot
 # Read in filtered Hector data, compute summary statistics 
-hector_co2_summary <- model_output_filtered_1 %>%
-  filter(variable == "CO2_concentration",
-         year %in% HISTORICAL_CO2_YEARS,
-         ssp == MAIN_SCENARIO) %>%
-  select(run_number, year, value) %>%
-  group_by(year) %>%
-  summarize(sdev = sd(value), 
-            minimum = min(value),
-            maximum = max(value),
-            med = median(value),
-            source = "Hector",
-            .groups = "drop")
+# hector_co2_summary <- model_output_filtered_1 %>%
+#   filter(variable == "CO2_concentration",
+#          year %in% HISTORICAL_CO2_YEARS,
+#          ssp == MAIN_SCENARIO) %>%
+#   select(run_number, year, value) %>%
+#   group_by(year) %>%
+#   summarize(sdev = sd(value), 
+#             minimum = min(value),
+#             maximum = max(value),
+#             med = median(value),
+#             source = "Hector",
+#             .groups = "drop")
 
 # Combine data
-plot_data_co2 <- bind_rows(cmip_bounds_h, hector_co2_summary)
+# plot_data_co2 <- bind_rows(cmip_bounds_h, hector_co2_summary)
 
 # Plot
-co2_plot <- plot_data_co2 %>% 
-  filter(year < 2015) %>%
-  ggplot(aes(year, fill = source, color = source)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
-  geom_line(aes(y = med), size = 2) +
-  geom_line(data = noaa_co2, aes(year, mean), size = 2) +
-  scale_color_manual(breaks = c("CMIP6", "Hector", "NOAA"),
-                     values = c("#dfc27d", "#01665e", "#bf812d")) +
-  scale_fill_manual(breaks = c("CMIP6", "Hector", "NOAA"),
-                    values = c("#dfc27d", "#01665e", "#bf812d")) +
-  labs(x = "Year",
-       y = expression(Atmospheric~CO[2]~(ppm)),
-       color = "Source",
-       fill = "Source") +
-  scale_x_continuous(expand = c(0, 0)) ; co2_plot
+# co2_plot <- plot_data_co2 %>% 
+#   filter(year < 2015) %>%
+#   ggplot(aes(year, fill = source, color = source)) +
+#   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
+#   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
+#   geom_line(aes(y = med), size = 2) +
+#   geom_line(data = noaa_co2, aes(year, mean), size = 2) +
+#   scale_color_manual(breaks = c("CMIP6", "Hector", "NOAA"),
+#                      values = c("#dfc27d", "#01665e", "#bf812d")) +
+#   scale_fill_manual(breaks = c("CMIP6", "Hector", "NOAA"),
+#                     values = c("#dfc27d", "#01665e", "#bf812d")) +
+#   labs(x = "Year",
+#        y = expression(Atmospheric~CO[2]~(ppm)),
+#        color = "Source",
+#        fill = "Source") +
+#   scale_x_continuous(expand = c(0, 0)) # co2_plot
 
-ggsave(plot = co2_plot, "../figures/figure1.png", height = 6, width = 9, units = "in")
+#ggsave(plot = co2_plot, "../figures/figure1.png", height = 6, width = 9, units = "in")
 
 ```
 
 
-### Hector temperature vs. CMIP6 
+## Hector temperature vs. CMIP6 
 
 ``` {r filtered, warning = FALSE, message = FALSE, echo = FALSE, fig.cap = "Global temperature anomaly from CMIP6 and filtered Hector runs. Lines show median; shaded areas show ±1 s.d. of median (darker) and minimum and maximum of ensemble (lighter)."}
-# This chunk will compare CMIP6 historical and projected global temperature
-# anomaly data with Hector data generated by our model runs
 
 # Read in CMIP6 comparison data
 cmip_raw <- read.csv("../input/CMIP6_annual_tas_global.csv")
@@ -250,164 +246,100 @@ cmip_t_final <- bind_rows(cmip_hist_repeat, cmip_t_scenarios) %>%
 # run numbers twice.
 # First, we just want to look at the historical data. Then we'll look at each SSP
 
-# Identify unrealistic historical runs - for each run, if more than 33% of 
-# values are outside of the min/max of the CMIP6 data, the run is dropped
 cmip_bounds_t <- select(cmip_t_final, ssp, year, minimum, maximum)
 
-cmip_t_historical <- filter(cmip_t_final, year <= 2014)
+cmip_t_hist <- filter(cmip_t_final, year <= 2014)
 cmip_t_future <- filter(cmip_t_final, year > 2014)
 
-tgav_h_hist <- run_failures(model_output_filtered_1, "global_tas",
-                            cmip_t_historical$year,
-                            cmip_t_historical$minimum,
-                            cmip_t_historical$maximum,
-                            max_out_frac = MAX_FAILFRAC_HISTORICAL)
+fails_cmip6tas_hist <- run_failures("CMIP6 historical TAS",
+                                    model_output,
+                                    "global_tas",
+                                    cmip_t_hist$year,
+                                    cmip_t_hist$minimum,
+                                    cmip_t_hist$maximum,
+                                    max_out_frac = MAX_FAILFRAC_HISTORICAL)
 
-# Filter out 'unrealistic' runs (identified above)
-model_output_filtered_2 <- tgav_h_hist %>%
-  filter(!fail) %>% 
-  select(-fraction_out, -fail) %>% 
-  left_join(model_output_filtered_1, by = "run_number")
+run_fail_plot(model_output, fails_cmip6tas_hist, 100, "global_tas",
+              cmip_t_hist$year,
+              cmip_t_hist$minimum,
+              cmip_t_hist$maximum)
+
+fails_cmip6tas_future <- run_failures("CMIP6 future TAS",
+                                      model_output, 
+                                      "global_tas",
+                                      cmip_t_future$year,
+                                      cmip_t_future$minimum,
+                                      cmip_t_future$maximum,
+                                      max_out_frac = MAX_FAILFRAC_FUTURE)
+
+p <- run_fail_plot(model_output, fails_cmip6tas_future, 100, "global_tas",
+              cmip_t_future$year,
+              cmip_t_future$minimum,
+              cmip_t_future$maximum)
+print(p + facet_wrap(~ssp))
+
+# Filter model output data
+n_runs <- length(unique(model_output$run_number))
+fail_summary <- bind_rows(fails_co2, fails_cmip6tas_hist, fails_cmip6tas_future)
+
+fail_summary %>% 
+  group_by(run_number) %>% 
+  # runs have to pass ALL the filters
+  summarise(all_pass = all(!fail)) %>% 
+  filter(all_pass) %>% 
+  select(run_number) %>% 
+  left_join(model_output, by = "run_number") ->
+  model_output_final
 
 # Remove large data
-rm(model_output_filtered_1)
-
-# Repeat for SSPs - future projections
-tgav_h_future <- run_failures(model_output_filtered_2, "global_tas",
-                              cmip_t_future$year,
-                              cmip_t_future$minimum,
-                              cmip_t_future$maximum,
-                              max_out_frac = MAX_FAILFRAC_FUTURE)
-
-# We'll use this later for visualization
-tgav_h_ssp <- model_output_filtered_2 %>%
-  filter(variable == "global_tas", year %in% unique(cmip_bounds_t$year)) %>%
-  select(run_number, ssp, year, value) %>%
-  left_join(cmip_bounds_t, by = c("year", "ssp"))
-
-# Filter out 'unrealistic' runs (identified above)
-model_output_final <- tgav_h_future %>%
-  filter(!fail) %>% 
-  select(-fraction_out, -fail) %>% 
-  left_join(model_output_filtered_2, by = "run_number")
-
-# Remove large data
-rm(model_output_filtered_2)
-
-# Create facet labels for plotting
-ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP585")
-names(ssp_labels) <- c(names(SSP_runs))
-
-# Plot temperature spreads for each scenario, Hector vs CMIP6
-temp_plot <- model_output_final %>%
-  filter(variable == "global_tas",
-         year >= 1850 & year <= 2100) %>%
-  # compute median, min, max, etc. for all remaining runs
-  group_by(year, ssp) %>%
-  summarize(sdev = sd(value),
-            minimum = min(value),
-            maximum = max(value),
-            med = median(value), .groups = "drop") %>% 
-  # combine with CMIP6 data
-  mutate(source = "Hector") %>%
-  bind_rows(cmip_t_final) %>%
-  # ...and plot
-  ggplot(aes(year, fill = source, color = source)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
-  geom_line(aes(y = med), size = 1) +
-  scale_color_manual(breaks = c("CMIP6", "Hector"),
-                     values = c("#dfc27d", "#01665e")) +
-  scale_fill_manual(breaks = c("CMIP6", "Hector"),
-                    values = c("#dfc27d", "#01665e")) +
-  facet_wrap(~ssp, scales = "free",
-             labeller = labeller(ssp = ssp_labels),
-             ncol = 2) +
-  labs(x = "Year",
-       y = expression(Temperature~anomaly~~(degree*C)),
-       color = "Source",
-       fill = "Source") +
-  theme(axis.text.x = element_text(angle = 90)) +
-  scale_x_continuous(expand = c(0, 0)) ; temp_plot
-
-ggsave(plot = temp_plot, "../figures/figure2.png", height = 6, width = 9, units = "in")
-
+rm(model_output)
 ```
 
-## Hector temperature vs CMIP6 diagnostic
+## Summary of run filtering
 
-``` {r s-cmip, message = FALSE, warning = FALSE, fig.cap = " Visualization of sample model runs. The black dots represent the CMIP6 minimums and maximums for global temperature anomaly, and the runs that pass must fall within these bounds more than 50% of the time."}
-# Visualize the run fail summaries calculated above
-# Make a table of failure rates
+Before filtering there were `r n_runs` runs.
 
-# Historical CO2
-run_fail_summary_new %>% 
-  group_by(fail) %>% 
-  summarise(n(), .groups = "drop") %>% 
+After filtering there are `r length(unique(model_output_final$run_number))` runs.
+
+Run failure rates by filtering step:
+
+```{r}
+fail_summary %>% 
+  group_by(filter, fail) %>% 
+  summarise(n = n(), .groups = "drop") %>%
+  pivot_wider(names_from = fail, values_from = n, names_prefix = "fail_") %>%
+  mutate(fail_percent = round(fail_TRUE / (fail_TRUE + fail_FALSE) * 100, 1)) %>% 
   knitr::kable()
-
-# Historical temperature
-tgav_h_hist %>% 
-  group_by(fail) %>% 
-  summarise(n(), .groups = "drop") %>% 
-  knitr::kable()
-
-# Future temperature
-tgav_h_future %>% 
-  group_by(fail) %>% 
-  summarise(n(), .groups = "drop") %>% 
-  knitr::kable()
-
-# ...and a figure 
-tgav_h_future %>% 
-  # this is a debugging figure; plot just 100 runs for clarity
-  slice_sample(n = 100, replace = TRUE) %>% 
-  left_join(tgav_h_ssp, by = "run_number") %>%
-  filter(year > 2014) %>% 
-  ggplot(aes(year, value, color = fraction_out, group = run_number)) + 
-  geom_line() + 
-  geom_point(aes(y = minimum), color = "black") + 
-  geom_point(aes(y = maximum), color = "black") +
-  facet_wrap(~ssp,
-             labeller = labeller(ssp = ssp_labels),
-             ncol = 2) +
-  scale_color_distiller(palette = "BrBG") +
-  labs(x = "Year",
-       y = expression(degree*C),
-       color = "Fraction of failed runs")
-
 ```
 
-``` {r filter-temp}
+Top 10 worst-performing runs:
+
+```{r}
+fail_summary %>% 
+  group_by(run_number) %>% 
+  summarise(fails = sum(fail), .groups = "drop") %>% 
+  arrange(desc(fails)) %>% 
+  head(n = 10) %>% 
+  knitr::kable()
+```
+
+## Filter tracking data
+
+``` {r filter-tracking}
 # Note that the tracking output needs to be filtered as well
-trk_output_filtered_1 <- run_fail_summary_new %>%
-  filter(!fail) %>% 
-  select(-fraction_out, -fail) %>% 
-  left_join(trk_output, by = "run_number")
+trk_output_final <- filter(trk_output, run_number %in% unique(model_output_final$run_number))
 
 # Remove large data and force clear memory
 rm(trk_output)
-
-trk_output_filtered_2 <- tgav_h_hist %>% 
-  filter(!fail) %>% 
-  select(-fraction_out, -fail) %>% 
-  left_join(trk_output_filtered_1, by = "run_number")
-
-rm(trk_output_filtered_1)
-
-trk_output_final <- tgav_h_future %>%
-  filter(!fail) %>% 
-  select(-fraction_out, -fail) %>% 
-  left_join(trk_output_filtered_2, by = "run_number")
-
-rm(trk_output_filtered_2)
 gc()
 ```
 
+## Write out and wrap up
+
 ``` {r cleanup-cmip, echo = FALSE}
-# Write out data, clean environment
+# Write out data
 fwrite(model_output_final, "../output/model_output_final.csv", row.names = FALSE)
 fwrite(trk_output_final, "../output/trk_output_final.csv", row.names = FALSE)
 
-gc()
+sessionInfo()
 ```
