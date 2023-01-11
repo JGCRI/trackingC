@@ -59,11 +59,12 @@ run_failures <- function(filter_name, x, var_name, var_years,
                          var_min_values, var_max_values, 
                          var_ssp, max_out_frac) {
   # Create an observational data frame
-  y <- tibble(year = var_years, ssp = var_ssp, 
-              min_value = var_min_values, max_value = var_max_values)
   if(is.null(var_ssp)) {
+    y <- tibble(year = var_years, min_value = var_min_values, max_value = var_max_values)
     join_vars <- "year"
   } else {
+    y <- tibble(year = var_years, ssp = var_ssp, 
+              min_value = var_min_values, max_value = var_max_values)
     join_vars <- c("ssp", "year")
   }
   # Isolate the matching Hector data, merge with observations, calculate outs 
