@@ -76,16 +76,16 @@ generate_params <- function(run_numbers){
     run_number = run_numbers,
     # Jones et al ()
     # Match prior of trendy models
-    "BETA" = rnorm(runs, mean = 0.28, sd = 0.1),
+    "BETA" = rnorm(runs, mean = 0.55, sd = 0.1),
     
     # Davidson and Janssens (2006)
-    "Q10_RH" = rlnorm(runs, lognorm(2.0, 1.0)[1], lognorm(2.0, 1.0)[2]),
+    "Q10_RH" = rlnorm(runs, lognorm(2.16, 1.0)[1], lognorm(2.16, 1.0)[2]),
     
     # Ito (2011)
     "NPP_FLUX0" = rnorm(runs, mean = 56.2, sd = 14.3),
     
     # Smith et al. (2020)
-    "AERO_SCALE" = rnorm(runs, mean = 1.01, sd = 0.23),
+    "AERO_SCALE" = rnorm(runs, mean = 1.0, sd = 0.23),
     
     # Land use change emissions scaling parameter, to account for uncertainties in values for LUC
     # Friedlingstein et al 2021 state: 
@@ -108,7 +108,7 @@ generate_params <- function(run_numbers){
     "TU" = rnorm(runs, mean = 4.9e+07, sd = 4.9e+06),
     
     # Warm-intermediate exchange
-    "TWI" = rnorm(runs, mean = 12500000, sd = 1250000),
+    "TWI" = rnorm(runs, mean = 1.25e+07, sd = 1.25e+06),
     
     # Intermediate-deep exchange
     "TID" = rnorm(runs, mean = 2e+08, sd = 2e+07)
@@ -130,11 +130,11 @@ runlist <- left_join(runlist, param_sce, by = "run_number")
 # Joint PDF for ECS and diffusivity
 # Sherwood et al (2020)
 ecs_vals_lognorm <- rlnorm(nrow(runlist), 
-                           lognorm(3.25, 0.65)[1], 
-                           lognorm(3.25, 0.65)[2])
+                           lognorm(3.0, 0.65)[1], 
+                           lognorm(3.0, 0.65)[2])
 # Transform ECS distribution to log(distribution)
 ecs_vals_to_norm <- log(ecs_vals_lognorm)
-diffusion_vals <- rnorm(nrow(runlist), mean = 2.3, sd = 0.23)
+diffusion_vals <- rnorm(nrow(runlist), mean = 1.18, sd = 0.118)
 
 DESIRED_PCOR <- -0.75  # ECS and diffusivity should be negatively correlated
 # https://en.wikipedia.org/wiki/Covariance_and_correlation
