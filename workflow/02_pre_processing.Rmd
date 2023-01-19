@@ -370,6 +370,22 @@ run_fail_plot(model_output, fails_landsink, 100, "NBP",
               sinks$land_sink_high,
               var_ssp = NULL)
 
+fails_oceansink <- run_failures("GCP ocean sink",
+                               model_output, 
+                               "NBP",
+                               sinks$Year,
+                               sinks$ocean_sink_low,
+                               sinks$ocean_sink_high,
+                               var_ssp = NULL,
+                               max_out_frac = MAX_FAILFRAC_HISTORICAL)
+
+run_fail_plot(model_output, fails_oceansink, 100, "NBP",
+              sinks$Year,
+              sinks$ocean_sink_low,
+              sinks$ocean_sink_high,
+              var_ssp = NULL)
+
+
 ```
 
 
@@ -378,9 +394,9 @@ run_fail_plot(model_output, fails_landsink, 100, "NBP",
 ```{r, run-filtering}
 # Filter model output data
 n_runs <- length(unique(model_output$run_number))
-fail_summary <- bind_rows(fails_co2, 
+fail_summary <- bind_rows(fails_co2_hist, fails_co2_future, 
                           fails_cmip6tas_hist, fails_cmip6tas_future,
-                          fails_landsink)
+                          fails_landsink, fails_oceansink)
 
 fail_summary %>% 
   group_by(run_number) %>% 
