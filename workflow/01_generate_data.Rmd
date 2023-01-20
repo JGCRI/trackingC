@@ -101,6 +101,10 @@ generate_params <- function(run_numbers){
     # Using a lognormal distribution because we do not want negative or near-zero values
     "LUC_SCALE" = rlnorm(runs, lognorm(1.3, 0.2)[1], lognorm(1.3, 0.2)[2]),
     
+    "DIFFUSIVITY" = rnorm(runs, mean = 1.18, sd = 0.118),
+    
+    "ECS" = rlnorm(runs, lognorm(3.0, 0.65)[1], lognorm(3.0, 0.65)[2]),
+    
     # Thermohaline overturning
     "TT" = rnorm(runs, mean = 7.2e+07, sd = 7.2e+06),
     
@@ -126,60 +130,6 @@ param_sce <- generate_params(runlist$run_number)
 runlist <- left_join(runlist, param_sce, by = "run_number")
 ```
 
-``` {r joint-params, fig.cap = " The final joint distribution of ECS and diffusivity. The individual parameter distributions are shown on the x and y axes."}
-# Joint PDF for ECS and diffusivity
-# Sherwood et al (2020)
-ecs_vals_lognorm <- rlnorm(nrow(runlist), 
-                           lognorm(3.0, 0.65)[1], 
-                           lognorm(3.0, 0.65)[2])
-# Transform ECS distribution to log(distribution)
-ecs_vals_to_norm <- log(ecs_vals_lognorm)
-diffusion_vals <- rnorm(nrow(runlist), mean = 1.18, sd = 0.118)
-
-DESIRED_PCOR <- -0.75  # ECS and diffusivity should be negatively correlated
-# https://en.wikipedia.org/wiki/Covariance_and_correlation
-# To calculate covariance from the desired correlation, multiply the 
-# correlation by the square of the variance of each variable - the standard deviation
-# https://web.stanford.edu/class/archive/cs/cs109/cs109.1178/lectureHandouts/150-covariance.pdf
-desired_cov <- DESIRED_PCOR * sd(ecs_vals_to_norm) * sd(diffusion_vals)
-# Set up the variance-covariance matrix
-Sigma <- matrix(c(var(ecs_vals_to_norm), 
-                  desired_cov, desired_cov, 
-                  var(diffusion_vals)),
-                2, 2)
-# ...and generate values--twice as many as needed because we toss out
-# negative ECS values below (see note above)
-joint_vals <- MASS::mvrnorm(n = nrow(runlist) * 2,
-                            c(mean(ecs_vals_to_norm),
-                              mean(diffusion_vals)), Sigma)
-colnames(joint_vals) <- c("ECS", "DIFFUSIVITY")
-jv <- as_tibble(joint_vals)
-
-# Filter and bind to the runlist
-jv %>% 
-  mutate(ECS = exp(ECS)) %>%
-  filter(ECS > 0) %>% 
-  sample_n(nrow(runlist)) %>%
-  bind_cols(runlist, .) ->
-  runlist
-
-# Visualize the final joint distribution of ECS and DIFFUSIVITY
-p <- ggplot(runlist, aes(ECS, DIFFUSIVITY)) + 
-  geom_point(alpha = 0.2) + 
-  geom_density_2d() +
-  ggtitle("Joint distribution of ECS and DIFFUSIVITY")
-ggExtra::ggMarginal(p, type = "histogram", alpha = 0.2)
-
-```
-
-``` {r log-dist, fig.cap = " Comparing the original, random, lognormal distribution for ECS with the final transformed version, the exponential of the log of ECS."}
-
-# Visualize proper lognormal versus transformed distributions for ECS
-tibble(lognorm = ecs_vals_lognorm, transformed = runlist$ECS) %>% 
-  pivot_longer(everything()) %>% 
-  ggplot(aes(value, fill = name)) + geom_density(alpha = 0.5) +
-  ggtitle("Comparison of (proper) lognormal with transformed distribution for ECS")
-```
 
 ## Run the model
 
