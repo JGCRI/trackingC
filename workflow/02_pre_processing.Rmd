@@ -59,11 +59,12 @@ run_failures <- function(filter_name, x, var_name, var_years,
                          var_min_values, var_max_values, 
                          var_ssp, max_out_frac) {
   # Create an observational data frame
-  y <- tibble(year = var_years, ssp = var_ssp, 
-              min_value = var_min_values, max_value = var_max_values)
   if(is.null(var_ssp)) {
+    y <- tibble(year = var_years, min_value = var_min_values, max_value = var_max_values)
     join_vars <- "year"
   } else {
+    y <- tibble(year = var_years, ssp = var_ssp, 
+              min_value = var_min_values, max_value = var_max_values)
     join_vars <- c("ssp", "year")
   }
   # Isolate the matching Hector data, merge with observations, calculate outs 
@@ -126,7 +127,7 @@ run_fail_plot <- function(x, fail_data, n_sample, var_name,
 cmip_co2_data <- read.csv("../input/CMIP6_annual_co2.csv")
 
 # Isolate historical data
-cmip_co2 <- cmip_co2_data %>%
+cmip_co2_hist <- cmip_co2_data %>%
   filter(year %in% HISTORICAL_CO2_YEARS,
          experiment == "historical",
          # Remove models with constant historical CO2
@@ -141,11 +142,33 @@ cmip_co2 <- cmip_co2_data %>%
             source = "CMIP6",
             .groups = "drop")
 
-# Identify unrealistic runs - for each Hector run, if more than 33% of values are
-# outside of the min/max of the CMIP6 data, the run is removed from the data
+# Isolate desired scenarios
+cmip_co2_sce <- list()
+for(n in names(SSP_files)){
+  cmip_co2_sce[[n]] <- cmip_co2_data %>% 
+    filter(experiment == n)
+}  
+
+cmip_co2_scenarios <- bind_rows(cmip_co2_sce)
+rm(cmip_co2_data)
+
+# Calculate summary metrics
+cmip_c_scenarios <- cmip_co2_scenarios %>%
+  rename(ssp = experiment) %>%
+  filter(year <= 2100) %>%
+  # convert to ppm
+  mutate(value = value * 1e6) %>%
+  group_by(year, ssp) %>%
+  summarize(sdev = sd(value),
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value)) %>%
+  mutate(source = "CMIP6") %>%
+  arrange(ssp, year)
+
 
 # Create bounds using historical data and the standard deviation of the CMIP6 models
-cmip_bounds_h <- cmip_co2 %>%
+cmip_bounds_co2_hist <- cmip_co2_hist %>%
   select(year, sdev, med) %>%
   mutate(hist_mean = noaa_co2$mean,
          minimum = hist_mean - sdev,
@@ -153,18 +176,34 @@ cmip_bounds_h <- cmip_co2 %>%
          source = "CMIP6")
 
 # Summarize
-fails_co2 <- run_failures("CMIP6 historical CO2",
+fails_co2_hist <- run_failures("CMIP6 historical CO2",
                           model_output,
                           "CO2_concentration", 
-                          cmip_bounds_h$year, 
-                          cmip_bounds_h$minimum, 
-                          cmip_bounds_h$maximum, 
+                          cmip_bounds_co2_hist$year, 
+                          cmip_bounds_co2_hist$minimum, 
+                          cmip_bounds_co2_hist$maximum, 
                           var_ssp = NULL,
                           max_out_frac = MAX_FAILFRAC_HISTORICAL)
 
-run_fail_plot(model_output, fails_co2, 100, "CO2_concentration",
-              cmip_bounds_h$year, cmip_bounds_h$minimum, cmip_bounds_h$maximum, 
+run_fail_plot(model_output, fails_co2_hist, 100, "CO2_concentration",
+              cmip_bounds_co2_hist$year, cmip_bounds_co2_hist$minimum, cmip_bounds_co2_hist$maximum, 
               var_ssp = NULL)
+
+# Future
+fails_co2_future <- run_failures("CMIP6 future CO2",
+                                      model_output, 
+                                      "CO2_concentration",
+                                      cmip_c_scenarios$year,
+                                      cmip_c_scenarios$minimum,
+                                      cmip_c_scenarios$maximum,
+                                      var_ssp = cmip_c_scenarios$ssp,
+                                      max_out_frac = MAX_FAILFRAC_FUTURE)
+
+run_fail_plot(model_output, fails_co2_future, 100, "CO2_concentration",
+              cmip_c_scenarios$year,
+              cmip_c_scenarios$minimum,
+              cmip_c_scenarios$maximum,
+              var_ssp = cmip_c_scenarios$ssp)
 
 ## Plot
 # Read in filtered Hector data, compute summary statistics 
@@ -307,7 +346,7 @@ run_fail_plot(model_output, fails_cmip6tas_future, 100, "global_tas",
 ```{r}
 # Standard deviation multiplier - it may simply not be possible for a model
 # like Hector to replicate the year-to-year variability of land models
-SD_X <- 1
+SD_X <- 3
 # Read comparison data from Global Carbon Project 2022
 readr::read_csv("../input/gcp_land_ocean_sinks.csv", skip = 1) %>% 
   mutate(land_sink_low = land_sink_mean - SD_X * land_sink_sd,
@@ -331,6 +370,22 @@ run_fail_plot(model_output, fails_landsink, 100, "NBP",
               sinks$land_sink_high,
               var_ssp = NULL)
 
+fails_oceansink <- run_failures("GCP ocean sink",
+                               model_output, 
+                               "NBP",
+                               sinks$Year,
+                               sinks$ocean_sink_low,
+                               sinks$ocean_sink_high,
+                               var_ssp = NULL,
+                               max_out_frac = MAX_FAILFRAC_HISTORICAL)
+
+run_fail_plot(model_output, fails_oceansink, 100, "NBP",
+              sinks$Year,
+              sinks$ocean_sink_low,
+              sinks$ocean_sink_high,
+              var_ssp = NULL)
+
+
 ```
 
 
@@ -339,9 +394,9 @@ run_fail_plot(model_output, fails_landsink, 100, "NBP",
 ```{r, run-filtering}
 # Filter model output data
 n_runs <- length(unique(model_output$run_number))
-fail_summary <- bind_rows(fails_co2, 
+fail_summary <- bind_rows(fails_co2_hist, fails_co2_future, 
                           fails_cmip6tas_hist, fails_cmip6tas_future,
-                          fails_landsink)
+                          fails_landsink, fails_oceansink)
 
 fail_summary %>% 
   group_by(run_number) %>% 
@@ -403,3 +458,4 @@ fwrite(trk_output_final, "../output/trk_output_final_test.csv", row.names = FALS
 
 sessionInfo()
 ```
+
