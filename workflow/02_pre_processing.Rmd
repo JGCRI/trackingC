@@ -307,7 +307,7 @@ run_fail_plot(model_output, fails_cmip6tas_future, 100, "global_tas",
 ```{r}
 # Standard deviation multiplier - it may simply not be possible for a model
 # like Hector to replicate the year-to-year variability of land models
-SD_X <- 1
+SD_X <- 3
 # Read comparison data from Global Carbon Project 2022
 readr::read_csv("../input/gcp_land_ocean_sinks.csv", skip = 1) %>% 
   mutate(land_sink_low = land_sink_mean - SD_X * land_sink_sd,
