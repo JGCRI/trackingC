@@ -344,15 +344,17 @@ run_fail_plot(model_output, fails_cmip6tas_future, 100, "global_tas",
 ## Land and ocean C sinks 
 
 ```{r}
-# Standard deviation multiplier - it may simply not be possible for a model
-# like Hector to replicate the year-to-year variability of land models
-SD_X <- 3
+# Standard deviation multiplier for the land sink. We do this because:
+# 1. The GCP models are driven by 'perfect' (observational) climate; it's
+#    not reasonable for an annual model like Hector to replicate this
+# 2. The land sink mean is the model mean, not an observation.
+GCP_SD_X <- 3
 # Read comparison data from Global Carbon Project 2022
 readr::read_csv("../input/gcp_land_ocean_sinks.csv", skip = 1) %>% 
-  mutate(land_sink_low = land_sink_mean - SD_X * land_sink_sd,
-         land_sink_high = land_sink_mean + SD_X * land_sink_sd,
-         ocean_sink_low = ocean_sink_mean - SD_X * ocean_sink_sd,
-         ocean_sink_high = ocean_sink_mean + SD_X * ocean_sink_sd) ->
+  mutate(land_sink_low = land_sink_mean - GCP_SD_X * land_sink_sd,
+         land_sink_high = land_sink_mean + GCP_SD_X * land_sink_sd,
+         ocean_sink_low = ocean_sink_mean - GCP_SD_X * ocean_sink_sd,
+         ocean_sink_high = ocean_sink_mean + GCP_SD_X * ocean_sink_sd) ->
   sinks
 
 fails_landsink <- run_failures("GCP land sink",
@@ -364,11 +366,12 @@ fails_landsink <- run_failures("GCP land sink",
                                var_ssp = NULL,
                                max_out_frac = MAX_FAILFRAC_HISTORICAL)
 
-run_fail_plot(model_output, fails_landsink, 100, "NBP",
+p <- run_fail_plot(model_output, fails_landsink, 100, "NBP",
               sinks$Year,
               sinks$land_sink_low,
               sinks$land_sink_high,
               var_ssp = NULL)
+
 
 fails_oceansink <- run_failures("GCP ocean sink",
                                model_output, 
@@ -385,7 +388,7 @@ run_fail_plot(model_output, fails_oceansink, 100, "NBP",
               sinks$ocean_sink_high,
               var_ssp = NULL)
 
-
+print(p + ggtitle(paste(p$labels$title, "with GCP_SD_X =", GCP_SD_X)))
 ```
 
 
