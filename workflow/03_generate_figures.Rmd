@@ -40,6 +40,16 @@ source("common_data.R")
 runlist <- fread("../output/runlist.csv")
 trk_output_final <- fread("../output/trk_output_final.csv")
 
+# Create facet labels for plotting
+pool_labels <- c("Atmosphere", "Deep ocean", "Detritus", "Anthropogenic emissions",
+                 "High-lat ocean", "Intermed. ocean",
+                 "Low-lat ocean", "Soil", "Vegetation")
+names(pool_labels) <- c("atmos_co2", "deep", "detritus_c", "earth_c", "HL", "intermediate",
+                        "LL", "soil_c", "veg_c")
+
+ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP585")
+names(ssp_labels) <- c(names(SSP_runs))
+
 ```
 
 ### Results
@@ -59,13 +69,6 @@ in a manuscript.
 # Isolate the atmosphere pool to better understand its composition 
 atmosphere_pool <- trk_output_final %>%
   filter(pool_name == "atmos_co2")
-
-# Create facet labels for plotting
-pool_labels <- c("Atmosphere", "Deep ocean", "Detritus", "Anthropogenic emissions",
-                 "High-lat ocean", "Intermed. ocean",
-                 "Low-lat ocean", "Soil", "Vegetation")
-names(pool_labels) <- c("atmos_co2", "deep", "detritus_c", "earth_c", "HL", "intermediate",
-                        "LL", "soil_c", "veg_c")
 
 # This plot looks at source fraction by source pool in the atmosphere 
 atm_summary <- atmosphere_pool %>%
@@ -123,10 +126,6 @@ ff <- atmosphere_pool %>%
          sf_median = median(source_fraction))
 
 rm(atmosphere_pool)
-
-# Create facet labels for plotting
-ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP585")
-names(ssp_labels) <- c(names(SSP_runs))
 
 atm_fraction_plot <- ggplot(ff, aes(year,  fill = ssp)) +
   geom_line(aes(y = sf_median, color = ssp), size = 1) +
@@ -276,6 +275,13 @@ calc_relimp <- function(x) {
   
 }
 
+# Scale ocean parameters down for relaimpo calculation
+dest <- dest %>%
+  mutate(TT = TT / 1e7,
+         TU = TU / 1e7,
+         TWI = TWI / 1e7,
+         TID = TID / 1e7)
+
 # Run calc_relimp() above on each year's data
 dest_split <- split(dest, list(dest$year, dest$ssp))
 relimp_out <- lapply(dest_split, FUN = calc_relimp) %>% 
@@ -285,15 +291,17 @@ relimp_out <- lapply(dest_split, FUN = calc_relimp) %>%
 importance_plot <- relimp_out %>%
   mutate(param = factor(param, levels = rev(c("NPP_FLUX0", "Q10_RH", "BETA", "ECS", 
                                               "DIFFUSIVITY", "AERO_SCALE",
-                                              "LUC_SCALE")))) %>%
+                                              "LUC_SCALE", "TT", "TU", "TWI", "TID")))) %>%
   filter(year > 1999) %>%
   ggplot(aes(year, value, fill = param)) + 
   geom_area() +
   coord_cartesian(expand = FALSE) +
   scale_fill_brewer(palette = "BrBG",
-                    breaks = c("LUC_SCALE", "AERO_SCALE", "DIFFUSIVITY",
+                    breaks = c("TID", "TWI", "TU", "TT", "LUC_SCALE", "AERO_SCALE", "DIFFUSIVITY",
                                "ECS", "BETA", "Q10_RH","NPP_FLUX0"),
-                    labels = c("LUC emissions", "Aerosol forcing",
+                    labels = c("Intermed-deep exchange", "Warm-intermed exchange", 
+                               "High-lat overturning", "Thermohaline overturning", 
+                               "LUC emissions", "Aerosol forcing",
                                "Ocean diffusivity", "ECS",
                                "CO2 fertilization", "Q10",
                                "Pre-industrial NPP")) +

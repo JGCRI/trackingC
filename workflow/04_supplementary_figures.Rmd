@@ -34,10 +34,11 @@ trk_output <- fread("../output/trk_output_final.csv")
 ``` {r s-params-PDFs, fig.cap = paste0(" Probability densities of each parameter (N=", SSP_runs[[MAIN_SCENARIO]], " draws).")}
 # Density plots to visualize parameter distributions
 # Create facet labels
-param_labels <- c("Aerosol forcing", "CO2 fertilization", "Ocean diffusivity", 
-                  "ECS", "LUC emissions", "Pre-industrial NPP", "Q10")
-names(param_labels) <- c("AERO_SCALE", "BETA", "DIFFUSIVITY", "ECS", "LUC_SCALE", 
-                         "NPP_FLUX0", "Q10_RH")
+param_labels <- c("Aerosol forcing", "CO2 fertilization", "ECS", "High-lat overturning",
+                  "Intermed-deep exchange", "LUC emissions", "Ocean diffusivity", "Pre-industrial NPP",
+                  "Q10", "Thermohaline overturning",  "Warm-intermed exchange")
+names(param_labels) <- c("AERO_SCALE", "BETA",  "ECS","TU", "TID", "LUC_SCALE", "DIFFUSIVITY",
+                         "NPP_FLUX0", "Q10_RH", "TT", "TWI")
 
 runlist_plot <- runlist %>% 
   filter(ssp == MAIN_SCENARIO) %>%
@@ -68,9 +69,11 @@ ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
   scale_color_brewer(palette = "BrBG",
                      breaks = c("veg_c", "detritus_c", "soil_c", "earth_c",
                                 "LL", "atmos_co2", "intermediate", "deep", "HL"),
-                     labels = c("Vegetation", "Detritus", "Soil", "Anthropogenic emissions",
-                                "Low-lat ocean", "Atmosphere", "Intermed. ocean",
-                                "Deep ocean", "High-lat ocean")) +
+                     labels = c("Vegetation", "Detritus", "Soil", 
+                                "Deep ocean", "Low-lat ocean", 
+                                "Anthropogenic emissions",
+                                "Intermed. ocean", "High-lat ocean",
+                                "Atmosphere")) +
   labs(x = "Source fraction",
        y = "Coefficient of variability",
        color = "Source parameter") +
@@ -85,10 +88,10 @@ ggplot(atmos_cv, aes(year, cv, group = source_name, color = source_name)) +
 # Exploring how the parameter space is linked to output
 # What parameters control the percentage of earth_c in the atmosphere?
 # Isolating the year 2100
-pairs_labels <- c("Aerosol", "Beta", "Keff", 
-                  "ECS", "LUC", "NPP", "Q10")
-names(pairs_labels) <- c("AERO_SCALE", "BETA", "DIFFUSIVITY", "ECS", "LUC_SCALE", 
-                         "NPP_FLUX0", "Q10_RH")
+pairs_labels <- c("Aerosol", "Beta", "ECS", 
+                  "Keff",  "LUC", "NPP", "Q10", "TID", "TT", "TU", "TWI")
+names(pairs_labels) <- c("AERO_SCALE", "BETA", "ECS", "DIFFUSIVITY", "LUC_SCALE", 
+                         "NPP_FLUX0", "Q10_RH", "TID", "TT", "TU", "TWI")
 
 ffi_atm_2100 <- trk_output %>%
   filter(pool_name == "atmos_co2",
