@@ -209,7 +209,7 @@ run_hector <- function(pdata, c, sce) {
   
   out$results <- fetchvars(c, OUTPUT_YEARS, 
                            c("CO2_concentration", "RF_tot",
-                             "RF_CO2", "global_tas", "luc_emissions")) %>% 
+                             "RF_CO2", "global_tas", "luc_emissions", "NBP")) %>% 
     # remove unneeded rows to shrink outputs
     filter(year %% SAVE_EVERY_YEARS == 0)
   
