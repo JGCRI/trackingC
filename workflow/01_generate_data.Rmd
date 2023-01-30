@@ -106,6 +106,8 @@ generate_params <- function(run_numbers){
     "ECS" = rlnorm(runs, lognorm(3.0, 0.65)[1], lognorm(3.0, 0.65)[2]),
     
     # Thermohaline overturning
+    # These are poorly constrained; here we use a +/- 10% s.d., following 
+    # Hartin (2015) and commensurate with other errors above
     "TT" = rnorm(runs, mean = 7.2e+07, sd = 7.2e+06),
     
     # High-latitude overturning
@@ -138,7 +140,8 @@ Run the model and store outputs and tracking data.
 ```{r functions, cache=TRUE}
 run_hector <- function(pdata, c, sce) {
   
-  # Function to set multiple parameter values for Hector, run a core, and retrieve tracking data
+  # Function to set multiple parameter values for Hector, run a core, and 
+  # retrieve tracking data
   # pdata will be the runlist specified above
   # c is a Hector newcore environment
   
