@@ -62,3 +62,24 @@ TRACKING_START <- 1750
 # To reduce file size and memory footprint, we only retain
 # every SAVE_EVERY_YEARS years; this can be 1 to retain all data
 SAVE_EVERY_YEARS <- 1
+
+# Labels for plotting
+ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP585")
+
+names(ssp_labels) <- c(names(SSP_runs))
+
+pool_labels <- c("Atmosphere", "Deep ocean", "Detritus", "Anthropogenic emissions",
+                 "High-lat ocean", "Intermed. ocean",
+                 "Low-lat ocean", "Soil", "Vegetation")
+
+names(pool_labels) <- c("atmos_co2", "deep", "detritus_c", "earth_c", "HL", "intermediate",
+                        "LL", "soil_c", "veg_c")
+
+# Ordered pool labels
+o_pool_labels <- c("Atmosphere", "Soil", "Vegetation",  "Detritus",
+                   "High-lat ocean", "Low-lat ocean",
+                   "Intermed. ocean", "Deep ocean")
+
+names(o_pool_labels) <- c("atmos_co2", "soil_c", "veg_c",  "detritus_c",
+                          "HL", "LL", "intermediate", "deep")
+
