@@ -36,7 +36,7 @@ runlist <- fread("../output/runlist.csv")
 model_output <- fread("../output/model_output.csv")
 trk_output <- fread("../output/trk_output.csv")
 
-# Add ssp information to the output data
+# Add SSP information to the output data
 model_output$ssp <- runlist$ssp[model_output$run_number]
 trk_output$ssp <- runlist$ssp[trk_output$run_number]
 
@@ -64,7 +64,7 @@ run_failures <- function(filter_name, x, var_name, var_years,
     join_vars <- "year"
   } else {
     y <- tibble(year = var_years, ssp = var_ssp, 
-              min_value = var_min_values, max_value = var_max_values)
+                min_value = var_min_values, max_value = var_max_values)
     join_vars <- c("ssp", "year")
   }
   # Isolate the matching Hector data, merge with observations, calculate outs 
@@ -104,8 +104,6 @@ run_fail_plot <- function(x, fail_data, n_sample, var_name,
     geom_point(data = y, aes(y = max_value)) +
     geom_line(data = y, aes(y = min_value)) +
     geom_line(data = y, aes(y = max_value)) +
-    # Mauna Loa historical data for comparison
-    #  geom_line(data = noaa_co2, aes(y = mean), color = "red", size = 2) +
     scale_color_distiller(palette = "BrBG") +
     ylab(var_name) +
     ggtitle(paste("Filter:", fail_data$filter[1])) ->
@@ -175,71 +173,17 @@ cmip_bounds_co2_hist <- cmip_co2_hist %>%
 
 # Summarize
 fails_co2_hist <- run_failures("CMIP6 historical CO2",
-                          model_output,
-                          "CO2_concentration", 
-                          cmip_bounds_co2_hist$year, 
-                          cmip_bounds_co2_hist$minimum, 
-                          cmip_bounds_co2_hist$maximum, 
-                          var_ssp = NULL,
-                          max_out_frac = MAX_FAILFRAC_HISTORICAL)
+                               model_output,
+                               "CO2_concentration", 
+                               cmip_bounds_co2_hist$year, 
+                               cmip_bounds_co2_hist$minimum, 
+                               cmip_bounds_co2_hist$maximum, 
+                               var_ssp = NULL,
+                               max_out_frac = MAX_FAILFRAC_HISTORICAL)
 
 run_fail_plot(model_output, fails_co2_hist, 100, "CO2_concentration",
               cmip_bounds_co2_hist$year, cmip_bounds_co2_hist$minimum, cmip_bounds_co2_hist$maximum, 
               var_ssp = NULL)
-
-# # Future
-# fails_co2_future <- run_failures("CMIP6 future CO2",
-#                                       model_output, 
-#                                       "CO2_concentration",
-#                                       cmip_c_scenarios$year,
-#                                       cmip_c_scenarios$minimum,
-#                                       cmip_c_scenarios$maximum,
-#                                       var_ssp = cmip_c_scenarios$ssp,
-#                                       max_out_frac = MAX_FAILFRAC_FUTURE)
-# 
-# run_fail_plot(model_output, fails_co2_future, 100, "CO2_concentration",
-#               cmip_c_scenarios$year,
-#               cmip_c_scenarios$minimum,
-#               cmip_c_scenarios$maximum,
-#               var_ssp = cmip_c_scenarios$ssp)
-
-## Plot
-# Read in filtered Hector data, compute summary statistics 
-# hector_co2_summary <- model_output_filtered_1 %>%
-#   filter(variable == "CO2_concentration",
-#          year %in% HISTORICAL_CO2_YEARS,
-#          ssp == MAIN_SCENARIO) %>%
-#   select(run_number, year, value) %>%
-#   group_by(year) %>%
-#   summarize(sdev = sd(value), 
-#             minimum = min(value),
-#             maximum = max(value),
-#             med = median(value),
-#             source = "Hector",
-#             .groups = "drop")
-
-# Combine data
-# plot_data_co2 <- bind_rows(cmip_bounds_h, hector_co2_summary)
-
-# Plot
-# co2_plot <- plot_data_co2 %>% 
-#   filter(year < 2015) %>%
-#   ggplot(aes(year, fill = source, color = source)) +
-#   geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
-#   geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
-#   geom_line(aes(y = med), size = 2) +
-#   geom_line(data = noaa_co2, aes(year, mean), size = 2) +
-#   scale_color_manual(breaks = c("CMIP6", "Hector", "NOAA"),
-#                      values = c("#dfc27d", "#01665e", "#bf812d")) +
-#   scale_fill_manual(breaks = c("CMIP6", "Hector", "NOAA"),
-#                     values = c("#dfc27d", "#01665e", "#bf812d")) +
-#   labs(x = "Year",
-#        y = expression(Atmospheric~CO[2]~(ppm)),
-#        color = "Source",
-#        fill = "Source") +
-#   scale_x_continuous(expand = c(0, 0)) # co2_plot
-
-#ggsave(plot = co2_plot, "../figures/figure1.png", height = 6, width = 9, units = "in")
 
 ```
 
@@ -365,20 +309,20 @@ fails_landsink <- run_failures("GCP land sink",
                                max_out_frac = MAX_FAILFRAC_HISTORICAL)
 
 p <- run_fail_plot(model_output, fails_landsink, 100, "NBP",
-              sinks$Year,
-              sinks$land_sink_low,
-              sinks$land_sink_high,
-              var_ssp = NULL)
+                   sinks$Year,
+                   sinks$land_sink_low,
+                   sinks$land_sink_high,
+                   var_ssp = NULL)
 
 
 fails_oceansink <- run_failures("GCP ocean sink",
-                               model_output, 
-                               "NBP",
-                               sinks$Year,
-                               sinks$ocean_sink_low,
-                               sinks$ocean_sink_high,
-                               var_ssp = NULL,
-                               max_out_frac = MAX_FAILFRAC_HISTORICAL)
+                                model_output, 
+                                "NBP",
+                                sinks$Year,
+                                sinks$ocean_sink_low,
+                                sinks$ocean_sink_high,
+                                var_ssp = NULL,
+                                max_out_frac = MAX_FAILFRAC_HISTORICAL)
 
 run_fail_plot(model_output, fails_oceansink, 100, "NBP",
               sinks$Year,
@@ -449,6 +393,112 @@ trk_output_final <- filter(trk_output, run_number %in% unique(model_output_final
 rm(trk_output)
 gc()
 ```
+
+
+## Plot metrics
+
+```{r plots}
+# CO2 
+# Read in filtered Hector data, compute summary statistics
+hector_co2_summary <- model_output_final %>%
+  filter(variable == "CO2_concentration",
+         year %in% HISTORICAL_CO2_YEARS,
+         ssp == MAIN_SCENARIO) %>%
+  select(run_number, year, value) %>%
+  group_by(year) %>%
+  summarize(sdev = sd(value),
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value),
+            source = "Hector",
+            .groups = "drop")
+
+# Combine data
+plot_data_co2 <- bind_rows(cmip_bounds_co2_hist, hector_co2_summary)
+
+# Plot
+co2_plot <- plot_data_co2 %>%
+  filter(year < 2015) %>%
+  ggplot(aes(year, fill = source, color = source)) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
+  geom_line(aes(y = med), size = 2) +
+  geom_line(data = noaa_co2, aes(year, mean), size = 2) +
+  scale_color_manual(breaks = c("CMIP6", "Hector", "NOAA"),
+                     values = c("#dfc27d", "#01665e", "#bf812d")) +
+  scale_fill_manual(breaks = c("CMIP6", "Hector", "NOAA"),
+                    values = c("#dfc27d", "#01665e", "#bf812d")) +
+  labs(x = "Year",
+       y = expression(Atmospheric~CO[2]~(ppm)),
+       color = "Source",
+       fill = "Source") +
+  scale_x_continuous(expand = c(0, 0)) ; co2_plot
+
+ggsave(plot = co2_plot, "../figures/figure1.png", height = 6, width = 9, units = "in")
+
+# Temperature
+# Plot temperature spreads for each scenario, Hector vs CMIP6
+temp_plot_data <- model_output_final %>%
+  filter(variable == "global_tas",
+         year >= 1850 & year <= 2100) %>%
+  # compute median, min, max, etc. for all remaining runs
+  group_by(year, ssp) %>%
+  summarize(sdev = sd(value),
+            minimum = min(value),
+            maximum = max(value),
+            med = median(value), .groups = "drop") %>% 
+  # combine with CMIP6 data
+  mutate(source = "Hector") %>%
+  bind_rows(cmip_t_final)
+
+# Plot historical...
+temp_plot_hist <- temp_plot_data %>% 
+  filter(year <= 2015) %>%
+  ggplot(aes(year, fill = source, color = source)) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
+  geom_line(aes(y = med), size = 1) +
+  scale_color_manual(breaks = c("CMIP6", "Hector"),
+                     values = c("#dfc27d", "#01665e")) +
+  scale_fill_manual(breaks = c("CMIP6", "Hector"),
+                    values = c("#dfc27d", "#01665e")) +
+  facet_wrap(~ssp, scales = "free",
+             labeller = labeller(ssp = ssp_labels),
+             ncol = 2) +
+  labs(x = "Year",
+       y = expression(Temperature~anomaly~~(degree*C)),
+       color = "Source",
+       fill = "Source") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_x_continuous(expand = c(0, 0)) ; temp_plot_hist
+
+# ...and plot future
+temp_plot_ssp <- temp_plot_data %>% 
+  filter(year >= 2015) %>%
+  ggplot(aes(year, fill = source, color = source)) +
+  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
+  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
+  geom_line(aes(y = med), size = 1) +
+  scale_color_manual(breaks = c("CMIP6", "Hector"),
+                     values = c("#dfc27d", "#01665e")) +
+  scale_fill_manual(breaks = c("CMIP6", "Hector"),
+                    values = c("#dfc27d", "#01665e")) +
+  facet_wrap(~ssp, scales = "free",
+             labeller = labeller(ssp = ssp_labels),
+             ncol = 2) +
+  labs(x = "Year",
+       y = expression(Temperature~anomaly~~(degree*C)),
+       color = "Source",
+       fill = "Source") +
+  theme(axis.text.x = element_text(angle = 90)) +
+  scale_x_continuous(expand = c(0, 0)) ; temp_plot_ssp
+
+
+ggsave(plot = temp_plot_hist, "../figures/figure2a.png", height = 6, width = 9, units = "in")
+ggsave(plot = temp_plot_ssp, "../figures/figure2b.png", height = 6, width = 9, units = "in")
+
+```
+
 
 ## Write out and wrap up
 
