@@ -40,16 +40,6 @@ source("common_data.R")
 runlist <- fread("../output/runlist.csv")
 trk_output_final <- fread("../output/trk_output_final.csv")
 
-# Create facet labels for plotting
-pool_labels <- c("Atmosphere", "Deep ocean", "Detritus", "Anthropogenic emissions",
-                 "High-lat ocean", "Intermed. ocean",
-                 "Low-lat ocean", "Soil", "Vegetation")
-names(pool_labels) <- c("atmos_co2", "deep", "detritus_c", "earth_c", "HL", "intermediate",
-                        "LL", "soil_c", "veg_c")
-
-ssp_labels <- c("SSP126", "SSP245", "SSP370", "SSP585")
-names(ssp_labels) <- c(names(SSP_runs))
-
 ```
 
 ### Results
@@ -148,7 +138,7 @@ ggsave(plot = atm_fraction_plot, "../figures/figure4.png", height = 6, width = 9
 ```
 
 ``` {r cleanup-source, echo = FALSE}
-rm(list = c("atmosphere_pool", "ff", "atm_summary", "percent_summary",
+rm(list = c("ff", "atm_summary", "percent_summary",
             "atm_plot", "atm_fraction_plot"))
 gc()
 ```
@@ -168,13 +158,6 @@ dest_output$ssp <- runlist$ssp[dest_output$run_number]
 # Access good run numbers
 dest_output <- dest_output %>%
   filter(run_number %in% unique(trk_output_final$run_number))
-
-# Ordered pool labels for plotting
-o_pool_labels <- c("Atmosphere", "Soil", "Vegetation",  "Detritus",
-                   "High-lat ocean", "Low-lat ocean",
-                   "Intermed. ocean", "Deep ocean")
-names(o_pool_labels) <- c("atmos_co2", "soil_c", "veg_c",  "detritus_c",
-                          "HL", "LL", "intermediate", "deep")
 
 # Compute the mean destination fraction
 dest_average <- dest_output %>%
@@ -455,7 +438,7 @@ af_plot <- ggplot(af_plot_data, aes(x = year, fill = def)) +
        fill = "Computation") +
   theme(axis.text.x = element_text(angle = 90)) + 
   scale_x_continuous(expand = c(0, 0)) +
-  ylim(-0.5, 1.5); af_plot
+  ylim(-0.5, 1.5) ; af_plot
 
 # Compute average airborne fraction across all runs
 average_af <- classic_af %>%
