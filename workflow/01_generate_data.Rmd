@@ -161,7 +161,8 @@ run_hector <- function(pdata, c, sce) {
   
   out$results <- fetchvars(c, OUTPUT_YEARS, 
                            c("CO2_concentration", "RF_tot",
-                             "RF_CO2", "global_tas", "luc_emissions", "NBP")) %>% 
+                             "RF_CO2", "global_tas", "luc_emissions", 
+                             "NBP", "ocean_uptake")) %>% 
     # remove unneeded rows to shrink outputs
     filter(year %% SAVE_EVERY_YEARS == 0)
   
@@ -250,29 +251,12 @@ model_output <- bind_rows(results) %>% as_tibble()
 
 ```
 
-```{r destination-data}
-# To save memory in our main file, we manipulate the destination fraction code here
-# Step 1: compute source_quantity = pool_value * source_fraction
-# Step 2: for each year and source_name, compute destination_fraction
-
-dest_output <- trk_output %>%
-  filter(source_name == "earth_c", pool_name != "earth_c") %>%
-  mutate(source_quantity = pool_value * source_fraction) %>%
-  group_by(year, run_number) %>%
-  summarize(destination_fraction = source_quantity / sum(source_quantity),
-            pool_name = pool_name,
-            .groups = "drop") %>% 
-  ungroup()
-
-```
-
 # Save outputs
 
 ```{r output-files}
 fwrite(runlist, "../output/runlist.csv", row.names = FALSE)
 fwrite(model_output, "../output/model_output.csv", row.names = FALSE)
 fwrite(trk_output, "../output/trk_output.csv", row.names = FALSE)
-fwrite(dest_output, "../output/dest_output.csv", row.names = FALSE)
 ```
 
 `runlist` size = `r format(object.size(runlist), "Mb")`
