@@ -414,6 +414,7 @@ ggsave(plot = plot_out, filename = "../figures/figure1.png", height = 8, width =
 ``` {r cleanup-cmip, echo = FALSE}
 # Write out model output data, clean environment
 fwrite(model_output_final, "../output/model_output_final.csv", row.names = FALSE)
+final_runs <- unique(model_output_final$run_number)
 
 # Filter and write out tracking data
 trk_output <- fread("../output/trk_output.csv")
