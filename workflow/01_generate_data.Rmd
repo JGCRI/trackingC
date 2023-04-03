@@ -18,9 +18,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 
 ### R setup
 
-Load necessary packages, read in an ini file and initiate core, and set seed for reproducibility.
-
 ```{r intro, warning=FALSE, message=FALSE}
+# Load necessary packages, read in workflow settings
 library(hector)
 library(relaimpo)
 library(dplyr)
@@ -42,22 +41,6 @@ set.seed(10)
 
 ### Create runlist of parameter draws
 
-Currently, we are looking at seven Hector parameters: `BETA(), Q10_RH(), ECS(),
-NPP_FLUX0(), AERO_SCALE(), DIFFUSIVITY(), and a LUC emissions scalar`. 
-We created a runlist with `r SSP_runs[MAIN_SCENARIO]` random
-draws in a normal (or lognormal, where applicable) distribution.
-
-ECS (equilibrium climate sensitivity) and ocean heat diffusivity are 
-notably correlated with each other, so we use a joint PDF for these.  
-
-ECS is log-normally distributed, but we will transform it to fit a 
-normal distribution by taking the log of the entire distribution.
-If we do this, we can use MASS::mvrnorm() which saves us a LOT of work in
-writing a custom rejection sampling routine...  
-
-We will then transform the final values back to fit a lognormal distribution
-by taking the exponential of our ECS values
-
 ```{r runlist}
 # Create runlist of parameters of interest
 
@@ -70,28 +53,32 @@ lognorm <- function(m, sd){
 }
 
 # Function to create a tibble of random draws given a specified number to produce
+# All mean values are sourced from Hartin et al., 2015. References for the
+# uncertainty values are listed above each parameter.
 generate_params <- function(run_numbers){
   runs <- length(run_numbers)
   tibble(
     run_number = run_numbers,
-    # Jones et al ()
+    # Jones et al (2013)
     # Match prior of trendy models
-    "BETA" = rnorm(runs, mean = 0.28, sd = 0.1),
+    "BETA" = rnorm(runs, mean = 0.55, sd = 0.1),
     
     # Davidson and Janssens (2006)
-    "Q10_RH" = rlnorm(runs, lognorm(2.0, 1.0)[1], lognorm(2.0, 1.0)[2]),
+    "Q10_RH" = rlnorm(runs, lognorm(2.16, 1.0)[1], lognorm(2.16, 1.0)[2]),
     
     # Ito (2011)
     "NPP_FLUX0" = rnorm(runs, mean = 56.2, sd = 14.3),
     
     # Smith et al. (2020)
-    "AERO_SCALE" = rnorm(runs, mean = 1.01, sd = 0.23),
+    "AERO_SCALE" = rnorm(runs, mean = 1.0, sd = 0.23),
     
     # Land use change emissions scaling parameter, to account for uncertainties in values for LUC
     # Friedlingstein et al 2021 state: 
     # Cumulative CO2 emissions from land-use changes (ELUC) for 1850-2020 were 200 ± 65 GtC...
     # ...large spread among individual estimates of 140 GtC (updated H&N2017), 270 GtC (BLUE),
-    # and 195 GtC (OSCAR) for the three bookkeeping models and a similar wide estimate of 190 ± 60 GtC for the DGVMs
+    # and 195 GtC (OSCAR) for the three bookkeeping models and a similar wide 
+    # estimate of 190 ± 60 GtC for the DGVMs
+    
     # Cumulative LUC_EMISSIONS() in Hector from 1850 to 2020 total 168 GtC
     # We want to create a random distribution to scale our Hector emissions
     # to account for the large uncertainties
@@ -99,7 +86,27 @@ generate_params <- function(run_numbers){
     # Or, 0.83 < x < 1.61 
     # The following distribution roughly aligns with the above criteria
     # Using a lognormal distribution because we do not want negative or near-zero values
-    "LUC_SCALE" = rlnorm(runs, lognorm(1.3, 0.2)[1], lognorm(1.3, 0.2)[2])
+    "LUC_SCALE" = rlnorm(runs, lognorm(1.3, 0.2)[1], lognorm(1.3, 0.2)[2]),
+    
+    # Hector default mean +/- 10% s.d.
+    "DIFFUSIVITY" = rnorm(runs, mean = 1.18, sd = 0.118),
+    
+    # Sherwood et al (2020)
+    "ECS" = rlnorm(runs, lognorm(3.0, 0.65)[1], lognorm(3.0, 0.65)[2]),
+    
+    # Thermohaline overturning
+    # These are poorly constrained; here we use a +/- 10% s.d., following 
+    # Hartin (2015) and commensurate with other errors above
+    "TT" = rnorm(runs, mean = 7.2e+07, sd = 7.2e+06),
+    
+    # High-latitude overturning
+    "TU" = rnorm(runs, mean = 4.9e+07, sd = 4.9e+06),
+    
+    # Warm-intermediate exchange
+    "TWI" = rnorm(runs, mean = 1.25e+07, sd = 1.25e+06),
+    
+    # Intermediate-deep exchange
+    "TID" = rnorm(runs, mean = 2e+08, sd = 2e+07)
   )
 }
 
@@ -114,69 +121,14 @@ param_sce <- generate_params(runlist$run_number)
 runlist <- left_join(runlist, param_sce, by = "run_number")
 ```
 
-``` {r joint-params, fig.cap = " The final joint distribution of ECS and diffusivity. The individual parameter distributions are shown on the x and y axes."}
-# Joint PDF for ECS and diffusivity
-# Sherwood et al (2020)
-ecs_vals_lognorm <- rlnorm(nrow(runlist), 
-                           lognorm(3.25, 0.65)[1], 
-                           lognorm(3.25, 0.65)[2])
-# Transform ECS distribution to log(distribution)
-ecs_vals_to_norm <- log(ecs_vals_lognorm)
-diffusion_vals <- rnorm(nrow(runlist), mean = 2.3, sd = 0.23)
 
-DESIRED_PCOR <- -0.75  # ECS and diffusivity should be negatively correlated
-# https://en.wikipedia.org/wiki/Covariance_and_correlation
-# To calculate covariance from the desired correlation, multiply the 
-# correlation by the square of the variance of each variable - the standard deviation
-# https://web.stanford.edu/class/archive/cs/cs109/cs109.1178/lectureHandouts/150-covariance.pdf
-desired_cov <- DESIRED_PCOR * sd(ecs_vals_to_norm) * sd(diffusion_vals)
-# Set up the variance-covariance matrix
-Sigma <- matrix(c(var(ecs_vals_to_norm), 
-                  desired_cov, desired_cov, 
-                  var(diffusion_vals)),
-                2, 2)
-# ...and generate values--twice as many as needed because we toss out
-# negative ECS values below (see note above)
-joint_vals <- MASS::mvrnorm(n = nrow(runlist) * 2,
-                            c(mean(ecs_vals_to_norm),
-                              mean(diffusion_vals)), Sigma)
-colnames(joint_vals) <- c("ECS", "DIFFUSIVITY")
-jv <- as_tibble(joint_vals)
-
-# Filter and bind to the runlist
-jv %>% 
-  mutate(ECS = exp(ECS)) %>%
-  filter(ECS > 0) %>% 
-  sample_n(nrow(runlist)) %>%
-  bind_cols(runlist, .) ->
-  runlist
-
-# Visualize the final joint distribution of ECS and DIFFUSIVITY
-p <- ggplot(runlist, aes(ECS, DIFFUSIVITY)) + 
-  geom_point(alpha = 0.2) + 
-  geom_density_2d() +
-  ggtitle("Joint distribution of ECS and DIFFUSIVITY")
-ggExtra::ggMarginal(p, type = "histogram", alpha = 0.2)
-
-```
-
-``` {r log-dist, fig.cap = " Comparing the original, random, lognormal distribution for ECS with the final transformed version, the exponential of the log of ECS."}
-
-# Visualize proper lognormal versus transformed distributions for ECS
-tibble(lognorm = ecs_vals_lognorm, transformed = runlist$ECS) %>% 
-  pivot_longer(everything()) %>% 
-  ggplot(aes(value, fill = name)) + geom_density(alpha = 0.5) +
-  ggtitle("Comparison of (proper) lognormal with transformed distribution for ECS")
-```
-
-## Run the model
-
-Run the model and store outputs and tracking data.
+## Run the model, store outputs and tracking data.
 
 ```{r functions, cache=TRUE}
 run_hector <- function(pdata, c, sce) {
   
-  # Function to set multiple parameter values for Hector, run a core, and retrieve tracking data
+  # Function to set multiple parameter values for Hector, run a core, and 
+  # retrieve tracking data
   # pdata will be the runlist specified above
   # c is a Hector newcore environment
   
@@ -209,7 +161,8 @@ run_hector <- function(pdata, c, sce) {
   
   out$results <- fetchvars(c, OUTPUT_YEARS, 
                            c("CO2_concentration", "RF_tot",
-                             "RF_CO2", "global_tas", "luc_emissions")) %>% 
+                             "RF_CO2", "global_tas", "luc_emissions", 
+                             "NBP", "ocean_uptake")) %>% 
     # remove unneeded rows to shrink outputs
     filter(year %% SAVE_EVERY_YEARS == 0)
   
@@ -282,8 +235,6 @@ or `r round(tm / (sum(SSP_runs)), 1)` s/job.
 
 ## Process data
 
-Get lists from above into nice dataframes.
-
 ```{r data}
 if(!length(out)) {
   stop("No output data; probably no model runs were done because cache=TRUE?")
@@ -300,29 +251,12 @@ model_output <- bind_rows(results) %>% as_tibble()
 
 ```
 
-```{r destination-data}
-# To save memory in our main file, we manipulate the destination fraction code here
-# Step 1: compute source_quantity = pool_value * source_fraction
-# Step 2: for each year and source_name, compute destination_fraction
-
-dest_output <- trk_output %>%
-  filter(source_name == "earth_c", pool_name != "earth_c") %>%
-  mutate(source_quantity = pool_value * source_fraction) %>%
-  group_by(year, run_number) %>%
-  summarize(destination_fraction = source_quantity / sum(source_quantity),
-            pool_name = pool_name,
-            .groups = "drop") %>% 
-  ungroup()
-
-```
-
 # Save outputs
 
 ```{r output-files}
 fwrite(runlist, "../output/runlist.csv", row.names = FALSE)
 fwrite(model_output, "../output/model_output.csv", row.names = FALSE)
 fwrite(trk_output, "../output/trk_output.csv", row.names = FALSE)
-fwrite(dest_output, "../output/dest_output.csv", row.names = FALSE)
 ```
 
 `runlist` size = `r format(object.size(runlist), "Mb")`
