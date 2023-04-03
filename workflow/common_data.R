@@ -1,7 +1,5 @@
 # Settings used by all workflow files.
 
-library(hector)
-
 # Define name and units of all parameters
 name_vector <- c("BETA" = BETA(),
                  "Q10_RH" = Q10_RH(), 
@@ -30,13 +28,9 @@ units_vector <- c("BETA" = "(unitless)",
 scalar_vector <- "LUC_SCALE"
 
 # Number of runs for each SSP scenario
-SSP_runs <- c(#"ssp119" = 100,
-              "ssp126" = 3750,
+SSP_runs <- c("ssp126" = 3750,
               "ssp245" = 3750,
               "ssp370" = 3750,
-              #"ssp434" = 100,
-              #"ssp460" = 2000,
-              #"ssp534-over" = 100,
               "ssp585" = 3750)
 
 # We use GitHub Actions to make sure this RMarkdown knits successfully

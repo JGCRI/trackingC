@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # Supplementary and extra figures
 
 ```{r intro, warning=FALSE, message=FALSE}
+# Load necessary packages, read in workflow settings
 library(dplyr)
 library(tidyr)
 library(ggplot2)
@@ -143,16 +144,6 @@ for(d in dates){
 
 all_years_tracking <- bind_rows(tracking_output)
 
-# Plot the fraction of the atmosphere that is sourced from earth_c
-# all_years_tracking %>%
-#   filter(source_name == "earth_c",
-#          pool_name == "atmos_co2") %>%
-#   ggplot(aes(year, source_fraction, color = ty, group = ty)) +
-#   geom_line() +
-#   labs(x = "Year",
-#        y = "Source fraction") +
-#   scale_color_viridis_c()
-
 # Ordered pool labels for plotting
 o_pool_labels <- c("Atmosphere", "Soil", "Vegetation",  "Detritus",
                    "High-lat ocean", "Low-lat ocean",
@@ -184,38 +175,5 @@ all_years_tracking %>%
                     breaks = names(o_pool_labels),
                     labels = o_pool_labels) +
   theme(axis.text.x = element_text(angle = 90))
-
-```
-
-## LUC emissions comparison
-
-``` {r luc}
-# LUC comparison
-luc <- model_output %>%
-  filter(year %in% 1960:2020,
-         variable == "luc_emissions")
-
-# Compute average LUC emissions by scenario  
-luc_avg <- luc %>%
-  group_by(ssp) %>%
-  summarize(avg = mean(value))
-
-# Compute LUC emissions trend, join with luc_avg
-luc_trend <- luc %>%
-  group_by(ssp) %>%
-  do(mod = lm(value ~ year, data = .)) %>%
-  summarize(ssp = ssp,
-            broom::tidy(mod)) %>%
-  # Extract only the slope, not the intercept term
-  filter(term == "year") %>%
-  left_join(luc_avg, by = "ssp")
-
-# Organize data, make table
-luc_trend %>%
-  select(ssp,
-         luc_trend = estimate,
-         error = std.error,
-         avg) %>%
-  knitr::kable()
 
 ```

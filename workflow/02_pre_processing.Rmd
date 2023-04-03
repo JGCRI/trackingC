@@ -19,6 +19,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 ## R setup
 
 ```{r intro, warning=FALSE, message=FALSE}
+# Load necessary packages, read in workflow settings
 library(hector)
 library(tidyr)
 library(ggplot2)
@@ -159,8 +160,6 @@ cmip_c_scenarios <- cmip_co2_scenarios %>%
             maximum = max(value),
             med = median(value)) %>%
   mutate(source = "CMIP6")
-  # arrange(ssp, year)
-
 
 # Create bounds using historical data and the standard deviation of the CMIP6 models
 cmip_bounds_co2_hist <- cmip_co2_hist %>%
@@ -185,7 +184,7 @@ co2_hist_plot <- run_fail_plot(model_output, fails_co2_hist, 125, "CO2_concentra
               var_ssp = NULL) +
   ylab("ppm")
 
-ggsave(plot = co2_hist_plot, filename = "./figures/hist_co2_fails.png", height = 6, width = 9, units = "in")
+ggsave(plot = co2_hist_plot, filename = "../figures/hist_co2_fails.png", height = 6, width = 9, units = "in")
 
 ```
 
@@ -231,7 +230,6 @@ cmip_t_scenarios <- cmip_sce %>%
             maximum = max(value),
             med = median(value)) %>%
   mutate(source = "CMIP6")
-  # arrange(ssp, year)
 
 # Need to append the historical values to each SSP
 # Add SSP column to historical data, repeat for all scenarios
@@ -243,12 +241,11 @@ for(n in names(SSP_files)){
 cmip_hist_repeat <- bind_rows(cmip_hist_repeat_t)
 
 cmip_t_final <- bind_rows(cmip_hist_repeat, cmip_t_scenarios)
-  #arrange(ssp, year)
 
 # Create bounds
 cmip_bounds_t <- select(cmip_t_final, ssp, year, minimum, maximum)
 
-# Seperate into historical and future
+# Separate into historical and future
 cmip_t_hist <- filter(cmip_t_final, year <= 2014)
 cmip_t_future <- filter(cmip_t_final, year > 2014)
 
@@ -268,7 +265,7 @@ hist_tas_fails <- run_fail_plot(model_output, fails_cmip6tas_hist, 125, "global_
               var_ssp = NULL) +
   ylab("°C")
 
-ggsave(plot = hist_tas_fails, filename = "hist_tas_fails.png", height = 6, width  = 9, units = "in")
+ggsave(plot = hist_tas_fails, filename = "../figures/hist_tas_fails.png", height = 6, width  = 9, units = "in")
 
 fails_cmip6tas_future <- run_failures("CMIP6 future TAS",
                                       model_output, 
@@ -287,7 +284,7 @@ future_tas_fails <- run_fail_plot(model_output, fails_cmip6tas_future, 125, "glo
   ylab("°C")
 
 
-ggsave(plot = future_tas_fails, filename = "future_tas_fails.png", height = 6, width  = 9, units = "in")
+ggsave(plot = future_tas_fails, filename = "../figures/future_tas_fails.png", height = 6, width  = 9, units = "in")
 ```
 
 ## Land and ocean C sinks 
@@ -315,7 +312,7 @@ fails_landsink <- run_failures("GCP land sink",
                                var_ssp = NULL,
                                max_out_frac = MAX_FAILFRAC_HISTORICAL)
 
-p <- run_fail_plot(model_output, fails_landsink, 125, "NBP",
+landsink_fails <- run_fail_plot(model_output, fails_landsink, 125, "NBP",
                    sinks$Year,
                    sinks$land_sink_low,
                    sinks$land_sink_high,
@@ -339,10 +336,8 @@ oceansink_fails <- run_fail_plot(model_output, fails_oceansink, 125, "ocean_upta
               var_ssp = NULL) +
   ylab(expression(CO[2]~flux~~(Gt~yr^-1)))
 
-print(p + ggtitle(paste(p$labels$title, "with GCP_SD_X =", GCP_SD_X)))
-
-ggsave(plot = p, filename = "landsink_fails.png", height = 6, width  = 9, units = "in")
-ggsave(plot = oceansink_fails, filename = "oceansink_fails.png", height = 6, width  = 9, units = "in")
+ggsave(plot = landsink_fails, filename = "../figures/landsink_fails.png", height = 6, width  = 9, units = "in")
+ggsave(plot = oceansink_fails, filename = "../figures/oceansink_fails.png", height = 6, width  = 9, units = "in")
 ```
 
 
@@ -407,109 +402,9 @@ fail_summary %>%
 
 ```{r plots}
 # Figure 1
-plot_out <- gridExtra::grid.arrange(p, oceansink_fails, hist_tas_fails, future_tas_fails, co2_hist_plot)
+plot_out <- gridExtra::grid.arrange(landsink_fails, oceansink_fails, hist_tas_fails, future_tas_fails, co2_hist_plot)
 
-ggsave(plot = plot_out, filename = "figure1.png", height = 8, width = 10, units = "in")
-
-# Old
-# CO2 
-# Read in filtered Hector data, compute summary statistics
-hector_co2_summary <- model_output_final %>%
-  filter(variable == "CO2_concentration",
-         year %in% HISTORICAL_CO2_YEARS,
-         ssp == MAIN_SCENARIO) %>%
-  select(run_number, year, value) %>%
-  group_by(year) %>%
-  summarize(sdev = sd(value),
-            minimum = min(value),
-            maximum = max(value),
-            med = median(value),
-            source = "Hector",
-            .groups = "drop")
-
-# Combine data
-plot_data_co2 <- bind_rows(cmip_bounds_co2_hist, hector_co2_summary)
-
-# Plot
-co2_plot <- plot_data_co2 %>%
-  filter(year < 2015) %>%
-  ggplot(aes(year, fill = source, color = source)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
-  geom_line(aes(y = med), size = 2) +
-  geom_line(data = noaa_co2, aes(year, mean), size = 2) +
-  scale_color_manual(breaks = c("CMIP6", "Hector", "NOAA"),
-                     values = c("#dfc27d", "#01665e", "#bf812d")) +
-  scale_fill_manual(breaks = c("CMIP6", "Hector", "NOAA"),
-                    values = c("#dfc27d", "#01665e", "#bf812d")) +
-  labs(x = "Year",
-       y = expression(Atmospheric~CO[2]~(ppm)),
-       color = "Source",
-       fill = "Source") +
-  scale_x_continuous(expand = c(0, 0)) ; co2_plot
-
-ggsave(plot = co2_plot, "../figures/figure1.png", height = 6, width = 9, units = "in")
-
-# Temperature
-# Plot temperature spreads for each scenario, Hector vs CMIP6
-temp_plot_data <- model_output_final %>%
-  filter(variable == "global_tas",
-         year >= 1850 & year <= 2100) %>%
-  # compute median, min, max, etc. for all remaining runs
-  group_by(year, ssp) %>%
-  summarize(sdev = sd(value),
-            minimum = min(value),
-            maximum = max(value),
-            med = median(value), .groups = "drop") %>% 
-  # combine with CMIP6 data
-  mutate(source = "Hector") %>%
-  bind_rows(cmip_t_final)
-
-# Plot historical...
-temp_plot_hist <- temp_plot_data %>% 
-  filter(year <= 2015) %>%
-  ggplot(aes(year, fill = source, color = source)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
-  geom_line(aes(y = med), size = 1) +
-  scale_color_manual(breaks = c("CMIP6", "Hector"),
-                     values = c("#dfc27d", "#01665e")) +
-  scale_fill_manual(breaks = c("CMIP6", "Hector"),
-                    values = c("#dfc27d", "#01665e")) +
-  facet_wrap(~ssp, scales = "free",
-             labeller = labeller(ssp = ssp_labels),
-             ncol = 2) +
-  labs(x = "Year",
-       y = expression(Temperature~anomaly~~(degree*C)),
-       color = "Source",
-       fill = "Source") +
-  theme(axis.text.x = element_text(angle = 90)) +
-  scale_x_continuous(expand = c(0, 0)) ; temp_plot_hist
-
-# ...and plot future
-temp_plot_ssp <- temp_plot_data %>% 
-  filter(year >= 2015) %>%
-  ggplot(aes(year, fill = source, color = source)) +
-  geom_ribbon(aes(ymin = minimum, ymax = maximum), alpha = 0.15, color = NA) +
-  geom_ribbon(aes(ymin = med - sdev, ymax = med + sdev), alpha = 0.5, color = NA) +
-  geom_line(aes(y = med), size = 1) +
-  scale_color_manual(breaks = c("CMIP6", "Hector"),
-                     values = c("#dfc27d", "#01665e")) +
-  scale_fill_manual(breaks = c("CMIP6", "Hector"),
-                    values = c("#dfc27d", "#01665e")) +
-  facet_wrap(~ssp, scales = "free",
-             labeller = labeller(ssp = ssp_labels),
-             ncol = 2) +
-  labs(x = "Year",
-       y = expression(Temperature~anomaly~~(degree*C)),
-       color = "Source",
-       fill = "Source") +
-  theme(axis.text.x = element_text(angle = 90)) +
-  scale_x_continuous(expand = c(0, 0)) ; temp_plot_ssp
-
-
-ggsave(plot = temp_plot_hist, "../figures/figure2a.png", height = 6, width = 9, units = "in")
-ggsave(plot = temp_plot_ssp, "../figures/figure2b.png", height = 6, width = 9, units = "in")
+ggsave(plot = plot_out, filename = "../figures/figure1.png", height = 8, width = 10, units = "in")
 
 ```
 

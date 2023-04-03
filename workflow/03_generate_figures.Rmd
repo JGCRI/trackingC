@@ -18,9 +18,8 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 
 ### R setup
 
-Load necessary packages, read in an ini file and initiate core, and set seed for reproducibility.
-
 ```{r intro, warning=FALSE, message=FALSE}
+# Load necessary packages, read in workflow settings
 library(hector)
 library(relaimpo)
 library(dplyr)
@@ -43,8 +42,6 @@ trk_output_final <- fread("../output/trk_output_final.csv")
 ```
 
 ### Results
-
-# Primary figures
 
 ## Sources of atmospheric CO~2~
 
@@ -117,6 +114,7 @@ ff <- atmosphere_pool %>%
 
 rm(atmosphere_pool)
 
+# Plot
 atm_fraction_plot <- ggplot(ff, aes(year,  fill = ssp)) +
   geom_line(aes(y = sf_median, color = ssp), size = 1) +
   geom_ribbon(aes(ymin = sf_median - sf_sd, ymax = sf_median + sf_sd), alpha = 0.5) +
@@ -132,8 +130,8 @@ atm_fraction_plot <- ggplot(ff, aes(year,  fill = ssp)) +
        fill = "Scenario") +
   scale_x_continuous(expand = c(0, 0)) ; atm_fraction_plot
 
+# Save figure
 ggsave(plot = atm_fraction_plot, "../figures/figure4.png", height = 6, width = 9, units = "in")
-
 
 ```
 
@@ -528,15 +526,52 @@ write.csv("../output/percent_runs_negative_af.csv")
 
 ggsave(plot = af_trend_plot, "../figures/figure8.png", height = 6, width = 9, units = "in")
 
-```
+# Calculate land-borne and ocean-borne fractions
+model_output <- fread("../output/model_output_final.csv")
+  
+# Ocean
+ocean <- model_output %>%
+  filter(variable == "ocean_uptake",
+         run_number %in% unique(atm_earth_diffs$run_number),
+         year %in% 1959:2015) %>%
+  pivot_wider(names_from = "variable", values_from = "value") %>%
+  group_by(run_number) %>%
+  mutate(ocean_diff = c(NA, diff(ocean_uptake)))
 
-`r af_negative`% of the runs had a negative AF trend.
+oceanborne <- left_join(ocean, filter(atm_earth_diffs, year %in% 1960:2015)) %>%
+  select(-atmos_co2, -atm_diff) %>%
+  filter(year > 1959) %>%
+  group_by(run_number, ssp) %>%
+  summarize(ocean_uptake = ocean_uptake,
+            earth_diff = earth_diff,
+            ocean_frac = ocean_uptake / earth_diff,
+            ocean_percent = ocean_frac * 100)
 
-``` {r cleanup-af, echo = FALSE}
-rm(list = c("atm_earth_diffs", "af_results", "min_runs", "emissions", 
-            "emissions_fraction", "classic_af", "af_plot_data", "af_plot", 
-            "average_af", "af", "af_trend", "af_trend_plot", "a_stats", 
-            "af_negative", "a", "luc", "luc_avg", "luc_trend"))
+mean_ocean <- oceanborne %>%
+  ungroup %>%
+  summarize(avg = mean(ocean_percent))
+
+# Land
+land <- model_output %>%
+  filter(variable == "NBP",
+         run_number %in% unique(atm_earth_diffs$run_number),
+         year %in% 1959:2015) %>%
+  pivot_wider(names_from = "variable", values_from = "value") %>%
+  group_by(run_number) %>%
+  mutate(land_diff = c(NA, diff(NBP)))
+
+landborne <- left_join(land, filter(atm_earth_diffs, year %in% 1960:2015)) %>%
+  select(-atmos_co2, -atm_diff) %>%
+  filter(year > 1959) %>%
+  group_by(run_number, ssp) %>%
+  summarize(NBP = NBP,
+            earth_diff = earth_diff,
+            land_frac = NBP / earth_diff,
+            land_percent = land_frac * 100)
+
+mean_land <- landborne %>%
+  ungroup() %>%
+  summarize(avg = mean(land_percent))
 
 ```
 
