@@ -2,7 +2,7 @@
 [![Rmarkdown](https://github.com/JGCRI/trackingC/workflows/Rmarkdown/badge.svg)](https://github.com/JGCRI/trackingC/actions)
 <!-- badges: end -->
 
-_your zenodo badge here_
+<a href="https://zenodo.org/badge/latestdoi/440213698"><img src="https://zenodo.org/badge/440213698.svg" alt="DOI"></a>
 
 # Pressburger-etal_2022_journal
 
@@ -38,7 +38,7 @@ TBD.
 ## Contributing modeling software
 | Model | Version | Repository Link | DOI |
 |-------|---------|-----------------|-----|
-| Hector | 3.0.0 | https://github.com/JGCRI/hector | TBD |
+| Hector | 3.0.0 | https://github.com/JGCRI/hector | 10.5281/zenodo.7617326 |
 
 
 ## Reproduce my experiment
@@ -65,5 +65,5 @@ Use these scripts found in the `workflow` directory to reproduce the figures use
 | --- | --- | --- |
 | `02_pre_processing.Rmd` | Script to generate calibration figures (CO2 and temperature) and produce updated output data |
 | `03_generate_figures.Rmd` | Script to generate primary report figures |
-| `04_supplementary_figures.Rmd` | Script to generate supplementary report figures | 
+| `04_supplementary_figures.Rmd` | Script to generate extra figures | 
 
