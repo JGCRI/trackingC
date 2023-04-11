@@ -419,7 +419,7 @@ final_runs <- unique(model_output_final$run_number)
 # Filter and write out tracking data
 trk_output <- fread("../output/trk_output.csv")
 trk_output$ssp <- runlist$ssp[trk_output$run_number]
-if_else(Sys.getenv("CI") != "true") {  # if not running low-N on GitHub Actions
+if(Sys.getenv("CI") != "true") {  # if not running low-N on GitHub Actions
     trk_output_final <- filter(trk_output, run_number %in% final_runs)
 } else {
   trk_output_final <- trk_output
